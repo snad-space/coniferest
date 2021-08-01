@@ -3,6 +3,14 @@ import numpy as np
 
 class Dataset:
     def __init__(self, data, labels):
+        """
+        * Dataset is an o-by-f array, where o is objects and f is features.
+
+        * Labels is a one-dimentional o array with three types of labels:
+            * -1 for anomalies,
+            * 0 for unknowns,
+            * 1 for regular data.
+        """
         self.data = data
         self.labels = labels
 
