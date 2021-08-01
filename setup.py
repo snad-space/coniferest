@@ -11,7 +11,8 @@ extensions = [Extension("coniferest.calc_mean_paths",
                         )]
 
 
-setup(name='Coniferous forests for better machine learning',
+setup(name='coniferest',
+      description='Coniferous forests for better machine learning',
       version='dev',
       author='Vladimir Korolev',
       author_email='balodja@gmail.com',
