@@ -5,10 +5,11 @@ cimport numpy as np
 cimport cython
 
 
-def calc_mean_paths(selectors, indices, data):
-    paths = np.zeros(data.shape[0])
+def calc_mean_paths(selector_t [::1] selectors, np.int64_t [::1] indices, floating [:, ::1] data):
+    cdef np.ndarray [np.double_t, ndim=1] paths = np.zeros(data.shape[0])
+    cdef np.float64_t [::1] paths_view = paths
     # TODO: check data consistency
-    _mean_paths(selectors, indices, data, paths)
+    _mean_paths(selectors, indices, data, paths_view)
     return paths
 
 
@@ -16,8 +17,8 @@ def calc_mean_paths(selectors, indices, data):
 @cython.wraparound(False)
 cdef void _mean_paths(selector_t [::1] selectors,
                          np.int64_t [::1] indices,
-                         np.double_t [:, ::1] data,
-                         np.double_t [::1] paths):
+                         floating [:, ::1] data,
+                         np.float64_t [::1] paths):
 
     cdef Py_ssize_t trees
     cdef Py_ssize_t tree_index
