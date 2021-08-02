@@ -95,9 +95,15 @@ class Coniferest:
         return tree
 
     def fit(self, data, labels=None):
+        """
+        Fit to the applied data.
+        """
         raise NotImplementedError()
 
     def score_samples(self, samples):
+        """
+        Evaluate scores for samples.
+        """
         raise NotImplementedError()
 
 

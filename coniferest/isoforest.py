@@ -21,9 +21,9 @@ class Isoforest(Coniferest):
 
 
 class IsoforestAnomalyDetector(AnomalyDetector):
-    def __init__(self, title='Isolation Forest', **kwargs):
+    def __init__(self, isoforest, title='Isolation Forest'):
         super().__init__(title)
-        self.isoforest = Isoforest(**kwargs)
+        self.isoforest = isoforest
 
     def train(self, data):
         return self.isoforest.fit(data)
