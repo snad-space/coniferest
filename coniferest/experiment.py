@@ -98,7 +98,7 @@ class AnomalyDetectionExperiment:
         COLORS = self.COLORS
 
         images = []
-        for i, outlier, trace in zip(count(), self.trajectory, self.trace):
+        for i, trace in zip(count(), self.trace):
             fig = Figure()
             canvas = FigureCanvas(fig)
 
@@ -127,8 +127,8 @@ class AnomalyDetectionExperiment:
             canvas.draw()
             size = (int(canvas.renderer.width), int(canvas.renderer.height))
             s = canvas.tostring_rgb()
+            image = Image.frombytes('RGB', size, s)
 
-            image = Image.frombytes('RGB', size, canvas.tostring_rgb())
             images.append(image)
             del canvas
             del fig
