@@ -7,7 +7,12 @@ cdef packed struct selector_t:
     np.int32_t right
 
 
+ctypedef fused floating:
+    np.float32_t
+    np.float64_t
+
+
 cdef void _mean_paths(selector_t [::1] selectors,
                          np.int64_t [::1] indices,
-                         np.double_t [:, ::1] data,
-                         np.double_t [::1] paths)
+                         floating [:, ::1] data,
+                         np.float64_t [::1] paths)
