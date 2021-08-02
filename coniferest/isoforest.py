@@ -11,7 +11,7 @@ class Isoforest(Coniferest):
         self.n_trees = n_trees
         self.evaluator = None
 
-    def fit(self, data):
+    def fit(self, data, labels=None):
         self.trees = self.build_trees(data, self.n_trees)
         self.evaluator = ConiferestEvaluator(self)
         return self

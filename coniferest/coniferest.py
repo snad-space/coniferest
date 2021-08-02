@@ -19,8 +19,8 @@ RAND_R_MAX = 0x7FFFFFFF
 
 
 class Coniferest:
-    def __init__(self, trees, n_subsamples=256, max_depth=None, random_seed=None):
-        self.trees = trees
+    def __init__(self, trees=None, n_subsamples=256, max_depth=None, random_seed=None):
+        self.trees = trees or []
         self.n_subsamples = n_subsamples
         self.max_depth = max_depth or int(np.log2(n_subsamples))
 
@@ -94,7 +94,7 @@ class Coniferest:
 
         return tree
 
-    def fit(self, data):
+    def fit(self, data, labels=None):
         raise NotImplementedError()
 
     def score_samples(self, samples):
