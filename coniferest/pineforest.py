@@ -4,6 +4,8 @@ from .coniferest import Coniferest, ConiferestEvaluator
 from .experiment import AnomalyDetector
 from .utils import average_path_length
 
+from sklearn.tree._tree import DTYPE as TreeDTYPE  # noqa
+
 
 class PineForest(Coniferest):
     def __init__(self,
@@ -56,10 +58,10 @@ class PineForest(Coniferest):
                 known_labels is None or len(known_labels) == 0 or \
                 np.all(known_labels) == 0:
             self._expand_trees(data, self.n_trees)
-            return
+        else:
+            self._expand_trees(data, self.n_trees + self.n_spare_trees)
+            self._contract_trees(known_data, known_labels, self.n_trees)
 
-        self._expand_trees(data, self.n_trees + self.n_spare_trees)
-        self._contract_trees(known_data, known_labels, self.n_trees)
         self.evaluator = ConiferestEvaluator(self)
 
     @staticmethod
@@ -84,6 +86,8 @@ class PineForest(Coniferest):
         weight_ratio
             Weight of the false positive experience relative to false negative. Defaults to 1.
         """
+        data = np.asarray(data, dtype=TreeDTYPE)
+
         n_samples, _ = data.shape
         n_trees = len(trees)
 
