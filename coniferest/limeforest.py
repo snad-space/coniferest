@@ -6,7 +6,7 @@ from .evaluator import ForestEvaluator
 # Implemented purely with the educational purpose.
 
 
-class RandomPineForest:
+class RandomLimeForest:
     def __init__(self, trees=100, subsamples=256, depth=None, seed=0):
         self.subsamples = subsamples
         self.trees = trees
@@ -29,7 +29,7 @@ class RandomPineForest:
         seeds = self.seedseq.spawn(self.trees)
         for i in range(self.trees):
             subs = self.rng.choice(n, self.subsamples)
-            gen = RandomPineGenerator(data[subs, :], self.depth, seeds[i])
+            gen = RandomLimeGenerator(data[subs, :], self.depth, seeds[i])
             self.estimators[i] = gen.pine
 
         return self
@@ -48,7 +48,7 @@ class RandomPineForest:
         return - 2 ** (-means / average_path_length(self.subsamples))
 
 
-class RandomPine:
+class RandomLime:
     def __init__(self, features, selectors, values):
         self.features = features
         self.len = selectors.shape[0]
@@ -82,7 +82,7 @@ class RandomPine:
         return paths
 
 
-class RandomPineGenerator:
+class RandomLimeGenerator:
     def __init__(self, sample, depth, seed=0):
         self.depth = depth
         self.features = sample.shape[1]
@@ -93,7 +93,7 @@ class RandomPineGenerator:
 
         self._populate(1, sample)
 
-        self.pine = RandomPine(self.features, self.selectors, self.values)
+        self.pine = RandomLime(self.features, self.selectors, self.values)
 
     def _populate(self, i, sample):
 
@@ -104,6 +104,7 @@ class RandomPineGenerator:
         if self.length <= 2 * i:
             self.values[i] = np.floor(np.log2(i)) + \
                              average_path_length(sample.shape[0])
+
             return
 
         selector = self.rng.integers(self.features)
@@ -114,7 +115,8 @@ class RandomPineGenerator:
         if minval == maxval:
             self.selectors[i] = -1
             self.values[i] = np.floor(np.log2(i)) + \
-                             average_path_length(sample.shape[0])
+                average_path_length(sample.shape[0])
+
             return
 
         value = self.rng.uniform(minval, maxval)
@@ -124,7 +126,7 @@ class RandomPineGenerator:
         self._populate(2 * i + 1, sample[sample[:, selector] > value])
 
 
-class PineEvaluator(ForestEvaluator):
+class LimeEvaluator(ForestEvaluator):
     def __init__(self, pine_forest):
         pines = pine_forest.estimators
         self.trees = len(pines)
@@ -134,7 +136,7 @@ class PineEvaluator(ForestEvaluator):
         selectors, indices = self.combine_selectors(
             [self.extract_selectors(pine) for pine in pines])
 
-        super(PineEvaluator, self).__init__(
+        super(LimeEvaluator, self).__init__(
             samples=pine_forest.subsamples,
             selectors=selectors,
             indices=indices)
