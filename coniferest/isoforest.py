@@ -2,7 +2,7 @@ from .coniferest import Coniferest, ConiferestEvaluator
 from .experiment import AnomalyDetector
 
 
-class Isoforest(Coniferest):
+class IsolationForest(Coniferest):
     def __init__(self, n_trees=100, n_subsamples=256, max_depth=None, random_seed=None):
         super().__init__(trees=[],
                          n_subsamples=n_subsamples,
@@ -20,7 +20,7 @@ class Isoforest(Coniferest):
         return self.evaluator.score_samples(samples)
 
 
-class IsoforestAnomalyDetector(AnomalyDetector):
+class IsolationForestAnomalyDetector(AnomalyDetector):
     def __init__(self, isoforest, title='Isolation Forest'):
         super().__init__(title)
         self.isoforest = isoforest
