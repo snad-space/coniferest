@@ -1,17 +1,15 @@
 import numpy as np
-from sklearn.ensemble import IsolationForest
 from ..evaluator import ForestEvaluator
-from ..experiment import AnomalyDetector
 from ..utils import average_path_length
 
 
-class IsoforestEvaluator(ForestEvaluator):
+class IsolationForestEvaluator(ForestEvaluator):
 
     def __init__(self, isoforest):
         selectors_list = [self.extract_selectors(e) for e in isoforest.estimators_]
         selectors, indices = self.combine_selectors(selectors_list)
 
-        super(IsoforestEvaluator, self).__init__(
+        super(IsolationForestEvaluator, self).__init__(
             samples=isoforest.max_samples_,
             selectors=selectors,
             indices=indices)
@@ -40,20 +38,3 @@ class IsoforestEvaluator(ForestEvaluator):
         correct_values(0, 0)
 
         return selectors
-
-
-class ClassicIsoforestAnomalyDetector(AnomalyDetector):
-    def __init__(self, title='Classic Isolation Forest', **kwargs):
-        super().__init__(title)
-        self.isoforest = IsolationForest(**kwargs)
-
-    def train(self, data):
-        return self.isoforest.fit(data)
-
-    def score(self, data):
-        return self.isoforest.score_samples(data)
-
-    def observe(self, point, label):
-        super().observe(point, label)
-        # do nothing, it's classic, you know
-        return False
