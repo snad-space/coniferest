@@ -1,15 +1,26 @@
 import numpy as np
+from enum import IntEnum
+
+
+class Label(IntEnum):
+    """
+    Three types of labels:
+        * -1 for anomalies,
+        * 0 for unknowns,
+        * 1 for regular data.
+    """
+    ANOMALY = -1
+    A = ANOMALY
+    UNKNOWN = 0
+    U = UNKNOWN
+    REGULAR = 1
+    R = REGULAR
 
 
 class Dataset:
     def __init__(self, data, labels):
         """
-        * Dataset is an o-by-f array, where o is objects and f is features.
-
-        * Labels is a one-dimentional o array with three types of labels:
-            * -1 for anomalies,
-            * 0 for unknowns,
-            * 1 for regular data.
+        Dataset is an o-by-f array, where o is objects and f is features.
         """
         self.data = data
         self.labels = labels
@@ -19,7 +30,7 @@ class MalanchevDataset(Dataset):
     def __init__(self, inliers=2**10, outliers=2**5, regions=None, seed=0):
         self.inliers = inliers
         self.outliers = outliers
-        regions = regions or np.array([1, 1, -1])
+        regions = regions or np.array([Label.R, Label.R, Label.A])
         self.regions = regions
         
         rng = np.random.default_rng(0)

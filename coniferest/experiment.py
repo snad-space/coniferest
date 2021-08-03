@@ -9,6 +9,8 @@ from matplotlib.backends.backend_agg import FigureCanvas  # noqa
 
 from PIL import Image
 
+from .datasets import Label
+
 
 class AnomalyDetector:
     def __init__(self, title):
@@ -79,7 +81,7 @@ class AnomalyDetectionExperiment:
 
             # Keep the anomaly predictions at each point
             knowns[outlier] = ordering[:n_anomalies + n_misses]
-            if data_labels[outlier] == 1:
+            if data_labels[outlier] == Label.REGULAR:
                 n_misses += 1
 
             # ... and observe it

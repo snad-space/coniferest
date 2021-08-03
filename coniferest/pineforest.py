@@ -3,6 +3,7 @@ import numpy as np
 from .coniferest import Coniferest, ConiferestEvaluator
 from .experiment import AnomalyDetector
 from .utils import average_path_length
+from .datasets import Label
 
 from sklearn.tree._tree import DTYPE as TreeDTYPE  # noqa
 
@@ -42,12 +43,14 @@ class PineForest(Coniferest):
                                            weight_ratio=self.weight_ratio)
 
     def fit(self, data, labels=None):
+        # If no labels were supplied, train with them.
         if labels is None:
             self.fit_known(data)
             return
 
+        # Otherwise select known data, and train on it.
         labels = np.asarray(labels)
-        index = labels != 0
+        index = labels != Label.UNKNOWN
         self.fit_known(data, data[index, :], labels[index])
 
     def fit_known(self, data, known_data=None, known_labels=None):
@@ -56,7 +59,7 @@ class PineForest(Coniferest):
 
         if known_data is None or len(known_data) == 0 or \
                 known_labels is None or len(known_labels) == 0 or \
-                np.all(known_labels) == 0:
+                np.all(known_labels == Label.UNKNOWN):
             self._expand_trees(data, self.n_trees)
         else:
             self._expand_trees(data, self.n_trees + self.n_spare_trees)
@@ -102,7 +105,7 @@ class PineForest(Coniferest):
                 average_path_length(n_samples_leaf) - 1
 
         weights = labels.copy()
-        weights[labels == 1] = weight_ratio
+        weights[labels == Label.REGULAR] = weight_ratio
         weighted_paths = (heights * np.reshape(weights, (-1, 1))).sum(axis=0)
         indices = weighted_paths.argsort()[n_filter:]
 
@@ -141,4 +144,4 @@ class PineForestAnomalyDetector(AnomalyDetector):
     def observe(self, point, label):
         super().observe(point, label)
         self.retrain()
-        return label == 1 and self.lazy_training
+        return label == Label.REGULAR or not self.lazy_training
