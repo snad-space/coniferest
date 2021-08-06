@@ -27,6 +27,7 @@ class IsoforestResults:
 
         forest = IsolationForest(n_trees=trees, random_seed=seed + 1)
         self.scores = self.calc_forest_scores(forest, data)
+        self.forest = forest
 
         forest = SkIsolationForest(n_estimators=trees, random_state=seed + 2)
         self.skores0 = self.calc_forest_scores(forest, data)
@@ -57,3 +58,15 @@ def test_isolation_forest(isoforest_results):
     diff_sk_to_sk = np.max(np.abs(r.skores0 - r.skores1))
     diff_coni_to_sk = np.max(np.abs(r.skores0 - r.scores))
     assert diff_coni_to_sk < 1.5 * diff_sk_to_sk
+
+
+def test_serialization(isoforest_results):
+    """
+    Does (de)serialization work correctly?
+    """
+    import pickle
+
+    r = isoforest_results
+    s = pickle.dumps(r.forest)
+    reforest = pickle.loads(s)
+    assert np.allclose(reforest.score_samples(r.dataset.data), r.scores, atol=1e-12)
