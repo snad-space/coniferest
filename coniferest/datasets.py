@@ -33,7 +33,7 @@ class MalanchevDataset(Dataset):
         regions = regions or np.array([Label.R, Label.R, Label.A])
         self.regions = regions
         
-        rng = np.random.default_rng(0)
+        rng = np.random.default_rng(seed)
         self.rng = rng
 
         x = np.concatenate([self._generate_inliers(inliers, rng),

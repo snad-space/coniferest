@@ -4,8 +4,15 @@ from ..utils import average_path_length
 
 
 class IsolationForestEvaluator(ForestEvaluator):
-
     def __init__(self, isoforest):
+        """
+        Create evaluator for sklearn's version of isolation forest.
+
+        Parameters
+        ----------
+        isoforest
+            Sklearn's isolation forest instance.
+        """
         selectors_list = [self.extract_selectors(e) for e in isoforest.estimators_]
         selectors, indices = self.combine_selectors(selectors_list)
 

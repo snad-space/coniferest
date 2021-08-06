@@ -14,6 +14,16 @@ from .datasets import Label
 
 class AnomalyDetector:
     def __init__(self, title):
+        """
+        Base class of anomaly detectors for different forests.
+        Anomaly detectors are the wrappers of forests for interaction with
+        the AnomalyDetectionExperiment.
+
+        Parameters
+        ----------
+        title
+            Title for different performance plots.
+        """
         self.title = title
         self.known_data = None
         self.known_labels = None
@@ -25,6 +35,21 @@ class AnomalyDetector:
         raise NotImplementedError('abstract method called')
 
     def observe(self, point, label):
+        """
+        Record the new data point.
+
+        Parameters
+        ----------
+        point
+            Data features.
+
+        label
+            Data label.
+
+        Returns
+        -------
+        bool, was the forest updated?
+        """
         if self.known_data is None:
             self.known_data = np.reshape(point, (-1, len(point)))
             self.known_labels = np.reshape(label, (-1,))
@@ -36,9 +61,26 @@ class AnomalyDetector:
 
 
 class AnomalyDetectionExperiment:
-    COLORS = {-1: 'red', 1: 'blue'}
+    COLORS = {Label.ANOMALY: 'red', Label.UNKNOWN: 'grey', Label.REGULAR: 'blue'}
 
     def __init__(self, regressor, data_features, data_labels, capacity=300):
+        """
+        Perform an experiment of anomaly detection with the expert.
+
+        Parameters
+        ----------
+        regressor
+            The forest to detect anomalies with.
+
+        data_features
+            Training data. Array of features.
+
+        data_labels
+            Labels for the data.
+
+        capacity
+            Maximum number of the iterations to perform. 300 by default.
+        """
         self.regressor = regressor
         self.capacity = capacity
         self.data_features = data_features
@@ -47,6 +89,13 @@ class AnomalyDetectionExperiment:
         self.trace = None
 
     def run(self):
+        """
+        Run the experiment.
+
+        Returns
+        -------
+        Trajectory. The ndarray with indices of the explored data.
+        """
         regressor = self.regressor
         data_features = self.data_features
         data_labels = self.data_labels
@@ -92,6 +141,13 @@ class AnomalyDetectionExperiment:
         return self.trajectory
 
     def draw_cartoon(self):
+        """
+        Draw a animation how regressor performs.
+
+        Returns
+        -------
+        List of PIL images.
+        """
         if self.trajectory is None:
             self.run()
 
@@ -108,22 +164,22 @@ class AnomalyDetectionExperiment:
             ax.set(title=f'{self.regressor.title}, iteration {i}',
                    xlabel='x1', ylabel='x2')
 
-            ax.scatter(*data_features.T, color=COLORS[1], s=10)
-            ax.scatter(*data_features[trace, :].T, color=COLORS[-1], s=10)
+            ax.scatter(*data_features.T, color=COLORS[Label.REGULAR], s=10)
+            ax.scatter(*data_features[trace, :].T, color=COLORS[Label.ANOMALY], s=10)
 
             prehistory = self.trajectory[:i]
-            index = data_labels[prehistory] == -1
+            index = data_labels[prehistory] == Label.ANOMALY
             if np.any(index):
-                ax.scatter(*data_features[prehistory[index], :].T, marker='*', color=COLORS[-1], s=80)
+                ax.scatter(*data_features[prehistory[index], :].T, marker='*', color=COLORS[Label.ANOMALY], s=80)
 
             index = ~index
             if np.any(index):
-                ax.scatter(*data_features[prehistory[index], :].T, marker='*', color=COLORS[1], s=80)
+                ax.scatter(*data_features[prehistory[index], :].T, marker='*', color=COLORS[Label.REGULAR], s=80)
 
             ax.scatter(*data_features[self.trajectory[i], :].T, marker='*', color='k', s=80)
 
-            normal_patch = mpatches.Patch(color=COLORS[1], label='Normal')
-            anomalous_patch = mpatches.Patch(color=COLORS[-1], label='Anomalous')
+            normal_patch = mpatches.Patch(color=COLORS[Label.REGULAR], label='Regular')
+            anomalous_patch = mpatches.Patch(color=COLORS[Label.ANOMALY], label='Anomalous')
             ax.legend(handles=[normal_patch, anomalous_patch], loc='lower left')
 
             canvas.draw()
@@ -138,17 +194,33 @@ class AnomalyDetectionExperiment:
         return images
 
     def save_cartoon(self, file):
+        """
+        (Draw and) save a cartoon.
+
+        Parameters
+        ----------
+        file
+            Filename or file object to write GIF file to.
+
+        Returns
+        -------
+        None
+        """
         images = self.draw_cartoon()
         images[0].save(file, format='GIF',
                        save_all=True, append_images=images[1:],
                        optimize=False, duration=500, loop=0)
 
     def display_cartoon(self):
+        """
+        IPython display of the drawn GIF.
+
+        Returns
+        -------
+        None
+        """
         import IPython.display
 
         with io.BytesIO() as buffer:
             self.save_cartoon(buffer)
             return IPython.display.Image(buffer.getvalue())
-
-    def plot_performance(self):
-        raise NotImplementedError("sorry, don't know how to plot performance yet")
