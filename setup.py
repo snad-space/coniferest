@@ -13,7 +13,7 @@ extensions = [Extension("coniferest.calc_mean_paths",
 
 setup(name='coniferest',
       description='Coniferous forests for better machine learning',
-      version='dev',
+      version='0.0.1-alpha.0',
       author='Vladimir Korolev',
       author_email='balodja@gmail.com',
       packages=['coniferest'],
