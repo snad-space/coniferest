@@ -8,7 +8,14 @@ cimport cython
 def calc_mean_paths(selector_t [::1] selectors, np.int64_t [::1] indices, floating [:, ::1] data):
     cdef np.ndarray [np.double_t, ndim=1] paths = np.zeros(data.shape[0])
     cdef np.float64_t [::1] paths_view = paths
-    # TODO: check data consistency
+    cdef Py_ssize_t sellen = selectors.shape[0]
+
+    if np.any(np.diff(indices) < 0):
+        raise ValueError('indices should be an increasing sequence')
+
+    if indices[-1] > sellen:
+        raise ValueError('indices are out of range of the selectors')
+
     _mean_paths(selectors, indices, data, paths_view)
     return paths
 
