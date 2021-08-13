@@ -1,6 +1,7 @@
 import sys
 
 from setuptools import setup, Extension
+from setuptools.command.build_ext import build_ext
 from Cython.Build import cythonize
 import numpy as np
 
@@ -26,10 +27,11 @@ setup(name='coniferest',
       version='0.0.1-alpha.0',
       author='Vladimir Korolev',
       author_email='balodja@gmail.com',
-      packages=['coniferest'],
+      packages=['coniferest', 'coniferest.sklearn'],
       ext_modules=cythonize(extensions),
       install_requires=['numpy', 'sklearn', 'matplotlib'],
+      cmdclass = {
+          'build_ext': build_ext
+      },
       zip_safe=False)
 
-
-# To build extensions in-place: python setup.py build_ext --inplace
