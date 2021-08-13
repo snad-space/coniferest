@@ -22,9 +22,8 @@ jobs:
     - name: Build
       run: |
         pip install cython numpy
-        python setup.py build_ext --inplace
         pip install .
     - name: Test
       run: |
         pip install pytest
-        python -m pytest
+        pytest tests/
