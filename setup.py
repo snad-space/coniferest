@@ -28,7 +28,7 @@ def get_readme():
 
 
 setup(name='coniferest',
-      version='0.0.1',
+      version='0.0.2',
       description='Coniferous forests for better machine learning',
       long_description=get_readme(),
       long_description_content_type='text/markdown',
@@ -48,7 +48,9 @@ setup(name='coniferest',
         'Topic :: Scientific/Engineering'
       ],
       packages=['coniferest', 'coniferest.sklearn'],
-      include_package_data=True,
+      package_data={
+          '': ['*.pxd'],
+      },
       ext_modules=cythonize(extensions),
       install_requires=['numpy', 'sklearn', 'matplotlib'],
       cmdclass = {

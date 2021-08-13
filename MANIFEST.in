@@ -1,4 +1,6 @@
 include README.md
+include coniferest/*.pxd
+include coniferest/*.pyx
 include tests/*
 include scripts/*
 include notebooks/*
