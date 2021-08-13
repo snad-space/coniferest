@@ -1,8 +1,9 @@
 # Coniferests
 
 Trying to make a slightly better isolation forest for anomaly detection.
-At the moment there are two forests (subclasses of the of the coniferest base class):
-isolation forest and pine forest.
+At the moment there are two forests:
+* [Isolation forest](#isolation-forest),
+* [Pine forest](#pine-forest).
 
 ## Isolation forest
 [This](https://github.com/snad-space/coniferest/blob/master/coniferest/isoforest.py)
