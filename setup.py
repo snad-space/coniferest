@@ -24,7 +24,7 @@ extensions = [Extension("coniferest.calc_mean_paths",
 
 
 def get_readme():
-    return (Path(__file__).parent / 'README.md').read_text()
+    return (Path(__file__).parent / 'README.md').read_text(encoding='utf8')
 
 
 setup(name='coniferest',
