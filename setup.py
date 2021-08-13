@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
@@ -22,12 +23,32 @@ extensions = [Extension("coniferest.calc_mean_paths",
                         )]
 
 
+def get_readme():
+    return (Path(__file__).parent / 'README.md').read_text()
+
+
 setup(name='coniferest',
+      version='0.0.1',
       description='Coniferous forests for better machine learning',
-      version='0.0.1-alpha.0',
-      author='Vladimir Korolev',
+      long_description=get_readme(),
+      long_description_content_type='text/markdown',
+      url='https://github.com/snad-space/coniferest',
+      author='Vladimir Korolev, SNAD team',
       author_email='balodja@gmail.com',
+      license='MIT',
+      classifiers=[
+        'Development Status :: 3 - Alpha',
+        'License :: OSI Approved :: MIT License',
+        'Intended Audience :: Science/Research',
+        'Natural Language :: English',
+        'Operating System :: Microsoft :: Windows',
+        'Operating System :: POSIX :: Linux',
+        'Operating System :: MacOS',
+        'Programming Language :: Python',
+        'Topic :: Scientific/Engineering'
+      ],
       packages=['coniferest', 'coniferest.sklearn'],
+      include_package_data=True,
       ext_modules=cythonize(extensions),
       install_requires=['numpy', 'sklearn', 'matplotlib'],
       cmdclass = {
