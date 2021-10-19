@@ -1,5 +1,6 @@
 import io
 from itertools import count
+from collections import OrderedDict
 
 import numpy as np
 
@@ -107,7 +108,7 @@ class AnomalyDetectionExperiment:
 
         # Known labels. Dict preserves order, so we have full history.
         # The values are the currect outliers with correction for missed points.
-        knowns = {}
+        knowns = OrderedDict()
         n_misses = 0
 
         # Train before doing anything
