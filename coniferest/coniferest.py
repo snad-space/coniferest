@@ -10,6 +10,7 @@ from sklearn.utils.validation import check_random_state
 
 from .evaluator import ForestEvaluator
 from .utils import average_path_length
+from warnings import warn
 
 # Instead of doing:
 # from sklearn.utils._random import RAND_R_MAX
@@ -82,13 +83,21 @@ class Coniferest:
         """
         n_population, n_features = data.shape
 
+        n_samples = self.n_subsamples
+        if n_samples > n_population:
+            msg1 = 'population should be greater or equal that subsamples number'
+            msg2 = f'got n_population < n_subsamples ({n_population} < {n_samples})'
+            msg3 = f'assuming n_subsamples = {n_population}'
+            warn(msg1 + ', ' + msg2 + ', ' + msg3)
+            n_samples = n_population
+
         trees = []
         for tree_index in range(n_trees):
             random_state = check_random_state(self.rng.integers(RAND_R_MAX))
             indices = _generate_indices(random_state=random_state,
                                         bootstrap=self.bootstrap_samples,
                                         n_population=n_population,
-                                        n_samples=self.n_subsamples)
+                                        n_samples=n_samples)
 
             subsamples = data[indices, :]
             tree = self.build_one_tree(subsamples)
