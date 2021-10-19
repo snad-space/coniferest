@@ -64,10 +64,13 @@ class ForestEvaluator:
         Parameters
         ----------
         x
-            Features to calculate scores of.
+            Features to calculate scores of. Should be C-contiguous for performance.
 
         Returns
         -------
         Array of scores.
         """
+        if not x.flags['C_CONTIGUOUS']:
+            x = np.ascontiguousarray(x)
+
         return -2 ** (- calc_mean_paths(self.selectors, self.indices, x) / average_path_length(self.samples))
