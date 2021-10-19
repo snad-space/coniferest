@@ -56,5 +56,10 @@ setup(name='coniferest',
       cmdclass = {
           'build_ext': build_ext
       },
+      entry_points={
+          'console_scripts': [
+              'pinead = coniferest.scripts:pinead'
+          ]
+      },
       zip_safe=False)
 
