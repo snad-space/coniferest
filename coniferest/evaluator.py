@@ -73,4 +73,14 @@ class ForestEvaluator:
         if not x.flags['C_CONTIGUOUS']:
             x = np.ascontiguousarray(x)
 
-        return -2 ** (- calc_mean_paths(self.selectors, self.indices, x) / average_path_length(self.samples))
+        return -2 ** (- calc_mean_paths(self.selectors, self.indices, x) / self.average_path_length(self.samples))
+
+    @classmethod
+    def average_path_length(cls, n_nodes):
+        """
+        Average path length is abstracted because in different cases we may want to
+        use a bit different formulas to make the exact match with other software.
+
+        By default we use our own implementation.
+        """
+        return average_path_length(n_nodes)
