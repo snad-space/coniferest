@@ -178,7 +178,7 @@ class Coniferest:
 
 class ConiferestEvaluator(ForestEvaluator):
 
-    def __init__(self, coniferest):
+    def __init__(self, coniferest, map_value=None):
         """
         Fast evaluator of scores for Coniferests.
 
@@ -186,8 +186,10 @@ class ConiferestEvaluator(ForestEvaluator):
         ----------
         coniferest
             The forest for building the evaluator from.
+        map_value
+            Optional function to map leaf values
         """
-        selectors_list = [self.extract_selectors(t) for t in coniferest.trees]
+        selectors_list = [self.extract_selectors(t, map_value) for t in coniferest.trees]
         selectors, indices = self.combine_selectors(selectors_list)
 
         super().__init__(
@@ -196,7 +198,7 @@ class ConiferestEvaluator(ForestEvaluator):
             indices=indices)
 
     @classmethod
-    def extract_selectors(cls, tree):
+    def extract_selectors(cls, tree, map_value=None):
         """
         Extract node representations for the tree.
 
@@ -204,6 +206,8 @@ class ConiferestEvaluator(ForestEvaluator):
         ----------
         tree
             Tree to extract selectors from.
+        map_value
+            Optional function to map leaf values
 
         Returns
         -------
@@ -223,7 +227,8 @@ class ConiferestEvaluator(ForestEvaluator):
 
         def correct_values(i, depth):
             if selectors[i]['feature'] < 0:
-                selectors[i]['value'] = depth + average_path_length(n_node_samples[i])
+                value = depth + average_path_length(n_node_samples[i])
+                selectors[i]['value'] = value if map_value is None else map_value(value)
             else:
                 correct_values(selectors[i]['left'], depth + 1)
                 correct_values(selectors[i]['right'], depth + 1)
