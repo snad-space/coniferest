@@ -5,7 +5,7 @@ cimport numpy as np
 cimport cython
 
 
-def calc_mean_paths(selector_t [::1] selectors, np.int64_t [::1] indices, floating [:, ::1] data):
+def calc_paths_sum(selector_t [::1] selectors, np.int64_t [::1] indices, floating [:, ::1] data):
     cdef np.ndarray [np.double_t, ndim=1] paths = np.zeros(data.shape[0])
     cdef np.float64_t [::1] paths_view = paths
     cdef Py_ssize_t sellen = selectors.shape[0]
@@ -16,13 +16,13 @@ def calc_mean_paths(selector_t [::1] selectors, np.int64_t [::1] indices, floati
     if indices[-1] > sellen:
         raise ValueError('indices are out of range of the selectors')
 
-    _mean_paths(selectors, indices, data, paths_view)
+    _paths_sum(selectors, indices, data, paths_view)
     return paths
 
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef void _mean_paths(selector_t [::1] selectors,
+cdef void _paths_sum(selector_t [::1] selectors,
                          np.int64_t [::1] indices,
                          floating [:, ::1] data,
                          np.float64_t [::1] paths):
@@ -53,5 +53,3 @@ cdef void _mean_paths(selector_t [::1] selectors,
                         i = selector.right
 
                 paths[x_index] += selector.value
-
-            paths[x_index] /= trees

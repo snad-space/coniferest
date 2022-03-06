@@ -25,9 +25,9 @@ ctypedef fused floating:
     np.float64_t
 
 
-# Calculate mean paths on data based on trees,
+# Calculate paths sum on data based on trees,
 # that are located by indeces in selectors list
-cdef void _mean_paths(selector_t [::1] selectors,
+cdef void _paths_sum(selector_t [::1] selectors,
                          np.int64_t [::1] indices,
                          floating [:, ::1] data,
                          np.float64_t [::1] paths)

@@ -1,6 +1,6 @@
 import numpy as np
 from .utils import average_path_length
-from .calc_mean_paths import calc_mean_paths  # noqa
+from .calc_paths_sum import calc_paths_sum  # noqa
 
 
 class ForestEvaluator:
@@ -9,7 +9,7 @@ class ForestEvaluator:
     def __init__(self, samples, selectors, indices):
         """
         Base class for the forest evaluators. Does the trivial job:
-        * runs calc_mean_paths written in cython,
+        * runs calc_paths_sum written in cython,
         * helps to combine several trees' representations into two arrays.
 
         Parameters
@@ -73,7 +73,9 @@ class ForestEvaluator:
         if not x.flags['C_CONTIGUOUS']:
             x = np.ascontiguousarray(x)
 
-        return -2 ** (- calc_mean_paths(self.selectors, self.indices, x) / self.average_path_length(self.samples))
+        trees = self.indices.shape[0] - 1
+
+        return -2 ** (- calc_paths_sum(self.selectors, self.indices, x) / (self.average_path_length(self.samples) * trees))
 
     @classmethod
     def average_path_length(cls, n_nodes):
