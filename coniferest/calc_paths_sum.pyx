@@ -5,7 +5,7 @@ cimport numpy as np
 cimport cython
 
 
-def calc_paths_sum(selector_t [::1] selectors, np.int64_t [::1] indices, floating [:, ::1] data):
+def calc_paths_sum(selector_t [::1] selectors, np.int64_t [::1] indices, floating [:, ::1] data, floating [::1] weights=None):
     cdef np.ndarray [np.double_t, ndim=1] paths = np.zeros(data.shape[0])
     cdef np.float64_t [::1] paths_view = paths
     cdef Py_ssize_t sellen = selectors.shape[0]
@@ -16,7 +16,7 @@ def calc_paths_sum(selector_t [::1] selectors, np.int64_t [::1] indices, floatin
     if indices[-1] > sellen:
         raise ValueError('indices are out of range of the selectors')
 
-    _paths_sum(selectors, indices, data, paths_view)
+    _paths_sum(selectors, indices, data, paths_view, weights)
     return paths
 
 
@@ -25,7 +25,8 @@ def calc_paths_sum(selector_t [::1] selectors, np.int64_t [::1] indices, floatin
 cdef void _paths_sum(selector_t [::1] selectors,
                          np.int64_t [::1] indices,
                          floating [:, ::1] data,
-                         np.float64_t [::1] paths):
+                         np.float64_t [::1] paths,
+                         floating [::1] weights=None):
 
     cdef Py_ssize_t trees
     cdef Py_ssize_t tree_index
@@ -52,4 +53,7 @@ cdef void _paths_sum(selector_t [::1] selectors,
                     else:
                         i = selector.right
 
-                paths[x_index] += selector.value
+                if weights is None:
+                    paths[x_index] += selector.value
+                else:
+                    paths[x_index] += weights[selector.left] * selector.value

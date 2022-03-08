@@ -55,6 +55,12 @@ class ForestEvaluator:
         for i in range(len(selectors_list)):
             selectors[indices[i]:indices[i + 1]] = selectors_list[i]
 
+        # Assign a unique sequential index to every leaf
+        # The index is used for weighted scores
+        leaf_mask = selectors['feature'] < 0
+        leaf_count = np.count_nonzero(leaf_mask)
+        selectors['left'][leaf_mask] = np.arange(0, leaf_count)
+
         return selectors, indices
 
     def score_samples(self, x):

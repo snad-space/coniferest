@@ -14,7 +14,7 @@ cdef packed struct selector_t:
 
     # In case of leaf the fields have special values:
     # * feature == -1
-    # * left == -1
+    # * left == leaf_id
     # * value == resulting decision score
     # * right == -1
 
@@ -30,4 +30,5 @@ ctypedef fused floating:
 cdef void _paths_sum(selector_t [::1] selectors,
                          np.int64_t [::1] indices,
                          floating [:, ::1] data,
-                         np.float64_t [::1] paths)
+                         np.float64_t [::1] paths,
+                         floating [::1] weights=*)
