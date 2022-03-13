@@ -6,7 +6,7 @@ from .calc_paths_sum import calc_paths_sum  # noqa
 class ForestEvaluator:
     selector_dtype = np.dtype([('feature', np.int32), ('left', np.int32), ('value', np.double), ('right', np.int32)])
 
-    def __init__(self, samples, selectors, indices):
+    def __init__(self, samples, selectors, indices, leaf_count):
         """
         Base class for the forest evaluators. Does the trivial job:
         * runs calc_paths_sum written in cython,
@@ -21,12 +21,18 @@ class ForestEvaluator:
             Array with all the nodes of all the trees.
 
         indices
-            Indices of starting nodes of every tree.
+            Indices of starting and ending nodes of every tree. For example
+            for two trees of length `len1` and `len2` it would be:
+            [0, len1, len1 + len2]
+
+        leaf_count
+            Total number of leafs in all the trees.
         """
         self.samples = samples
 
         self.selectors = selectors
         self.indices = indices
+        self.leaf_count = leaf_count
 
     @classmethod
     def combine_selectors(cls, selectors_list):
@@ -61,7 +67,7 @@ class ForestEvaluator:
         leaf_count = np.count_nonzero(leaf_mask)
         selectors['left'][leaf_mask] = np.arange(0, leaf_count)
 
-        return selectors, indices
+        return selectors, indices, leaf_count
 
     def score_samples(self, x):
         """

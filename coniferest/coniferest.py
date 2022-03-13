@@ -190,12 +190,13 @@ class ConiferestEvaluator(ForestEvaluator):
             Optional function to map leaf values
         """
         selectors_list = [self.extract_selectors(t, map_value) for t in coniferest.trees]
-        selectors, indices = self.combine_selectors(selectors_list)
+        selectors, indices, leaf_count = self.combine_selectors(selectors_list)
 
         super().__init__(
             samples=coniferest.n_subsamples,
             selectors=selectors,
-            indices=indices)
+            indices=indices,
+            leaf_count=leaf_count)
 
     @classmethod
     def extract_selectors(cls, tree, map_value=None):
