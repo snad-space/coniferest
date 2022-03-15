@@ -2,6 +2,7 @@ import numpy as np
 from scipy.optimize import minimize
 
 from .coniferest import Coniferest, ConiferestEvaluator
+from .experiment import AnomalyDetector
 from .datasets import Label
 from .calc_paths_sum import calc_paths_sum, calc_paths_sum_transpose  # noqa
 
@@ -201,3 +202,92 @@ class AADForest(Coniferest):
         Array with computed scores.
         """
         return self.evaluator.score_samples(samples)
+
+
+class AADForestAnomalyDetector(AnomalyDetector):
+    def __init__(self,
+                 aad_forest,
+                 title='AAD Forest'):
+        """
+        Detector of anomalies with AAD Forest.
+
+        Parameters
+        ----------
+        aad_forest
+            Instance of PineForest to detect anomalies with.
+
+        title
+            What title to use on plots.
+        """
+        super().__init__(title)
+        self.aad_forest = aad_forest
+        self.train_data = None
+
+    def train(self, data):
+        """
+        Build the forest.
+
+        Parameters
+        ----------
+        data
+            Features to build with.
+
+        Returns
+        -------
+        None
+        """
+        self.train_data = data
+        self.retrain()
+
+    def retrain(self):
+        """
+        Retrain the forest according to available information about known data.
+
+        Returns
+        -------
+        None
+        """
+        if self.train_data is None:
+            raise ValueError('retrain called while no train data set')
+
+        if self.known_data is None:
+            self.aad_forest.fit(self.train_data)
+        else:
+            self.aad_forest.fit_known(self.train_data, self.known_data, self.known_labels)
+
+    def score(self, data):
+        """
+        Calculate scores for given features.
+
+        Parameters
+        ----------
+        data
+            Given features.
+
+        Returns
+        -------
+        Scores of the data.
+        """
+        return -self.aad_forest.score_samples(data)
+
+    def observe(self, point, label):
+        """
+        Learn about the next outlier.
+
+        Parameters
+        ----------
+        point
+            Features of the object.
+
+        label
+            True Label of the object.
+
+        Returns
+        -------
+        bool, whether the regressor was changed.
+        """
+        super().observe(point, label)
+
+        self.retrain()
+
+        return True
