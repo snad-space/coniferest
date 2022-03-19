@@ -25,7 +25,7 @@ def average_path_length(n):
     """
     if np.isscalar(n):
         if n <= 1:
-            apl = 0
+            apl = 0.0
         else:
             apl = _average_path_length(n)
     else:
