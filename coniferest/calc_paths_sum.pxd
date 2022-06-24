@@ -14,7 +14,7 @@ cdef packed struct selector_t:
 
     # In case of leaf the fields have special values:
     # * feature == -1
-    # * left == -1
+    # * left == leaf_id
     # * value == resulting decision score
     # * right == -1
 
@@ -25,9 +25,16 @@ ctypedef fused floating:
     np.float64_t
 
 
-# Calculate mean paths on data based on trees,
+# Calculate paths sum on data based on trees,
 # that are located by indeces in selectors list
-cdef void _mean_paths(selector_t [::1] selectors,
+cdef void _paths_sum(selector_t [::1] selectors,
                          np.int64_t [::1] indices,
                          floating [:, ::1] data,
-                         np.float64_t [::1] paths)
+                         np.float64_t [::1] paths,
+                         floating [::1] weights=*)
+
+cdef void _paths_sum_transpose(selector_t [::1] selectors,
+                         np.int64_t [::1] indices,
+                         floating [:, ::1] data,
+                         np.float64_t [::1] values,
+                         floating [::1] weights=*)

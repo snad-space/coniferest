@@ -1,15 +1,15 @@
 import numpy as np
 from .utils import average_path_length
-from .calc_mean_paths import calc_mean_paths  # noqa
+from .calc_paths_sum import calc_paths_sum  # noqa
 
 
 class ForestEvaluator:
     selector_dtype = np.dtype([('feature', np.int32), ('left', np.int32), ('value', np.double), ('right', np.int32)])
 
-    def __init__(self, samples, selectors, indices):
+    def __init__(self, samples, selectors, indices, leaf_count):
         """
         Base class for the forest evaluators. Does the trivial job:
-        * runs calc_mean_paths written in cython,
+        * runs calc_paths_sum written in cython,
         * helps to combine several trees' representations into two arrays.
 
         Parameters
@@ -21,12 +21,18 @@ class ForestEvaluator:
             Array with all the nodes of all the trees.
 
         indices
-            Indices of starting nodes of every tree.
+            Indices of starting and ending nodes of every tree. For example
+            for two trees of length `len1` and `len2` it would be:
+            [0, len1, len1 + len2]
+
+        leaf_count
+            Total number of leafs in all the trees.
         """
         self.samples = samples
 
         self.selectors = selectors
         self.indices = indices
+        self.leaf_count = leaf_count
 
     @classmethod
     def combine_selectors(cls, selectors_list):
@@ -55,7 +61,13 @@ class ForestEvaluator:
         for i in range(len(selectors_list)):
             selectors[indices[i]:indices[i + 1]] = selectors_list[i]
 
-        return selectors, indices
+        # Assign a unique sequential index to every leaf
+        # The index is used for weighted scores
+        leaf_mask = selectors['feature'] < 0
+        leaf_count = np.count_nonzero(leaf_mask)
+        selectors['left'][leaf_mask] = np.arange(0, leaf_count)
+
+        return selectors, indices, leaf_count
 
     def score_samples(self, x):
         """
@@ -73,7 +85,9 @@ class ForestEvaluator:
         if not x.flags['C_CONTIGUOUS']:
             x = np.ascontiguousarray(x)
 
-        return -2 ** (- calc_mean_paths(self.selectors, self.indices, x) / self.average_path_length(self.samples))
+        trees = self.indices.shape[0] - 1
+
+        return -2 ** (- calc_paths_sum(self.selectors, self.indices, x) / (self.average_path_length(self.samples) * trees))
 
     @classmethod
     def average_path_length(cls, n_nodes):

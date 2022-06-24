@@ -13,12 +13,13 @@ class IsolationForestEvaluator(ForestEvaluator):
             Sklearn's isolation forest instance.
         """
         selectors_list = [self.extract_selectors(e) for e in isoforest.estimators_]
-        selectors, indices = self.combine_selectors(selectors_list)
+        selectors, indices, leaf_count = self.combine_selectors(selectors_list)
 
         super(IsolationForestEvaluator, self).__init__(
             samples=isoforest.max_samples_,
             selectors=selectors,
-            indices=indices)
+            indices=indices,
+            leaf_count=leaf_count)
 
     @classmethod
     def extract_selectors(cls, estimator):

@@ -15,8 +15,8 @@ if sys.platform != 'darwin':
     extra_link_args.append('-fopenmp')
 
 
-extensions = [Extension("coniferest.calc_mean_paths",
-                        ["coniferest/calc_mean_paths.pyx"],
+extensions = [Extension("coniferest.calc_paths_sum",
+                        ["coniferest/calc_paths_sum.pyx"],
                         include_dirs=[np.get_include()],
                         extra_compile_args=extra_compile_args,
                         extra_link_args=extra_link_args,
