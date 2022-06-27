@@ -214,7 +214,7 @@ class PineForest(Coniferest):
                 average_path_length(n_samples_leaf) - 1
 
         weights = labels.copy()
-        weights[labels == Label.REGULAR] = weight_ratio
+        weights[labels == Label.REGULAR] = weight_ratio * Label.REGULAR
         weighted_paths = (heights * np.reshape(weights, (-1, 1))).sum(axis=0)
         indices = weighted_paths.argsort()[n_filter:]
 
