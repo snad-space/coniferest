@@ -28,7 +28,7 @@ def get_readme():
 
 
 setup(name='coniferest',
-      version='0.0.2',
+      version='0.0.3',
       description='Coniferous forests for better machine learning',
       long_description=get_readme(),
       long_description_content_type='text/markdown',
