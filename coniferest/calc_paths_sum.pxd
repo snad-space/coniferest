@@ -31,10 +31,10 @@ cdef void _paths_sum(selector_t [::1] selectors,
                          np.int64_t [::1] indices,
                          floating [:, ::1] data,
                          np.float64_t [::1] paths,
-                         floating [::1] weights=*)
+                         np.float64_t [::1] weights=*)
 
 cdef void _paths_sum_transpose(selector_t [::1] selectors,
                          np.int64_t [::1] indices,
                          floating [:, ::1] data,
                          np.float64_t [::1] values,
-                         floating [::1] weights=*)
+                         np.float64_t [::1] weights=*)
