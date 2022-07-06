@@ -5,7 +5,7 @@ cimport numpy as np
 cimport cython
 
 
-def calc_paths_sum(selector_t [::1] selectors, np.int64_t [::1] indices, floating [:, ::1] data, floating [::1] weights=None):
+def calc_paths_sum(selector_t [::1] selectors, np.int64_t [::1] indices, floating [:, ::1] data, np.float64_t [::1] weights=None):
     cdef np.ndarray [np.double_t, ndim=1] paths = np.zeros(data.shape[0])
     cdef np.float64_t [::1] paths_view = paths
     cdef Py_ssize_t sellen = selectors.shape[0]
@@ -20,7 +20,7 @@ def calc_paths_sum(selector_t [::1] selectors, np.int64_t [::1] indices, floatin
     return paths
 
 
-def calc_paths_sum_transpose(selector_t [::1] selectors, np.int64_t [::1] indices, floating [:, ::1] data, Py_ssize_t leaf_count, floating [::1] weights=None):
+def calc_paths_sum_transpose(selector_t [::1] selectors, np.int64_t [::1] indices, floating [:, ::1] data, Py_ssize_t leaf_count, np.float64_t [::1] weights=None):
     cdef np.ndarray [np.double_t, ndim=1] values = np.zeros(leaf_count)
     cdef np.float64_t [::1] values_view = values
     cdef Py_ssize_t sellen = selectors.shape[0]
@@ -44,7 +44,7 @@ cdef void _paths_sum(selector_t [::1] selectors,
                          np.int64_t [::1] indices,
                          floating [:, ::1] data,
                          np.float64_t [::1] paths,
-                         floating [::1] weights=None):
+                         np.float64_t [::1] weights=None):
 
     cdef Py_ssize_t trees
     cdef Py_ssize_t tree_index
@@ -83,7 +83,7 @@ cdef void _paths_sum_transpose(selector_t [::1] selectors,
                          np.int64_t [::1] indices,
                          floating [:, ::1] data,
                          np.float64_t [::1] values,
-                         floating [::1] weights=None):
+                         np.float64_t [::1] weights=None):
 
     cdef Py_ssize_t trees
     cdef Py_ssize_t tree_index
