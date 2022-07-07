@@ -89,7 +89,7 @@ class AnomalyDetectionExperiment:
         self.trajectory = None
         self.trace = None
 
-    def run(self):
+    def run(self, tqdm=False):
         """
         Run the experiment.
 
@@ -118,7 +118,17 @@ class AnomalyDetectionExperiment:
         recalculate = True
         ordering = None
         outlier = None
-        while not anomalies.issubset(knowns) and len(knowns) < self.capacity:
+
+        if tqdm:
+            from tqdm import tqdm as tqdm_range
+            iterator = tqdm_range(range(self.capacity))
+        else:
+            iterator = range(self.capacity)
+
+        for _ in iterator:
+            if anomalies.issubset(knowns):
+                break
+
             # Calculate the scores
             if recalculate:
                 scores = regressor.score(data_features)
