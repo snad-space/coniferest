@@ -52,8 +52,8 @@ class AnomalyDetector:
         bool, was the forest updated?
         """
         if self.known_data is None:
-            self.known_data = np.reshape(point, (-1, len(point)))
-            self.known_labels = np.reshape(label, (-1,))
+            self.known_data = np.atleast_2d(point)
+            self.known_labels = np.atleast_1d(label)
         else:
             self.known_data = np.vstack((self.known_data, point))
             self.known_labels = np.hstack((self.known_labels, label))

@@ -327,7 +327,7 @@ class PineForestAnomalyDetector(AnomalyDetector):
         super().observe(point, label)
 
         # Do retraining either on false positive result or if we are not lazy.
-        do_retrain = label == Label.REGULAR or not self.lazy_training
+        do_retrain = np.any(label == Label.REGULAR) or not self.lazy_training
         if do_retrain:
             self.retrain()
 
