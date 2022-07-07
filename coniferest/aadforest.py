@@ -82,6 +82,7 @@ class AADForest(Coniferest):
                  n_subsamples=256,
                  max_depth=None,
                  tau=0.97,
+                 C_a=1.0,
                  random_seed=None):
         """
 
@@ -105,6 +106,7 @@ class AADForest(Coniferest):
                          random_seed=random_seed)
         self.n_trees = n_trees
         self.tau = tau
+        self.C_a = C_a
 
         self.evaluator = None
 
@@ -174,10 +176,10 @@ class AADForest(Coniferest):
         q_tau = np.quantile(scores, self.tau)
 
         def fun(weights):
-            return self.evaluator.loss(weights, known_data, known_labels, q_tau)
+            return self.evaluator.loss(weights, known_data, known_labels, q_tau, self.C_a)
 
         def jac(weights):
-            return self.evaluator.loss_gradient(weights, known_data, known_labels, q_tau)
+            return self.evaluator.loss_gradient(weights, known_data, known_labels, q_tau, self.C_a)
 
         def hessp(_weights, vector):
             return 2 * vector
