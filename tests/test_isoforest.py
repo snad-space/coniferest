@@ -1,6 +1,7 @@
 import pytest
 
 import numpy as np
+from numpy.testing import assert_allclose
 
 from coniferest.sklearn.isoforest import IsolationForestEvaluator
 from coniferest.isoforest import IsolationForest
@@ -47,7 +48,8 @@ def test_sklearn_isolation_forest_evaluator(isoforest_results):
     Does evaluator scores coinside with the ones computed by sklearn?
     """
     r = isoforest_results
-    assert np.max(np.abs(r.skores1_by_evaluator - r.skores1)) <= 1e-10
+    assert_allclose(r.skores1_by_evaluator, r.skores1, atol=1e-10, rtol=0,
+                    err_msg='sklearn and our results nust be the same')
 
 
 def test_isolation_forest(isoforest_results):
@@ -69,4 +71,4 @@ def test_serialization(isoforest_results):
     r = isoforest_results
     s = pickle.dumps(r.forest)
     reforest = pickle.loads(s)
-    assert np.allclose(reforest.score_samples(r.dataset.data), r.scores, atol=1e-12)
+    assert_allclose(reforest.score_samples(r.dataset.data), r.scores, atol=1e-12)
