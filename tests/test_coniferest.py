@@ -35,7 +35,7 @@ def test_reproducibility_build_one_tree():
     """
     Are we able to reproduce tree building?
     """
-    random_seed = np.random.randint(1 << 32)
+    random_seed = np.random.randint(1 << 16)
     assert_tree_equal(build_one_tree(random_seed), build_one_tree(random_seed))
 
 
@@ -62,7 +62,7 @@ def test_reproducibility_build_trees():
     """
     Are we able to reproduce Coniferest.build_trees
     """
-    random_seed = np.random.randint(1 << 32)
+    random_seed = np.random.randint(1 << 16)
 
     trees1 = build_trees(random_seed)
     trees2 = build_trees(random_seed)
