@@ -208,6 +208,7 @@ class PineForest(Coniferest):
             tree = trees[tree_index]
             leaves_index = tree.apply(data)
             n_samples_leaf = tree.n_node_samples[leaves_index]
+            n_samples_leaf = n_samples_leaf.astype(dtype=np.float64)
 
             heights[:, tree_index] = \
                 np.ravel(tree.decision_path(data).sum(axis=1)) + \
