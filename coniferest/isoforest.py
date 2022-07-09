@@ -1,5 +1,6 @@
 from .coniferest import Coniferest, ConiferestEvaluator
 from .experiment import AnomalyDetector
+from .utils import average_path_length
 
 
 class IsolationForest(Coniferest):
@@ -61,7 +62,7 @@ class IsolationForest(Coniferest):
         -------
         1-d array with scores.
         """
-        return self.evaluator.score_samples(samples)
+        return -2**(-self.evaluator.calc_mean_values(samples) / average_path_length(self.n_subsamples))
 
 
 class IsolationForestAnomalyDetector(AnomalyDetector):

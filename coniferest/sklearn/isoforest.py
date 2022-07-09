@@ -46,6 +46,12 @@ class IsolationForestEvaluator(ForestEvaluator):
 
         return selectors
 
+    def score_samples(self, x):
+        """
+        Perform the computations of isolation forest scores.
+        """
+        return -2**(-self.calc_mean_values(x) / self.average_path_length(self.samples))
+
     @classmethod
     def average_path_length(cls, n):
         """

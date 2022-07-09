@@ -234,7 +234,7 @@ class PineForest(Coniferest):
         -------
         Array with computed scores.
         """
-        return self.evaluator.score_samples(samples)
+        return -2**(-self.evaluator.calc_mean_values(samples) / average_path_length(self.n_subsamples))
 
 
 class PineForestAnomalyDetector(AnomalyDetector):
