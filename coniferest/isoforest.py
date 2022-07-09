@@ -4,7 +4,7 @@ from .utils import average_path_length
 
 
 class IsolationForest(Coniferest):
-    def __init__(self, n_trees=100, n_subsamples=256, max_depth=None, random_seed=None):
+    def __init__(self, n_trees=100, n_subsamples=256, max_depth=None, pdf=False, random_seed=None):
         """
         Isolation forest. Just isolation forest.
 
@@ -19,12 +19,16 @@ class IsolationForest(Coniferest):
         max_depth
             Maximal tree depth.
 
+        pdf
+            Use pdf estimation instead of default isolation forest's scores.
+
         random_seed
             Seed for reproducibility.
         """
         super().__init__(trees=[],
                          n_subsamples=n_subsamples,
                          max_depth=max_depth,
+                         pdf=pdf,
                          random_seed=random_seed)
         self.n_trees = n_trees
         self.evaluator = None
@@ -62,7 +66,12 @@ class IsolationForest(Coniferest):
         -------
         1-d array with scores.
         """
-        return -2**(-self.evaluator.calc_mean_values(samples) / average_path_length(self.n_subsamples))
+        if self.pdf:
+            scores = self.evaluator.calc_mean_values(samples)
+        else:
+            scores = -2**(-self.evaluator.calc_mean_values(samples) / average_path_length(self.n_subsamples))
+
+        return scores
 
 
 class IsolationForestAnomalyDetector(AnomalyDetector):

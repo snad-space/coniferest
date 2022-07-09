@@ -104,6 +104,7 @@ class AADForest(Coniferest):
         super().__init__(trees=[],
                          n_subsamples=n_subsamples,
                          max_depth=max_depth,
+                         pdf=False,
                          random_seed=random_seed)
         self.n_trees = n_trees
         self.tau = tau

@@ -16,6 +16,7 @@ class PineForest(Coniferest):
                  n_spare_trees=400,
                  regenerate_trees=False,
                  weight_ratio=1,
+                 pdf=False,
                  random_seed=None):
         """
         Pine Forests are filtering isolation forests. That's a simple concept
@@ -52,12 +53,17 @@ class PineForest(Coniferest):
             detection, right?). The weight is used during the filtering
             process.
 
+        pdf
+            Should we use the probability density function estimation instead
+            of default isolation forest scores.
+
         random_seed
             Random seed. For reproducibility.
         """
         super().__init__(trees=[],
                          n_subsamples=n_subsamples,
                          max_depth=max_depth,
+                         pdf=pdf,
                          random_seed=random_seed)
         self.n_trees = n_trees
         self.n_spare_trees = n_spare_trees
@@ -111,7 +117,8 @@ class PineForest(Coniferest):
                                            data=known_data,
                                            labels=known_labels,
                                            n_filter=n_filter,
-                                           weight_ratio=self.weight_ratio)
+                                           weight_ratio=self.weight_ratio,
+                                           pdf=self.pdf)
 
     def fit(self, data, labels=None):
         """
@@ -177,7 +184,7 @@ class PineForest(Coniferest):
         return self
 
     @staticmethod
-    def filter_trees(trees, data, labels, n_filter, weight_ratio=1):
+    def filter_trees(trees, data, labels, n_filter, weight_ratio=1, pdf=False):
         """
         Filter the trees out.
 
@@ -197,6 +204,9 @@ class PineForest(Coniferest):
 
         weight_ratio
             Weight of the false positive experience relative to false negative. Defaults to 1.
+
+        pdf
+            Whether to user the probability density function instead of isolation forest's scores.
         """
         data = np.asarray(data, dtype=TreeDTYPE)
 
@@ -210,9 +220,13 @@ class PineForest(Coniferest):
             n_samples_leaf = tree.n_node_samples[leaves_index]
             n_samples_leaf = n_samples_leaf.astype(dtype=np.float64)
 
-            heights[:, tree_index] = \
-                np.ravel(tree.decision_path(data).sum(axis=1)) + \
-                average_path_length(n_samples_leaf) - 1
+            if pdf:
+                heights[:, tree_index] = \
+                    2 ** np.ravel(tree.decision_path(data).sum(axis=1)) * n_samples_leaf
+            else:
+                heights[:, tree_index] = \
+                    np.ravel(tree.decision_path(data).sum(axis=1)) + \
+                    average_path_length(n_samples_leaf) - 1
 
         weights = labels.copy()
         weights[labels == Label.REGULAR] = weight_ratio * Label.REGULAR
@@ -234,7 +248,12 @@ class PineForest(Coniferest):
         -------
         Array with computed scores.
         """
-        return -2**(-self.evaluator.calc_mean_values(samples) / average_path_length(self.n_subsamples))
+        if self.pdf:
+            scores = self.evaluator.calc_mean_values(samples)
+        else:
+            scores = -2**(-self.evaluator.calc_mean_values(samples) / average_path_length(self.n_subsamples))
+
+        return scores
 
 
 class PineForestAnomalyDetector(AnomalyDetector):
