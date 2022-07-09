@@ -106,12 +106,12 @@ def test_reproducibility():
     assert_forest_scores(forest1, forest2, n_features=n_features)
 
 
-def test_regression(data_regression):
+def test_regression(regression_data):
     random_seed = 0
     n_features = 16
     n_samples = 128
     rng = np.random.default_rng(random_seed)
     data = rng.standard_normal((n_samples, n_features))
     forest = build_forest(n_features=n_features, random_seed=random_seed)
-    scores = forest.score_samples(data).tolist()
-    data_regression.check(scores)
+    scores = forest.score_samples(data)
+    regression_data.allclose(scores)

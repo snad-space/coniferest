@@ -10,9 +10,6 @@ from sklearn.tree._tree import Tree
 from coniferest.coniferest import Coniferest
 
 
-PICKLE_PROTOCOL = 4
-
-
 def build_one_tree(random_seed) -> Tree:
     shape = 256, 16
 
@@ -40,10 +37,9 @@ def test_reproducibility_build_one_tree():
 
 
 @pytest.mark.skipif(sys.platform.startswith('win'), reason="It fails on Windows and I don't care")
-def test_regression_build_one(data_regression):
+def test_regression_build_one(regression_data):
     tree = build_one_tree(0)
-    dumped = pickle.dumps(tree, protocol=PICKLE_PROTOCOL)
-    data_regression.check(dumped)
+    regression_data.check_with(assert_tree_equal, tree)
 
 
 def build_trees(random_seed) -> List[Tree]:
@@ -72,7 +68,9 @@ def test_reproducibility_build_trees():
 
 
 @pytest.mark.skipif(sys.platform.startswith('win'), reason="It fails on Windows and I don't care")
-def test_regression_build_trees(data_regression):
+def test_regression_build_trees(regression_data):
     trees = build_trees(0)
-    dumped = pickle.dumps(trees, protocol=PICKLE_PROTOCOL)
-    data_regression.check(dumped)
+    regression_data.check_with(
+        lambda actual, desired: [assert_tree_equal(a, b) for a, b in zip(actual, desired)],
+        trees
+    )
