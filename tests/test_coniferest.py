@@ -36,7 +36,6 @@ def test_reproducibility_build_one_tree():
     assert_tree_equal(build_one_tree(random_seed), build_one_tree(random_seed))
 
 
-@pytest.mark.skipif(sys.platform.startswith('win'), reason="It fails on Windows and I don't care")
 def test_regression_build_one(regression_data):
     tree = build_one_tree(0)
     regression_data.check_with(assert_tree_equal, tree)
@@ -67,7 +66,6 @@ def test_reproducibility_build_trees():
         assert_tree_equal(tree1, tree2)
 
 
-@pytest.mark.skipif(sys.platform.startswith('win'), reason="It fails on Windows and I don't care")
 def test_regression_build_trees(regression_data):
     trees = build_trees(0)
     regression_data.check_with(
