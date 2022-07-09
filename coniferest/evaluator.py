@@ -1,5 +1,4 @@
 import numpy as np
-from .utils import average_path_length
 from .calc_paths_sum import calc_paths_sum  # noqa
 
 
@@ -69,7 +68,7 @@ class ForestEvaluator:
 
         return selectors, indices, leaf_count
 
-    def score_samples(self, x):
+    def calc_mean_values(self, x):
         """
         Perform the computations.
 
@@ -80,21 +79,11 @@ class ForestEvaluator:
 
         Returns
         -------
-        Array of scores.
+        Array of mean values.
         """
         if not x.flags['C_CONTIGUOUS']:
             x = np.ascontiguousarray(x)
 
         trees = self.indices.shape[0] - 1
 
-        return -2 ** (- calc_paths_sum(self.selectors, self.indices, x) / (self.average_path_length(self.samples) * trees))
-
-    @classmethod
-    def average_path_length(cls, n_nodes):
-        """
-        Average path length is abstracted because in different cases we may want to
-        use a bit different formulas to make the exact match with other software.
-
-        By default we use our own implementation.
-        """
-        return average_path_length(n_nodes)
+        return calc_paths_sum(self.selectors, self.indices, x) / trees

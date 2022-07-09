@@ -12,7 +12,7 @@ class AADEvaluator(ConiferestEvaluator):
         super(AADEvaluator, self).__init__(aad, map_value=np.reciprocal)
         self.weights = np.full(shape=(self.leaf_count,), fill_value=np.reciprocal(np.sqrt(self.leaf_count)))
 
-    def score_samples(self, x, weights = None):
+    def calc_mean_values(self, x, weights=None):
         """
         Perform the computations.
 
@@ -104,6 +104,7 @@ class AADForest(Coniferest):
         super().__init__(trees=[],
                          n_subsamples=n_subsamples,
                          max_depth=max_depth,
+                         pdf=False,
                          random_seed=random_seed)
         self.n_trees = n_trees
         self.tau = tau
@@ -205,7 +206,7 @@ class AADForest(Coniferest):
         -------
         Array with computed scores.
         """
-        return self.evaluator.score_samples(samples)
+        return self.evaluator.calc_mean_values(samples)
 
 
 class AADForestAnomalyDetector(AnomalyDetector):

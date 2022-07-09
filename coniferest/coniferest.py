@@ -20,7 +20,7 @@ RAND_R_MAX = 0x7FFFFFFF
 
 
 class Coniferest:
-    def __init__(self, trees=None, n_subsamples=256, max_depth=None, random_seed=None):
+    def __init__(self, trees=None, n_subsamples=256, pdf=False, max_depth=None, random_seed=None):
         """
         Base class for the forests in the package. It settles the basic
         low-level machinery with the sklearn's trees, used here.
@@ -36,12 +36,16 @@ class Coniferest:
         max_depth
             Maximum depth of the trees in use.
 
+        pdf
+            Use probability scores instead of isolation forests' ones.
+
         random_seed
             Seed for the reproducibility.
         """
         self.trees = trees or []
         self.n_subsamples = n_subsamples
         self.max_depth = max_depth or int(np.log2(n_subsamples))
+        self.pdf = pdf
 
         # For the better future with reproducible parallel tree building.
         # self.seedseq = np.random.SeedSequence(random_state)
@@ -189,7 +193,7 @@ class ConiferestEvaluator(ForestEvaluator):
         map_value
             Optional function to map leaf values
         """
-        selectors_list = [self.extract_selectors(t, map_value) for t in coniferest.trees]
+        selectors_list = [self.extract_selectors(t, map_value, coniferest.pdf) for t in coniferest.trees]
         selectors, indices, leaf_count = self.combine_selectors(selectors_list)
 
         super().__init__(
@@ -199,7 +203,7 @@ class ConiferestEvaluator(ForestEvaluator):
             leaf_count=leaf_count)
 
     @classmethod
-    def extract_selectors(cls, tree, map_value=None):
+    def extract_selectors(cls, tree, map_value=None, pdf=False):
         """
         Extract node representations for the tree.
 
@@ -209,6 +213,8 @@ class ConiferestEvaluator(ForestEvaluator):
             Tree to extract selectors from.
         map_value
             Optional function to map leaf values
+        pdf
+            Whether to use the probability density function estimation
 
         Returns
         -------
@@ -228,7 +234,7 @@ class ConiferestEvaluator(ForestEvaluator):
 
         def correct_values(i, depth):
             if selectors[i]['feature'] < 0:
-                value = depth + average_path_length(n_node_samples[i])
+                value = 2**depth * n_node_samples[i] if pdf else depth + average_path_length(n_node_samples[i])
                 selectors[i]['value'] = value if map_value is None else map_value(value)
             else:
                 correct_values(selectors[i]['left'], depth + 1)
