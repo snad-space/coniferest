@@ -1,6 +1,7 @@
 import pytest
 
 import numpy as np
+from numpy.testing import assert_allclose, assert_equal
 
 from coniferest.sklearn.isoforest import IsolationForestEvaluator
 from coniferest.isoforest import IsolationForest
@@ -47,7 +48,8 @@ def test_sklearn_isolation_forest_evaluator(isoforest_results):
     Does evaluator scores coinside with the ones computed by sklearn?
     """
     r = isoforest_results
-    assert np.max(np.abs(r.skores1_by_evaluator - r.skores1)) <= 1e-10
+    assert_allclose(r.skores1_by_evaluator, r.skores1, atol=1e-10, rtol=0,
+                    err_msg='sklearn and our results nust be the same')
 
 
 def test_isolation_forest(isoforest_results):
@@ -69,4 +71,47 @@ def test_serialization(isoforest_results):
     r = isoforest_results
     s = pickle.dumps(r.forest)
     reforest = pickle.loads(s)
-    assert np.allclose(reforest.score_samples(r.dataset.data), r.scores, atol=1e-12)
+    assert_allclose(reforest.score_samples(r.dataset.data), r.scores, atol=1e-12)
+
+
+def forest_n_features(forest: IsolationForest):
+    return forest.evaluator.selectors[0, 0].n_features
+
+
+def assert_forest_scores(forest1: IsolationForest, forest2: IsolationForest, data=None, n_features=None):
+    if data is None:
+        if n_features is None:
+            raise ValueError('Either data or n_features')
+        data = np.random.standard_normal((1024, n_features))
+    assert_equal(forest1.score_samples(data), forest2.score_samples(data))
+
+
+def build_forest(n_features: int, random_seed: int) -> IsolationForest:
+    n_trees = 100
+    n_subsamples = 256
+
+    rng = np.random.default_rng(random_seed)
+    data = rng.standard_normal((n_trees * n_subsamples, n_features))
+
+    forest = IsolationForest(n_trees=n_trees, n_subsamples=n_subsamples, max_depth=None, random_seed=random_seed)
+    forest.fit(data)
+    return forest
+
+
+def test_reproducibility():
+    n_features = 16
+    random_seed = np.random.randint(1 << 16)
+    forest1 = build_forest(n_features, random_seed)
+    forest2 = build_forest(n_features, random_seed)
+    assert_forest_scores(forest1, forest2, n_features=n_features)
+
+
+def test_regression(regression_data):
+    random_seed = 0
+    n_features = 16
+    n_samples = 128
+    rng = np.random.default_rng(random_seed)
+    data = rng.standard_normal((n_samples, n_features))
+    forest = build_forest(n_features=n_features, random_seed=random_seed)
+    scores = forest.score_samples(data)
+    regression_data.allclose(scores)
