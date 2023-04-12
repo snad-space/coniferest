@@ -1,6 +1,10 @@
 import numpy as np
 from coniferest.label import Label
 
+from .ztf_m31 import ztf_m31
+
+__all__ = ["ztf_m31",]
+
 
 class Dataset:
     def __init__(self, data, labels):
