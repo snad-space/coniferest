@@ -4,3 +4,4 @@ include coniferest/*.pyx
 include tests/*
 include scripts/*
 include notebooks/*
+include coniferest/datasets/*.npz
