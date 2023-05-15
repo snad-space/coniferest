@@ -6,3 +6,34 @@ requires = [
   "Cython",
 ]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "coniferest"
+version = "0.0.4"
+description = "Coniferous forests for better machine learning"
+readme = "README.md"
+requires-python = ">=3.7"
+authors = [
+  { name = "Vladimir Korolev", email = "balodja@gmail.com" },
+  { name = "SNAD team" },
+]
+license = { text = "MIT" }
+classifiers =  [
+  "License :: OSI Approved :: MIT License",
+  "Intended Audience :: Science/Research",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: MacOS",
+  "Programming Language :: Python",
+  "Topic :: Scientific/Engineering",
+]
+
+[project.urls]
+"Source Code" = "https://github.com/snad-space/coniferest"
+
+[tool.setuptools.packages.find]
+exclude = [
+  "tests",
+  "notebooks",
+  "notes",
+]
