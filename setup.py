@@ -23,38 +23,10 @@ extensions = [Extension("coniferest.calc_paths_sum",
                         )]
 
 
-def get_readme():
-    return (Path(__file__).parent / 'README.md').read_text(encoding='utf8')
 
-
-setup(name='coniferest',
-      version='0.0.4',
-      description='Coniferous forests for better machine learning',
-      long_description=get_readme(),
-      long_description_content_type='text/markdown',
-      url='https://github.com/snad-space/coniferest',
-      author='Vladimir Korolev, SNAD team',
-      author_email='balodja@gmail.com',
-      license='MIT',
-      classifiers=[
-        'Development Status :: 3 - Alpha',
-        'License :: OSI Approved :: MIT License',
-        'Intended Audience :: Science/Research',
-        'Natural Language :: English',
-        'Operating System :: Microsoft :: Windows',
-        'Operating System :: POSIX :: Linux',
-        'Operating System :: MacOS',
-        'Programming Language :: Python',
-        'Topic :: Scientific/Engineering'
-      ],
-      packages=['coniferest', 'coniferest.sklearn'],
-      package_data={
-          '': ['*.pxd'],
-      },
+setup(
       ext_modules=cythonize(extensions),
-      install_requires=['numpy', 'sklearn', 'matplotlib'],
       cmdclass = {
           'build_ext': build_ext
       },
-      zip_safe=False)
-
+)
