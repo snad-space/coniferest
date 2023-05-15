@@ -1,17 +1,60 @@
-from typing import Callable
+from typing import Callable, Dict
 
 import numpy as np
 
 from coniferest.coniferest import Coniferest
 from coniferest.pineforest import PineForest
 
-from .callback import click_decision_callback
+from .callback import prompt_decision_callback
+from ..label import Label
 
 
-## ds = ztf_dataset()
-## s = Session(*ds, lambda : ...., )
-## s.run()
 class Session:
+    """
+    Active anomaly detection session
+
+    Parameters
+    ----------
+    data : array-like, shape (n_samples, n_features), dtype is number
+        2-D array of data points
+    metadata : array-like, shape (n_samples,), dtype is any
+        1-D array of metadata for each data point
+    decision_callback : callable, optional
+        Function to be called when expert decision is required
+        TODO: signature
+    on_refit_callbacks : list of callable or callable, optional
+        Functions to be called when model is refitted
+        TODO: signature
+    on_decision_callbacks : list of callable or callable, optional
+        Functions to be called when expert decision is made
+        TODO: signature
+    known_labels : dict, optional
+        Dictionary of known anomaly labels, keys are data/metadata indices,
+        values are labels of type `Label`
+    model : Coniferest, optional
+        Anomaly detection model to use, default is `PineForest`
+
+    Attributes
+    ----------
+    current : int
+        Index of current anomaly candidate
+    scores : array-like, shape (n_samples,)
+        Current anomaly scores for all data points
+    terminated : bool
+        True if session is terminated
+    known_labels : dict[int, Label]
+        Current dictionary of known anomaly labels
+    model : Coniferest
+        Anomaly detection model used
+
+    Examples
+    --------
+
+    >>> from coniferest.session import Session
+    >>> data, metadata = ztf_dataset()
+    >>> s = Session(data, metadata)
+    >>> s.run()
+    """
     @staticmethod
     def _validate_callbacks(callbacks):
         return all([isinstance(cb, Callable) for cb in callbacks])
@@ -22,7 +65,7 @@ class Session:
             cb(*args, **kwargs)
 
 
-    def __init__(self, data, metadata, decision_callback = click_decision_callback, on_refit_callbacks = [], on_decision_callbacks = [], known_labels = None, model = PineForest()):
+    def __init__(self, data, metadata, decision_callback = prompt_decision_callback, *, on_refit_callbacks = [], on_decision_callbacks = [], known_labels: Dict[int, Label] = None, model: Coniferest = PineForest()):
 
         self._data     = np.atleast_2d(data)
         self._metadata = np.atleast_1d(metadata)
@@ -63,8 +106,10 @@ class Session:
         self._terminated = False
 
     def run(self):
+        """Evaluate interactive anomaly detection session"""
+
         if self._terminated:
-            return self
+            raise RuntimeError("Session is already terminated")
 
         self.model.fit(self._data)
 
@@ -96,7 +141,6 @@ class Session:
 
     def terminate(self):
         self._terminated = True
-
 
     @property
     def current(self):

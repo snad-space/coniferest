@@ -63,6 +63,9 @@ class IsolationForest(Coniferest):
         """
         return self.evaluator.score_samples(samples)
 
+    def fit_known(self, data, known_data=None, known_labels=None):
+        return self.fit(data)
+
 
 class IsolationForestAnomalyDetector(AnomalyDetector):
     def __init__(self, isoforest, title='Isolation Forest'):
