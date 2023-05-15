@@ -27,6 +27,11 @@ classifiers =  [
   "Programming Language :: Python",
   "Topic :: Scientific/Engineering",
 ]
+dependencies = [
+  "numpy",
+  "scikit-learn",
+  "matplotlib",
+]
 
 [project.urls]
 "Source Code" = "https://github.com/snad-space/coniferest"
