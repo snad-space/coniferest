@@ -10,13 +10,24 @@ from sklearn.tree._tree import Tree
 from coniferest.coniferest import Coniferest
 
 
+class ConiferestImpl(Coniferest):
+    def fit(self, data, labels=None):
+        super().fit(data, labels)
+
+    def fit_known(self, data, known_data=None, known_labels=None):
+        super().fit_known(data, known_data, known_labels)
+
+    def score_samples(self, samples):
+        return super().score_samples(samples)
+
+
 def build_one_tree(random_seed) -> Tree:
     shape = 256, 16
 
     rng = np.random.default_rng(random_seed)
     data = rng.standard_normal(shape)
 
-    coniferest = Coniferest(trees=None, n_subsamples=data.shape[0], max_depth=None, random_seed=random_seed)
+    coniferest = ConiferestImpl(trees=None, n_subsamples=data.shape[0], max_depth=None, random_seed=random_seed)
     return coniferest.build_one_tree(data)
 
 
@@ -49,7 +60,7 @@ def build_trees(random_seed) -> List[Tree]:
     rng = np.random.default_rng(random_seed)
     data = rng.standard_normal(shape)
 
-    coniferest = Coniferest(trees=None, n_subsamples=n_subsamples, max_depth=None, random_seed=random_seed)
+    coniferest = ConiferestImpl(trees=None, n_subsamples=n_subsamples, max_depth=None, random_seed=random_seed)
     return coniferest.build_trees(data, n_trees)
 
 
