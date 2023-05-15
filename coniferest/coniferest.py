@@ -173,6 +173,13 @@ class Coniferest(ABC):
         raise NotImplementedError()
 
     @abstractmethod
+    def fit_known(self, data, known_data=None, known_labels=None):
+        """
+        Fit to the applied data with priors.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
     def score_samples(self, samples):
         """
         Evaluate scores for samples.
