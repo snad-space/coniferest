@@ -3,7 +3,7 @@ import numpy as np
 from .coniferest import Coniferest, ConiferestEvaluator
 from .experiment import AnomalyDetector
 from .utils import average_path_length
-from .datasets import Label
+from .label import Label
 
 from sklearn.tree._tree import DTYPE as TreeDTYPE  # noqa
 
