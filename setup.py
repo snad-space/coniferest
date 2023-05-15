@@ -27,7 +27,7 @@ def get_readme():
     return (Path(__file__).parent / 'README.md').read_text(encoding='utf8')
 
 
-setup(name='coniferest',
+setup(
       version='0.0.4',
       description='Coniferous forests for better machine learning',
       long_description=get_readme(),
