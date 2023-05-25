@@ -1,3 +1,5 @@
+from abc import ABC, abstractmethod
+
 import numpy as np
 from pkg_resources import parse_version
 
@@ -19,7 +21,7 @@ RAND_R_MAX = 0x7FFFFFFF
 # Cause RAND_R_MAX is restricted to C-code.
 
 
-class Coniferest:
+class Coniferest(ABC):
     def __init__(self, trees=None, n_subsamples=256, max_depth=None, random_seed=None):
         """
         Base class for the forests in the package. It settles the basic
@@ -163,12 +165,21 @@ class Coniferest:
 
         return tree
 
+    @abstractmethod
     def fit(self, data, labels=None):
         """
         Fit to the applied data.
         """
         raise NotImplementedError()
 
+    @abstractmethod
+    def fit_known(self, data, known_data=None, known_labels=None):
+        """
+        Fit to the applied data with priors.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
     def score_samples(self, samples):
         """
         Evaluate scores for samples.

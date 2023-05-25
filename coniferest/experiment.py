@@ -10,7 +10,7 @@ from matplotlib.backends.backend_agg import FigureCanvas  # noqa
 
 from PIL import Image
 
-from .datasets import Label
+from .label import Label
 
 
 class AnomalyDetector:
