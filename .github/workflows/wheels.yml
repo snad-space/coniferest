@@ -2,8 +2,7 @@ name: Build and publish wheels
 
 on:
   push:
-    tags:
-      - '*'
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -54,6 +53,7 @@ jobs:
         name: artifact
         path: dist
     - uses: pypa/gh-action-pypi-publish@release/v1
+      if: startsWith(github.ref, 'refs/tags/v')
       with:
         user: __token__
         password: ${{ secrets.PYPI_API_TOKEN }}
