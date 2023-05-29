@@ -53,7 +53,7 @@ class PineForest(Coniferest):
             process.
 
         random_seed
-            Random seed. For reproducibility.
+            Random rng. For reproducibility.
         """
         super().__init__(trees=[],
                          n_subsamples=n_subsamples,

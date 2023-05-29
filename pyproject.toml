@@ -43,3 +43,15 @@ exclude = [
   "notebooks",
   "notes",
 ]
+
+# pytest
+[tool.pytest.ini_options]
+tests_paths = [
+  "tests",
+]
+markers = [
+  "e2e",
+  "long",
+  "regression",
+]
+addopts = "-m 'not long'"

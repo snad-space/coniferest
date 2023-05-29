@@ -99,7 +99,7 @@ class AADForest(Coniferest):
             Maximum depth of every tree.
 
         random_seed
-            Random seed. For reproducibility.
+            Random rng. For reproducibility.
         """
         super().__init__(trees=[],
                          n_subsamples=n_subsamples,

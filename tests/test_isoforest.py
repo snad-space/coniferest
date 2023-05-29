@@ -21,7 +21,7 @@ class IsoforestResults:
         self.dataset = MalanchevDataset(inliers=1000,
                                         outliers=50,
                                         regions=[1, 1, -1],
-                                        seed=seed)
+                                        rng=seed)
 
         data = self.dataset.data
         trees = 1000
@@ -106,6 +106,7 @@ def test_reproducibility():
     assert_forest_scores(forest1, forest2, n_features=n_features)
 
 
+@pytest.mark.regression
 def test_regression(regression_data):
     random_seed = 0
     n_features = 16

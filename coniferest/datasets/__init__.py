@@ -3,7 +3,7 @@ from coniferest.label import Label
 
 from .ztf_m31 import ztf_m31
 
-__all__ = ["ztf_m31",]
+__all__ = ["ztf_m31", "single_outlier", "non_anomalous_outliers"]
 
 
 class Dataset:
@@ -14,9 +14,26 @@ class Dataset:
         self.data = data
         self.labels = labels
 
+    def to_data_metadata(self):
+        return np.asarray(self.data), np.asarray(list(map(Label, self.labels)))
+
+
+class SingleOutlierDataset(Dataset):
+    def __init__(self, inliers=10_000, rng=0):
+        rng = np.random.default_rng(rng)
+        data_inliers = rng.normal(loc=0, scale=1, size=(inliers, 2))
+        data_outlier = np.array([[1e6, -1e6]])
+        data = np.vstack([data_inliers, data_outlier])
+        labels = np.append(np.zeros(inliers), np.ones(1))
+        super().__init__(data, labels)
+
+
+def single_outlier(inliers=10_000, rng=0):
+    return SingleOutlierDataset(inliers, rng).to_data_metadata()
+
 
 class MalanchevDataset(Dataset):
-    def __init__(self, inliers=2**10, outliers=2**5, regions=None, seed=0):
+    def __init__(self, inliers=1 << 10, outliers=1 << 5, regions=None, rng=0):
         """
         A simple dataset for testing the anomaly detection algorithms. It
         constits of one portion of regular data of `inliers` capacity, and
@@ -55,7 +72,7 @@ class MalanchevDataset(Dataset):
         regions = regions or np.array([Label.R, Label.R, Label.A])
         self.regions = regions
 
-        rng = np.random.default_rng(seed)
+        rng = np.random.default_rng(rng)
         self.rng = rng
 
         x = np.concatenate([self._generate_inliers(inliers, rng),
@@ -78,3 +95,7 @@ class MalanchevDataset(Dataset):
     def _generate_outliers(n, rng, loc=None):
         loc = loc or [1, 1]
         return rng.normal(loc, 0.1, (n, 2))
+
+
+def non_anomalous_outliers(inliers=1 << 10, outliers=1 << 5, regions=None, seed=0):
+    return MalanchevDataset(inliers, outliers, regions, seed).to_data_metadata()
