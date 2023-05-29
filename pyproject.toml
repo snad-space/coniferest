@@ -28,6 +28,7 @@ classifiers =  [
   "Topic :: Scientific/Engineering",
 ]
 dependencies = [
+  "click",
   "numpy",
   "scikit-learn",
   "matplotlib",
