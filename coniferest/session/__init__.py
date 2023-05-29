@@ -36,8 +36,8 @@ class Session:
 
     Attributes
     ----------
-    current : int
-        Index of current anomaly candidate
+    last_idx : int
+        Index of last_idx anomaly candidate
     scores : array-like, shape (n_samples,)
         Current anomaly scores for all data points
     terminated : bool

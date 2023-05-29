@@ -47,8 +47,8 @@ class Coniferest(ABC):
 
         # For the better future with reproducible parallel tree building.
         # self.seedseq = np.random.SeedSequence(random_state)
-        # seed, = self.seedseq.spawn(1)
-        # self.rng = np.random.default_rng(seed)
+        # rng, = self.seedseq.spawn(1)
+        # self.rng = np.random.default_rng(rng)
 
         self.rng = np.random.default_rng(random_seed)
 
