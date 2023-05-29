@@ -9,7 +9,7 @@ from .calc_paths_sum import calc_paths_sum, calc_paths_sum_transpose  # noqa
 
 class AADEvaluator(ConiferestEvaluator):
     def __init__(self, aad):
-        super(AADEvaluator, self).__init__(aad, map_value=np.reciprocal)
+        super(AADEvaluator, self).__init__(aad, map_value=lambda x: -np.reciprocal(x))
         self.weights = np.full(shape=(self.leaf_count,), fill_value=np.reciprocal(np.sqrt(self.leaf_count)))
 
     def score_samples(self, x, weights = None):
