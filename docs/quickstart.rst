@@ -1,5 +1,5 @@
-``coniferest`` package
-========================================
+Quick start
+===========
 
 Installation
 ------------

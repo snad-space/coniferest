@@ -1,4 +1,4 @@
-coniferest
+API reference
 ==========
 
 .. toctree::
