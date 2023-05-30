@@ -8,14 +8,20 @@ Installation
 
 You usually want to create virtual environment first, for example with ``venv``:
 
+.. code-block:: bash
+
     python3 -mvenv venv
     source venv/bin/activate
 
 We need up-to-date pip:
 
+.. code-block:: bash
+
     python3 -mpip install -U pip
 
 Finally, install ``coniferest``:
+
+.. code-block:: bash
 
     python3 -mpip install coniferest
 
@@ -104,4 +110,17 @@ After the session is finished you can explore ``session`` objects for the decisi
         pprint({metadata[idx]: session.scores[idx] for idx in session.known_labels})
 
 ``coniferest`` provides a new active anomaly detection model developed by the SNAD team, ``PineForest``.
-Try to replace the model with ``model = PineForest(256, n_spare_trees=768, random_seed=0)`` and run the session again.
+Try to use this model and run the session again:
+
+.. code-block:: python
+
+        from coniferest.pineforest import PineForest
+
+        model = PineForest(
+            # Number of trees to use for predictions
+            n_trees=256,
+            # Number of new tree to grow for each decision
+            n_spare_trees=768,
+            # Fix random seed for reproducibility
+            random_seed=0,
+        )
