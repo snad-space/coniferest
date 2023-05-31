@@ -1,8 +1,13 @@
 from enum import IntEnum
 
 
+__all__ = ['Label']
+
+
 class Label(IntEnum):
     """
+    Anomalous classification labels.
+
     Three types of labels:
 
       * -1 for anomalies, referenced either as `Label.ANOMALY` or as `Label.A`,

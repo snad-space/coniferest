@@ -7,6 +7,9 @@ from .label import Label
 from .calc_paths_sum import calc_paths_sum, calc_paths_sum_transpose  # noqa
 
 
+__all__ = ['AADForest']
+
+
 class AADEvaluator(ConiferestEvaluator):
     def __init__(self, aad):
         super(AADEvaluator, self).__init__(aad, map_value=lambda x: -np.reciprocal(x))
@@ -77,6 +80,25 @@ class AADEvaluator(ConiferestEvaluator):
 
 
 class AADForest(Coniferest):
+    """
+    Active Anomaly Detection with Isolation Forest.
+
+    See Das et al., 2017 https://arxiv.org/abs/1708.09441
+
+    Parameters
+    ----------
+    n_trees : int, optional
+        Number of trees in the isolation forest.
+
+    n_subsamples : int, optional
+        How many subsamples should be used to build every tree.
+
+    max_depth : int or None, optional
+        Maximum depth of every tree. If None, `log2(n_subsamples)` is used.
+
+    random_seed : int or None, optional
+        Random seed to use for reproducibility. If None - random seed is used.
+    """
     def __init__(self,
                  n_trees=100,
                  n_subsamples=256,
@@ -85,22 +107,6 @@ class AADForest(Coniferest):
                  C_a=1.0,
                  prior_influence=1.0,
                  random_seed=None):
-        """
-
-        Parameters
-        ----------
-        n_trees
-            Number of trees to keep for estimating anomaly scores.
-
-        n_subsamples
-            How many subsamples should be used to build every tree.
-
-        max_depth
-            Maximum depth of every tree.
-
-        random_seed
-            Random rng. For reproducibility.
-        """
         super().__init__(trees=[],
                          n_subsamples=n_subsamples,
                          max_depth=max_depth,

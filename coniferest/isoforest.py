@@ -2,25 +2,33 @@ from .coniferest import Coniferest, ConiferestEvaluator
 from .experiment import AnomalyDetector
 
 
+__all__ = ['IsolationForest']
+
+
 class IsolationForest(Coniferest):
+    """
+    Isolation forest.
+
+    This is a reimplementation of sklearn.ensemble.IsolationForest,
+    which trains and evaluates much faster. It also supports multi-threading
+    for evaluation (sample scoring).
+
+    Parameters
+    ----------
+    n_trees : int, optional
+        Number of trees in forest to build.
+
+    n_subsamples : int, optional
+        Number of subsamples to use for building the trees.
+
+    max_depth : int or None, optional
+        Maximal tree depth. If None, `log2(n_subsamples)` is used.
+
+    random_seed : int or None, optional
+        Seed for reproducibility. If None, random seed is used.
+    """
+
     def __init__(self, n_trees=100, n_subsamples=256, max_depth=None, random_seed=None):
-        """
-        Isolation forest. Just isolation forest.
-
-        Parameters
-        ----------
-        n_trees
-            Number of trees in forest to build.
-
-        n_subsamples
-            Number of subsamples to use for building the trees.
-
-        max_depth
-            Maximal tree depth.
-
-        random_seed
-            Seed for reproducibility.
-        """
         super().__init__(trees=[],
                          n_subsamples=n_subsamples,
                          max_depth=max_depth,
@@ -65,6 +73,7 @@ class IsolationForest(Coniferest):
 
     def fit_known(self, data, known_data=None, known_labels=None):
         return self.fit(data)
+
 
 class IsolationForestAnomalyDetector(AnomalyDetector):
     def __init__(self, isoforest, title='Isolation Forest'):

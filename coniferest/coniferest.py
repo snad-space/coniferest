@@ -14,6 +14,10 @@ from .evaluator import ForestEvaluator
 from .utils import average_path_length
 from warnings import warn
 
+
+__all__ = ['Coniferest', 'ConiferestEvaluator']
+
+
 # Instead of doing:
 # from sklearn.utils._random import RAND_R_MAX
 # we have:
@@ -22,25 +26,26 @@ RAND_R_MAX = 0x7FFFFFFF
 
 
 class Coniferest(ABC):
+    """
+    Base class for the forests in the package. It settles the basic
+    low-level machinery with the sklearn's trees, used here.
+
+    Parameters
+    ----------
+    trees : list or None, optional
+        List with the trees in the forest. If None, then empty list is used.
+
+    n_subsamples : int, optional
+        Subsamples to use for the training.
+
+    max_depth : int or None, optional
+        Maximum depth of the trees in use. If None, then `log2(n_subsamples)`
+
+    random_seed : int or None, optional
+        Seed for the reproducibility. If None, then random seed is used.
+    """
+
     def __init__(self, trees=None, n_subsamples=256, max_depth=None, random_seed=None):
-        """
-        Base class for the forests in the package. It settles the basic
-        low-level machinery with the sklearn's trees, used here.
-
-        Parameters
-        ----------
-        trees
-            List (iterable?) with the trees in the forest.
-
-        n_subsamples
-            Subsamples to use for the training.
-
-        max_depth
-            Maximum depth of the trees in use.
-
-        random_seed
-            Seed for the reproducibility.
-        """
         self.trees = trees or []
         self.n_subsamples = n_subsamples
         self.max_depth = max_depth or int(np.log2(n_subsamples))
@@ -188,18 +193,19 @@ class Coniferest(ABC):
 
 
 class ConiferestEvaluator(ForestEvaluator):
+    """
+    Fast evaluator of scores for Coniferests.
+
+    Parameters
+    ----------
+    coniferest : Coniferest
+        The forest for building the evaluator from.
+    map_value : callable or None
+        Optional function to map leaf values, mast accept 1-D array of values
+        and return an array of the same shape.
+    """
 
     def __init__(self, coniferest, map_value=None):
-        """
-        Fast evaluator of scores for Coniferests.
-
-        Parameters
-        ----------
-        coniferest
-            The forest for building the evaluator from.
-        map_value
-            Optional function to map leaf values
-        """
         selectors_list = [self.extract_selectors(t, map_value) for t in coniferest.trees]
         selectors, indices, leaf_count = self.combine_selectors(selectors_list)
 

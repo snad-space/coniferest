@@ -8,53 +8,59 @@ from .label import Label
 from sklearn.tree._tree import DTYPE as TreeDTYPE  # noqa
 
 
+__all__ = ['PineForest']
+
+
 class PineForest(Coniferest):
+    """
+    Pine Forest for active anomaly detection.
+
+    Pine Forests are filtering isolation forests. That's a simple concept
+    of incorporating prior knowledge about what is anomalous and what is not.
+
+    Standard fit procedure with two parameters works exactly the same as the
+    isolation forests' one. It differs when we supply additional parameter
+    `labels`, then the behaviour changes. At that case fit generates additional
+    not only `n_trees` but with additional `n_spare_trees` and then filters out
+    `n_spare_trees`, leaving only those `n_trees` that deliver better scores
+    for the data known to be anomalous.
+
+    Parameters
+    ----------
+    n_trees : int, optional
+        Number of trees to keep for estimating anomaly scores.
+
+    n_subsamples : int, optional
+        How many subsamples should be used to build every tree.
+
+    max_depth : int or None, optional
+        Maximum depth of every tree. If None, `log2(n_subsamples)` is used.
+
+    n_spare_trees : int, optional
+        Number of trees to generate additionally for further filtering.
+
+    regenerate_trees : bool, optional
+        Should we throughout all the trees during retraining or should we
+        mix old trees with the fresh ones. False by default, so we mix.
+
+    weight_ratio : float, optional
+        What is the relative weight of false positives relative to true
+        positives (i.e. we are not interested in negatives in anomaly
+        detection, right?). The weight is used during the filtering
+        process.
+
+    random_seed : int or None, optional
+        Random seed. If None - random seed is used.
+    """
+
     def __init__(self,
                  n_trees=100,
                  n_subsamples=256,
                  max_depth=None,
                  n_spare_trees=400,
                  regenerate_trees=False,
-                 weight_ratio=1,
+                 weight_ratio=1.0,
                  random_seed=None):
-        """
-        Pine Forests are filtering isolation forests. That's a simple concept
-        of incorporating prior knowledge about what is anomalous and what is not.
-
-        Standard fit procedure with two parameters works exactly the same as the
-        isolation forests' one. It differs when we supply additional parameter
-        `labels`, than the behaviour changes. At that case fit generates additional
-        not only `n_trees` but with additional `n_spare_trees` and then filters out
-        `n_spare_trees`, leaving only those `n_trees` that deliver better scores
-        for the data known to be anomalous.
-
-        Parameters
-        ----------
-        n_trees
-            Number of trees to keep for estimating anomaly scores.
-
-        n_subsamples
-            How many subsamples should be used to build every tree.
-
-        max_depth
-            Maximum depth of every tree.
-
-        n_spare_trees
-            Number of trees to generate additionally for further filtering.
-
-        regenerate_trees
-            Should we through out all the trees during retraining or should we
-            mix old trees with the fresh ones. False by default, so we mix.
-
-        weight_ratio
-            What is the relative weight of false positives relative to true
-            positives (i.e. we are not interested in negatives in anomaly
-            detection, right?). The weight is used during the filtering
-            process.
-
-        random_seed
-            Random rng. For reproducibility.
-        """
         super().__init__(trees=[],
                          n_subsamples=n_subsamples,
                          max_depth=max_depth,
