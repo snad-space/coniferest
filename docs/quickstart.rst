@@ -124,3 +124,41 @@ Try to use this model and run the session again:
             # Fix random seed for reproducibility
             random_seed=0,
         )
+
+
+Use your own data
+-----------------
+
+In examples above we used built-in datasets, but you can easily use your own data.
+The only requirement is that your data should be a 2-D array of features, where first axis is for objects and second is for features.
+You also need an 1-D array of object metadata, which can be anything you want, but typically you would make it to be object IDs or names.
+
+Let's generate a simple 2-D dataset and run :class:`PineForest <coniferest.pineforest.PineForest>` model on it using a simple interactive prompt as a decision callback:
+
+.. code-block:: python
+
+        import numpy as np
+        from coniferest.pineforest import PineForest
+        from coniferest.session import Session
+        from coniferest.session.callback import (
+            TerminateAfter, prompt_decision_callback,
+        )
+
+        n_objects = 1000
+        n_features = 10
+
+        rng = np.random.default_rng(0)
+        data = rng.normal(size=(n_objects, n_features))
+        # prompt_decision_callback will print object's metadata, so it should
+        # have a pretty representation. Integer index is good for this example
+        metadata = np.arange(n_objects)
+
+        session = Session(
+            data=data,
+            metadata=metadata,
+            model=PineForest(random_seed=0),
+            decision_callback=prompt_decision_callback,
+            on_decision_callbacks=TerminateAfter(10),
+        )
+        session.run()
+
