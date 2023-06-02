@@ -102,8 +102,7 @@ Please note that :class:`Session <coniferest.session.Session>` mutates the model
 
 For the first candidate you should get a recurrent variable `ZTF DR 695211200075348 <https://ztf.snad.space/dr3/view/695211200075348>`_ / `M31N 2013-11b <https://www.astronomerstelegram.org/?read=5569>`_ / `MASTER OTJ004126.22+414350.0 <https://ui.adsabs.harvard.edu/abs/2016ATel.9470....1S/abstract>`_.
 SNAD team reported this object as an anomaly in `Malanchev at al. (2021) <https://ui.adsabs.harvard.edu/abs/2021MNRAS.502.5147M/abstract>`_, it is believed to be a recurrent Nova or `a long-period variable star <https://www.astronomerstelegram.org/?read=5640>`_.
-If you say "Y" you will get a bogus light curve, so you should say "N" to mark it as a "regular" object.
-And then do what ever you want and investigate different paths!
+If you are interested in this type of object, say Y otherwise mark it as not-interesting by replying N and continue your investigations — the objects shown to you will depend on the sequence of your replies.
 
 After the session is finished you can explore :class:`Session <coniferest.session.Session>` objects for the decisions you made and final state of the model:
 
