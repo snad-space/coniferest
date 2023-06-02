@@ -1,5 +1,5 @@
-Quick start
-===========
+Tutorial
+========
 
 Installation
 ------------
@@ -292,7 +292,7 @@ Within these three classes, only one considered as anomalous, while other two ar
         plt.legend()
         plt.show()
 
-.. image:: _static/quickstart/known_labels_dataset.png
+.. image:: _static/tutorial/known_labels_dataset.png
 
 Let's see what :class:`IsolationForest <coniferest.isolationforest.IsolationForest>` will find in this dataset within top-32 outliers:
 
@@ -312,7 +312,7 @@ Let's see what :class:`IsolationForest <coniferest.isolationforest.IsolationFore
         plt.legend()
         plt.show()
 
-.. image:: _static/quickstart/known_labels_isoforest.png
+.. image:: _static/tutorial/known_labels_isoforest.png
 
 Here we show 32 candidates in "SNAD yellow" color.
 Not bad, but what can we do with the active anomaly detection?
@@ -342,7 +342,7 @@ Not bad, but what can we do with the active anomaly detection?
         plt.show()
 
 
-.. image:: _static/quickstart/known_labels_pineforest.png
+.. image:: _static/tutorial/known_labels_pineforest.png
 
 Looks good, right?
 But what if we know that one of the "outlier" objects is not an anomaly?
@@ -378,6 +378,6 @@ We can mark it as a regular object and run the active anomaly detection again:
         plt.show()
 
 
-.. image:: _static/quickstart/known_labels_pineforest_known_regular.png
+.. image:: _static/tutorial/known_labels_pineforest_known_regular.png
 
 Note that the object we marked as regular was not even selected by the previous run, but here it influenced the model to not select other objects of this class.

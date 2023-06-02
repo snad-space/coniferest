@@ -10,7 +10,7 @@ Welcome to coniferest's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   quickstart.rst
+   tutorial.rst
    modules.rst
 
 Indices and tables
