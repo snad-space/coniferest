@@ -69,7 +69,8 @@ class MalanchevDataset(Dataset):
         """
         self.inliers = inliers
         self.outliers = outliers
-        regions = regions or np.array([Label.R, Label.R, Label.A])
+        if regions is None:
+            regions = np.array([Label.R, Label.R, Label.A])
         self.regions = regions
 
         rng = np.random.default_rng(rng)
