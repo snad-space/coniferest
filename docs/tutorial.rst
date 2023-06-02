@@ -172,7 +172,7 @@ Session life cycle
 ------------------
 
 Examples above use :class:`Session <coniferest.session.Session>` class to run active anomaly detection.
-Let's take a closer look at how it works:
+Let's take a closer look at how it works, please refer to :class:`Session <coniferest.session.Session>` API documentation for more details on the class constructor arguments and the class methods and attributes.
 
 1. Initialize session with :class:`Session() <coniferest.session.Session>` constructor
 2. Call :meth:`Session.run() <coniferest.session.Session.run>` method to start the session. It will do the following:
