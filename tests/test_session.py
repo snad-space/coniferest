@@ -68,8 +68,7 @@ def test_non_anomalous_outliers(model, n_iter, last_idx):
     data, metadata = non_anomalous_outliers(inliers=n_regular, outliers=n_anomalies)
 
     def terminate_after_all_detected(_metadata, _data, session):
-        n_detected = sum(label == Label.ANOMALY for label in session.known_labels.values())
-        if n_detected == n_anomalies:
+        if session.known_anomalies.size == n_anomalies:
             session.terminate()
 
     session = Session(

@@ -36,14 +36,22 @@ class Session:
 
     Attributes
     ----------
-    last_idx : int
-        Index of last_idx anomaly candidate
+    current : int
+        Index of the last anomaly candidate
+    last_decision : Label or None
+        Label of the last anomaly candidate or None if no decision was made
     scores : array-like, shape (n_samples,)
         Current anomaly scores for all data points
     terminated : bool
         True if session is terminated
     known_labels : dict[int, Label]
         Current dictionary of known anomaly labels
+    known_anomalies : array-like
+        Array of indices of known anomalies
+    known_regulars : array-like
+        Array of indices of known regular objects
+    known_unknowns : array-like
+        Array of indices of known objects marked with `Label::UNKNOWN`
     model : Coniferest
         Anomaly detection model used
 
@@ -147,12 +155,28 @@ class Session:
         return self._current
 
     @property
+    def last_decision(self) -> Optional[Label]:
+        return self._known_labels.get(self._current, None)
+
+    @property
     def scores(self) -> np.ndarray:
         return self._scores
 
     @property
     def known_labels(self) -> Dict[int, Label]:
         return self._known_labels
+
+    @property
+    def known_anomalies(self) -> np.ndarray:
+        return np.array([idx for idx, label in self._known_labels.items() if label == Label.ANOMALY])
+
+    @property
+    def known_regulars(self) -> np.ndarray:
+        return np.array([idx for idx, label in self._known_labels.items() if label == Label.REGULAR])
+
+    @property
+    def known_unknowns(self) -> np.ndarray:
+        return np.array([idx for idx, label in self._known_labels.items() if label == Label.UNKNOWN])
 
     @property
     def model(self) -> Coniferest:
