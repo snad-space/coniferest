@@ -100,7 +100,7 @@ Each decision you make retrains the model and updates the outlier scores.
 After 10 decisions the session will be terminated, but you can also stop it by pressing ``Ctrl+C``.
 Please note that :class:`Session <coniferest.session.Session>` mutates the model, so you should re-create the model if you want to start a new session with the blank model.
 
-For the first candidate you should get a recurrent variable `ZTF DR 695211200075348 <https://ztf.snad.space/dr3/view/695211200075348>`_ / `M31N 2013-11b <https://www.astronomerstelegram.org/?read=5569>`_ / `MASTER OTJ004126.22+414350.0 <https://ui.adsabs.harvard.edu/abs/2016ATel.9470....1S/abstract>`_ as a fourth object.
+For the first candidate you should get a recurrent variable `ZTF DR 695211200075348 <https://ztf.snad.space/dr3/view/695211200075348>`_ / `M31N 2013-11b <https://www.astronomerstelegram.org/?read=5569>`_ / `MASTER OTJ004126.22+414350.0 <https://ui.adsabs.harvard.edu/abs/2016ATel.9470....1S/abstract>`_.
 SNAD team reported this object as an anomaly in `Malanchev at al. (2021) <https://ui.adsabs.harvard.edu/abs/2021MNRAS.502.5147M/abstract>`_, it is believed to be a recurrent Nova or `a long-period variable star <https://www.astronomerstelegram.org/?read=5640>`_.
 If you say "Y" you will get a bogus light curve, so you should say "N" to mark it as a "regular" object.
 And then do what ever you want and investigate different paths!
