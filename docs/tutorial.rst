@@ -57,15 +57,18 @@ Let's use built-in dataset of ZTF light curve features adopted from `Malanchev a
 
 Here ``data`` is 2-D feature dataset (first axis is for objects, second is for features) and ``metadata`` is 1-D array of ZTF DR object IDs.
 Next we need a active anomaly detection model to find outliers in this dataset.
-Let's use :class:`AADForest <coniferest.aadforest.AADForest>` model (see `Das et al., 2017 <https://arxiv.org/abs/1708.09441>`_ and `Ishida et al., 2021 <https://ui.adsabs.harvard.edu/abs/2021A%26A...650A.195I/abstract>`_ for details):
+We will use :class:`PineForest <coniferest.pineforest.PineForest>` model developed by the `SNAD <https://snad.space>`_ team.
+It is based on Isolation forest model and uses a tree filtering algorithm to learn from the decisions made by the user:
 
 .. code-block:: python
 
-        from coniferest.aadforest import AADForest
+        from coniferest.pineforest import PineForest
 
-        model = AADForest(
-            # Use 1024 trees, a trade-off between speed and accuracy
-            n_trees=1024,
+        model = PineForest(
+            # Number of trees to use for predictions
+            n_trees=256,
+            # Number of new tree to grow for each decision
+            n_spare_trees=768,
             # Fix random seed for reproducibility
             random_seed=0,
         )
@@ -97,7 +100,10 @@ Each decision you make retrains the model and updates the outlier scores.
 After 10 decisions the session will be terminated, but you can also stop it by pressing ``Ctrl+C``.
 Please note that :class:`Session <coniferest.session.Session>` mutates the model, so you should re-create the model if you want to start a new session with the blank model.
 
-If you answer ``n`` for the first three objects, you should get a recurrent variable `ZTF DR 695211200075348 <https://ztf.snad.space/dr3/view/695211200075348>`_ / `M31N 2013-11b <https://www.astronomerstelegram.org/?read=5569>`_ / `MASTER OTJ004126.22+414350.0 <https://ui.adsabs.harvard.edu/abs/2016ATel.9470....1S/abstract>`_ as a fourth object. SNAD team reported this object as an anomaly in `Malanchev at al. (2021) <https://ui.adsabs.harvard.edu/abs/2021MNRAS.502.5147M/abstract>`_, it is believed to be a recurrent Nova or `a long-period variable star <https://www.astronomerstelegram.org/?read=5640>`_.
+For the first candidate you should get a recurrent variable `ZTF DR 695211200075348 <https://ztf.snad.space/dr3/view/695211200075348>`_ / `M31N 2013-11b <https://www.astronomerstelegram.org/?read=5569>`_ / `MASTER OTJ004126.22+414350.0 <https://ui.adsabs.harvard.edu/abs/2016ATel.9470....1S/abstract>`_ as a fourth object.
+SNAD team reported this object as an anomaly in `Malanchev at al. (2021) <https://ui.adsabs.harvard.edu/abs/2021MNRAS.502.5147M/abstract>`_, it is believed to be a recurrent Nova or `a long-period variable star <https://www.astronomerstelegram.org/?read=5640>`_.
+If you say "Y" you will get a bogus light curve, so you should say "N" to mark it as a "regular" object.
+And then do what ever you want and investigate different paths!
 
 After the session is finished you can explore :class:`Session <coniferest.session.Session>` objects for the decisions you made and final state of the model:
 
@@ -106,22 +112,20 @@ After the session is finished you can explore :class:`Session <coniferest.sessio
         from pprint import pprint
 
         print('Decisions:')
-        pprint({metadata[idx]: label for idx, label in session.known_labels.items()})
+        pprint({metadata[idx]: label.name for idx, label in session.known_labels.items()})
         print('Final scores:')
         pprint({metadata[idx]: session.scores[idx] for idx in session.known_labels})
 
-``coniferest`` provides a new active anomaly detection model developed by the SNAD team, :class:`PineForest <coniferest.pineforest.PineForest>`.
-Try to use this model and run the session again:
+``coniferest`` also provides "Active Anomaly Detection" model based on Isolation forest :class:`AADForest <coniferest.aadforest.AADForest>` model (see `Das et al., 2017 <https://arxiv.org/abs/1708.09441>`_ and `Ishida et al., 2021 <https://ui.adsabs.harvard.edu/abs/2021A%26A...650A.195I/abstract>`_ for details).
+You can use it instead of :class:`PineForest <coniferest.pineforest.PineForest>` model in the example above:
 
 .. code-block:: python
 
-        from coniferest.pineforest import PineForest
+        from coniferest.aadforest import AADForest
 
-        model = PineForest(
-            # Number of trees to use for predictions
-            n_trees=256,
-            # Number of new tree to grow for each decision
-            n_spare_trees=768,
+        model = AADForest(
+            # Use 1024 trees, a trade-off between speed and accuracy
+            n_trees=1024,
             # Fix random seed for reproducibility
             random_seed=0,
         )
