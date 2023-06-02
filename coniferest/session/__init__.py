@@ -1,4 +1,4 @@
-from typing import Callable, Dict
+from typing import Callable, Dict, Optional
 
 import numpy as np
 
@@ -20,30 +20,48 @@ class Session:
     metadata : array-like, shape (n_samples,), dtype is any
         1-D array of metadata for each data point
     decision_callback : callable, optional
-        Function to be called when expert decision is required
-        TODO: signature
+        Function to be called when expert decision is required, it must return
+        `Label` object with the decision and may terminate the session via
+        `Session.terminate()`. Default is `prompt_decision_callback`
+        Signature: '(metadata, data, session) -> Label', where metadata is
+        metadata of the object to be labeled, data is data of the object to be
+        labeled, session is this session instance.
     on_refit_callbacks : list of callable or callable, optional
-        Functions to be called when model is refitted
-        TODO: signature
+        Functions to be called when model is refitted (before
+        "decision_callback"), default is empty list. This function may call
+        `Session.terminate()`.
+        Signature: '(session) -> None', where session is this session instance.
     on_decision_callbacks : list of callable or callable, optional
-        Functions to be called when expert decision is made
-        TODO: signature
+        Functions to be called when expert decision is made (after
+        "decision_callback"), default is empty list. This function may call
+        `Session.terminate()`.
+        Signature: '(metadata, data, session) -> None', where metadata is
+        metadata of the object has just been labeled, data is data of this
+        object, session is this session instance.
     known_labels : dict, optional
         Dictionary of known anomaly labels, keys are data/metadata indices,
-        values are labels of type `Label`
+        values are labels of type `Label`. Default is empty dictionary.
     model : Coniferest, optional
-        Anomaly detection model to use, default is `PineForest`
+        Anomaly detection model to use, default is `PineForest()`.
 
     Attributes
     ----------
-    last_idx : int
-        Index of last_idx anomaly candidate
+    current : int
+        Index of the last anomaly candidate
+    last_decision : Label or None
+        Label of the last anomaly candidate or None if no decision was made
     scores : array-like, shape (n_samples,)
         Current anomaly scores for all data points
     terminated : bool
         True if session is terminated
     known_labels : dict[int, Label]
         Current dictionary of known anomaly labels
+    known_anomalies : array-like
+        Array of indices of known anomalies
+    known_regulars : array-like
+        Array of indices of known regular objects
+    known_unknowns : array-like
+        Array of indices of known objects marked with `Label::UNKNOWN`
     model : Coniferest
         Anomaly detection model used
 
@@ -105,7 +123,7 @@ class Session:
         self._current = None
         self._terminated = False
 
-    def run(self):
+    def run(self) -> 'Session':
         """Evaluate interactive anomaly detection session"""
 
         if self._terminated:
@@ -139,25 +157,41 @@ class Session:
 
         return self
 
-    def terminate(self):
+    def terminate(self) -> None:
         self._terminated = True
 
     @property
-    def current(self):
+    def current(self) -> int:
         return self._current
 
     @property
-    def scores(self):
+    def last_decision(self) -> Optional[Label]:
+        return self._known_labels.get(self._current, None)
+
+    @property
+    def scores(self) -> np.ndarray:
         return self._scores
 
     @property
-    def known_labels(self):
+    def known_labels(self) -> Dict[int, Label]:
         return self._known_labels
 
     @property
-    def model(self):
+    def known_anomalies(self) -> np.ndarray:
+        return np.array([idx for idx, label in self._known_labels.items() if label == Label.ANOMALY])
+
+    @property
+    def known_regulars(self) -> np.ndarray:
+        return np.array([idx for idx, label in self._known_labels.items() if label == Label.REGULAR])
+
+    @property
+    def known_unknowns(self) -> np.ndarray:
+        return np.array([idx for idx, label in self._known_labels.items() if label == Label.UNKNOWN])
+
+    @property
+    def model(self) -> Coniferest:
         return self._model
 
     @property
-    def terminated(self):
+    def terminated(self) -> bool:
         return self._terminated
