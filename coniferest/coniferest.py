@@ -92,7 +92,7 @@ class Coniferest(ABC):
 
         n_samples = self.n_subsamples
         if n_samples > n_population:
-            msg1 = 'population should be greater or equal that subsamples number'
+            msg1 = 'population should be greater or equal than subsamples number'
             msg2 = f'got n_population < n_subsamples ({n_population} < {n_samples})'
             msg3 = f'assuming n_subsamples = {n_population}'
             warn(msg1 + ', ' + msg2 + ', ' + msg3)
