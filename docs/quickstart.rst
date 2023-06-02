@@ -162,3 +162,222 @@ Let's generate a simple 2-D dataset and run :class:`PineForest <coniferest.pinef
         )
         session.run()
 
+
+Session life cycle
+------------------
+
+Examples above use :class:`Session <coniferest.session.Session>` class to run active anomaly detection.
+Let's take a closer look at how it works:
+
+1. Initialize session with :class:`Session() <coniferest.session.Session>` constructor
+2. Call :meth:`Session.run() <coniferest.session.Session.run>` method to start the session. It will do the following:
+
+    a) Session initializes the model (calls :meth:`.fit() <coniferest.coniferest.Coniferest.fit>` on it) with the `data`
+    b) The decision loop starts and last until session is terminated or all data points are labeled:
+
+        i) :attr:`model <coniferest.session.Session.model>` is fit for current :attr:`Session.known_labels <coniferest.session.Session.known_labels>` (calls :meth:`.fit_known() <coniferest.coniferest.Coniferest.fit_known>` on it)
+        ii) ``on_refit_callbacks`` are called
+        iii) If all data points are labeled, the session is terminated
+        iv) ``decision_callback`` is called, the decision is stored in :attr:`Session.known_labels <coniferest.session.Session.known_labels>`
+        v) ``on_decision_callbacks`` are called
+        vi) If session was terminated in one of the callbacks, then the decision loop is terminated. Otherwise, go to step i)
+
+3. Inspect :class:`Session() <coniferest.session.Session>` object attributes like :attr:`known_labels <coniferest.session.Session.known_labels>`, :attr:`scores <coniferest.session.Session.scores>` and :attr:`model <coniferest.session.Session.model>` to get the results of the session
+
+
+Tune the Session with callbacks
+-------------------------------
+
+Now we know how :class:`Session <coniferest.session.Session>` works, but how can we change its behavior?
+The answer is callbacks.
+Callbacks are functions that are called at different stages of the session lifecycle.
+Let's implement a simple callback per each stage:
+
+.. code-block:: python
+
+        from coniferest.pineforest import PineForest
+        from coniferest.label import Label
+        from coniferest.session import Session
+
+
+        def my_on_refit_callback(session):
+            print('Refitting model with known labels:')
+            print(session.known_labels)
+
+
+        def my_decision_callback(metadata, data, session):
+            """Say YES when the first feature is positive"""
+            print(f'Labeling object {metadata}')
+            return Label.ANOMALY if data[0] > 0.0 else Label.REGULAR
+
+
+        def my_on_decision_callback(metadata, data, session):
+            print(f'Decision made for {metadata}: {session.last_decision}.')
+
+
+        def terminate_after_5_anomalies(metadata, data, session):
+            if session.known_anomalies.size >= 5:
+                session.terminate()
+
+
+        class RecordCallback:
+            def __init__(self):
+                self.records = []
+
+            def __call__(self, metadata, data, session):
+                self.records.append(f'{metadata} -> {session.last_decision}')
+
+            def print_report(self):
+                print('Records:')
+                print('\n'.join(self.records))
+
+
+        record_callback = RecordCallback()
+
+        rng = np.random.default_rng(0)
+        data = rng.normal(size=(1000, 2))
+        metadata = np.arange(data.shape[0])
+        model = PineForest(random_seed=0)
+
+        session = Session(
+            data=data,
+            metadata=metadata,
+            model=model,
+            decision_callback=my_decision_callback,
+            # We can give an only function/callable as a callback
+            on_refit_callbacks=my_on_refit_callback,
+            # Or a list of callables
+            on_decision_callbacks=[
+                my_on_decision_callback,
+                record_callback,
+                terminate_after_5_anomalies,
+            ],
+        )
+        session.run()
+
+        print()
+        record_callback.print_report()
+
+
+Use prior knowledge with known labels
+-------------------------------------
+
+The final component of the :class:<Session <coniferest.session.Session>> constructor we haven't discussed yet is ``known_labels``.
+It allows you to provide prior knowledge about few samples in the dataset.
+This is useful when you know that some samples are anomalies or regular objects, so you can find more objects you like or get less false positives.
+
+Let's use a simulated dataset with 1024 regular objects and three "outlier" classes, each with 32 objects.
+Within these three classes, only one considered as anomalous, while other two are some kind of "bogus" objects that we don't want to find.
+
+.. code-block:: python
+
+        # Install matplotlib if you don't have it
+        import matplotlib.pyplot as plt
+        from coniferest.datasets import non_anomalous_outliers
+        from coniferest.label import Label
+
+        data, metadata = non_anomalous_outliers(
+            # Number of regular objects
+            inliers=1024,
+            # Number of objects per "outlier" class
+            outliers=32,
+            # Classification of "outlier" classes
+            regions=[Label.R, Label.R, Label.A],
+        )
+
+        # Plot the data
+        index = metadata == Label.R
+        plt.scatter(*data[index, :].T, marker='.', color='#22114C', label='regular')
+        plt.scatter(*data[~index, :].T, marker='*', color='#22114C', label='anomaly')
+        plt.legend()
+        plt.show()
+
+.. image:: _static/quickstart/known_labels_dataset.png
+
+Let's see what :class:`IsolationForest <coniferest.isolationforest.IsolationForest>` will find in this dataset within top-32 outliers:
+
+.. code-block:: python
+
+        from coniferest.isoforest import IsolationForest
+
+        scores = IsolationForest(random_seed=0).fit(data).score_samples(data)
+        top32 = scores.argsort()[:32]
+
+        color = np.full_like(metadata, '#22114C', dtype=object)
+        color[top32] = '#FCBD43'
+
+        plt.cla()
+        plt.scatter(*data[index, :].T, marker='.', color=color[index], label='regular')
+        plt.scatter(*data[~index, :].T, marker='*', color=color[~index], label='anomaly')
+        plt.legend()
+        plt.show()
+
+.. image:: _static/quickstart/known_labels_isoforest.png
+
+Here we show 32 candidates in "SNAD yellow" color.
+Not bad, but what can we do with the active anomaly detection?
+
+.. code-block:: python
+
+        from coniferest.pineforest import PineForest
+        from coniferest.session import Session
+        from coniferest.session.callback import TerminateAfter
+
+        session = Session(
+            data,
+            metadata,
+            model=PineForest(random_seed=0),
+            # metadata consists of true labels, so we can use it as a decision
+            decision_callback=lambda metadata, data, session: metadata,
+            on_decision_callbacks=TerminateAfter(32),
+        )
+        session.run()
+
+        color = np.full_like(metadata, '#22114C', dtype=object)
+        color[list(session.known_labels)] = '#FCBD43'
+
+        plt.cla()
+        plt.scatter(*data[index, :].T, marker='.', color=color[index], label='regular')
+        plt.scatter(*data[~index, :].T, marker='*', color=color[~index], label='anomaly')
+        plt.show()
+
+
+.. image:: _static/quickstart/known_labels_pineforest.png
+
+Looks good, right?
+But what if we know that one of the "outlier" objects is not an anomaly?
+Let's suppose that before doing the active anomaly detection we investigated the most-left object and found that it is a bogus object.
+We can mark it as a regular object and run the active anomaly detection again:
+
+.. code-block:: python
+
+        from coniferest.pineforest import PineForest
+        from coniferest.session import Session
+        from coniferest.session.callback import TerminateAfter
+
+        # Key is index of the object, value is its label.
+        known_labels = {data[:, 0].argmin(): Label.REGULAR}
+
+        session = Session(
+            data,
+            metadata,
+            known_labels=known_labels,
+            model=PineForest(random_seed=0),
+            decision_callback=lambda metadata, data, session: metadata,
+            on_decision_callbacks=TerminateAfter(32),
+        )
+        session.run()
+
+        color = np.full_like(metadata, '#22114C', dtype=object)
+        new_labels = set(session.known_labels) - set(known_labels)
+        color[list(new_labels)] = '#FCBD43'
+
+        plt.cla()
+        plt.scatter(*data[index, :].T, marker='.', color=color[index], label='regular')
+        plt.scatter(*data[~index, :].T, marker='*', color=color[~index], label='anomaly')
+        plt.show()
+
+
+.. image:: _static/quickstart/known_labels_pineforest_known_regular.png
+
+Note that the object we marked as regular was not even selected by the previous run, but here it influenced the model to not select other objects of this class.
