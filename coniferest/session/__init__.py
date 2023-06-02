@@ -105,7 +105,7 @@ class Session:
         self._current = None
         self._terminated = False
 
-    def run(self):
+    def run(self) -> 'Session':
         """Evaluate interactive anomaly detection session"""
 
         if self._terminated:
@@ -139,25 +139,25 @@ class Session:
 
         return self
 
-    def terminate(self):
+    def terminate(self) -> None:
         self._terminated = True
 
     @property
-    def current(self):
+    def current(self) -> int:
         return self._current
 
     @property
-    def scores(self):
+    def scores(self) -> np.ndarray:
         return self._scores
 
     @property
-    def known_labels(self):
+    def known_labels(self) -> Dict[int, Label]:
         return self._known_labels
 
     @property
-    def model(self):
+    def model(self) -> Coniferest:
         return self._model
 
     @property
-    def terminated(self):
+    def terminated(self) -> bool:
         return self._terminated
