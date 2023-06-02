@@ -1,4 +1,4 @@
-from typing import Callable, Dict
+from typing import Callable, Dict, Optional
 
 import numpy as np
 
@@ -20,19 +20,29 @@ class Session:
     metadata : array-like, shape (n_samples,), dtype is any
         1-D array of metadata for each data point
     decision_callback : callable, optional
-        Function to be called when expert decision is required
-        TODO: signature
+        Function to be called when expert decision is required, it must return
+        `Label` object with the decision and may terminate the session via
+        `Session.terminate()`. Default is `prompt_decision_callback`
+        Signature: '(metadata, data, session) -> Label', where metadata is
+        metadata of the object to be labeled, data is data of the object to be
+        labeled, session is this session instance.
     on_refit_callbacks : list of callable or callable, optional
-        Functions to be called when model is refitted
-        TODO: signature
+        Functions to be called when model is refitted (before
+        "decision_callback"), default is empty list. This function may call
+        `Session.terminate()`.
+        Signature: '(session) -> None', where session is this session instance.
     on_decision_callbacks : list of callable or callable, optional
-        Functions to be called when expert decision is made
-        TODO: signature
+        Functions to be called when expert decision is made (after
+        "decision_callback"), default is empty list. This function may call
+        `Session.terminate()`.
+        Signature: '(metadata, data, session) -> None', where metadata is
+        metadata of the object has just been labeled, data is data of this
+        object, session is this session instance.
     known_labels : dict, optional
         Dictionary of known anomaly labels, keys are data/metadata indices,
-        values are labels of type `Label`
+        values are labels of type `Label`. Default is empty dictionary.
     model : Coniferest, optional
-        Anomaly detection model to use, default is `PineForest`
+        Anomaly detection model to use, default is `PineForest()`.
 
     Attributes
     ----------
