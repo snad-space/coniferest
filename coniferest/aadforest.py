@@ -39,7 +39,20 @@ class AADEvaluator(ConiferestEvaluator):
         return calc_paths_sum(self.selectors, self.indices, x, weights)
 
     def loss(self, weights, known_data, known_labels, q_tau, C_a = 1.0, prior_influence = 1.0, prior_weights = None):
-        scores = q_tau - self.score_samples(known_data, weights)
+        """Loss for the known data.
+
+        Adopted from Eq3 of Das et al. 2019 https://arxiv.org/abs/1901.08930
+        with the respect to
+        1) different anomaly labels - they use +1 for anomalies, -1 for
+              nomalies, we use `Label` enum, which is opposite and includes
+              `UNKNOWN` label;
+        2) different direction of the score axis - they use higher scores
+              for anomalies, we use lower scores for anomalies.
+        """
+
+        # This new score is negative for the "anomalous" subsample and
+        # positive for the "nominal" subsample.
+        scores = self.score_samples(known_data, weights) - q_tau
 
         if prior_weights is None:
             prior_weights = self.weights
@@ -49,8 +62,10 @@ class AADEvaluator(ConiferestEvaluator):
 
         l = 0.0
         if anomaly_count:
+            # For anomalies in "nominal" subsample we add their positive scores.
             l += C_a * np.sum(scores[(known_labels == Label.ANOMALY) & (scores >= 0)]) / anomaly_count
         if nominal_count:
+            # Add for nominals in "anomalous" subsample we add their inverse scores (positive number).
             l -= np.sum(scores[(known_labels == Label.REGULAR) & (scores <= 0)]) / nominal_count
         delta_weights = weights - prior_weights
         l += 0.5 * prior_influence * np.inner(delta_weights, delta_weights)
@@ -58,7 +73,7 @@ class AADEvaluator(ConiferestEvaluator):
         return l
 
     def loss_gradient(self, weights, known_data, known_labels, q_tau, C_a = 1.0, prior_influence = 1.0, prior_weights = None):
-        scores = q_tau - self.score_samples(known_data, weights)
+        scores = self.score_samples(known_data, weights) - q_tau
 
         if prior_weights is None:
             prior_weights = self.weights
@@ -68,9 +83,9 @@ class AADEvaluator(ConiferestEvaluator):
 
         sample_weights = np.zeros(known_data.shape[0])
         if anomaly_count:
-            sample_weights[(known_labels == Label.ANOMALY) & (scores >= 0)] = -C_a / anomaly_count
+            sample_weights[(known_labels == Label.ANOMALY) & (scores >= 0)] = C_a / anomaly_count
         if nominal_count:
-            sample_weights[(known_labels == Label.REGULAR) & (scores <= 0)] = 1.0 / nominal_count
+            sample_weights[(known_labels == Label.REGULAR) & (scores <= 0)] = -1.0 / nominal_count
 
         grad = calc_paths_sum_transpose(self.selectors, self.indices, known_data, self.leaf_count, sample_weights)
         delta_weights = weights - prior_weights
@@ -183,7 +198,8 @@ class AADForest(Coniferest):
             return self
 
         scores = self.score_samples(data)
-        q_tau = np.quantile(scores, self.tau)
+        # Our scores are negative, so we need to "invert" the quantile.
+        q_tau = np.quantile(scores, 1.0 - self.tau)
 
         def fun(weights):
             return self.evaluator.loss(weights, known_data, known_labels, q_tau, self.C_a, self.prior_influence)
