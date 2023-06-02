@@ -95,6 +95,7 @@ Now we are ready to run active anomaly detection :class:`Session <coniferest.ses
 This will prompt you to make a decision for an object with the highest outlier score and show you this object in the browser.
 Each decision you make retrains the model and updates the outlier scores.
 After 10 decisions the session will be terminated, but you can also stop it by pressing ``Ctrl+C``.
+Please note that :class:`Session <coniferest.session.Session>` mutates the model, so you should re-create the model if you want to start a new session with the blank model.
 
 If you answer ``n`` for the first three objects, you should get a recurrent variable `ZTF DR 695211200075348 <https://ztf.snad.space/dr3/view/695211200075348>`_ / `M31N 2013-11b <https://www.astronomerstelegram.org/?read=5569>`_ / `MASTER OTJ004126.22+414350.0 <https://ui.adsabs.harvard.edu/abs/2016ATel.9470....1S/abstract>`_ as a fourth object. SNAD team reported this object as an anomaly in `Malanchev at al. (2021) <https://ui.adsabs.harvard.edu/abs/2021MNRAS.502.5147M/abstract>`_, it is believed to be a recurrent Nova or `a long-period variable star <https://www.astronomerstelegram.org/?read=5640>`_.
 
@@ -184,6 +185,7 @@ Let's take a closer look at how it works:
 
 3. Inspect :class:`Session() <coniferest.session.Session>` object attributes like :attr:`known_labels <coniferest.session.Session.known_labels>`, :attr:`scores <coniferest.session.Session.scores>` and :attr:`model <coniferest.session.Session.model>` to get the results of the session
 
+Note that :class:`Session <coniferest.session.Session>` mutates input model, so if you use the same model object again for a new session, it will continue from the previous model state.
 
 Tune the Session with callbacks
 -------------------------------
