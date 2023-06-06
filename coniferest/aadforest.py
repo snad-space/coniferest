@@ -172,6 +172,9 @@ class AADForest(Coniferest):
         self
         """
 
+        known_data = np.asarray(known_data) if known_data is not None else None
+        known_labels = np.asarray(known_labels) if known_labels is not None else None
+
         self._build_trees(data)
 
         if known_data is None or len(known_data) == 0 or \
