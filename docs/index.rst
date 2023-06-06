@@ -11,6 +11,7 @@ Welcome to coniferest's documentation!
    :caption: Contents:
 
    tutorial.rst
+   isoforest.rst
    modules.rst
 
 Indices and tables
