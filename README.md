@@ -9,7 +9,7 @@
 Package for active anomaly detection with isolation forests, made by [SNAD collaboration](https://snad.space/).
 
 It includes:
-* `IsolationForest` - reimplementation of scikit-learn's isolation forest with much better scoring performance.
+* `IsolationForest` - reimplementation of scikit-learn's isolation forest with much better scoring performance due to the use of Cython and multi-threading (the latter is not currently available on macOS).
 * `AADForest` - reimplementation of Active Anomaly detection algorithm with isolation forests from Shubhomoy Das' [`ad_examples` package](https://github.com/shubhomoydas/ad_examples) with better performance, much less code and more flexible dependencies.
 * `PineForest` - our own active learning model based on the idea of tree filtering.
 
