@@ -46,7 +46,7 @@ exclude = [
 
 # pytest
 [tool.pytest.ini_options]
-tests_paths = [
+testpaths = [
   "tests",
 ]
 markers = [
