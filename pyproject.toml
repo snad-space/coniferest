@@ -29,6 +29,8 @@ classifiers =  [
 ]
 dependencies = [
   "click",
+  # We need it for cpu_count() only, but we have it anyway as a dependency of scikit-learn
+  "joblib",
   "numpy",
   "scikit-learn>=1,<2",
   "matplotlib",

@@ -28,13 +28,15 @@ ctypedef fused floating:
 # Calculate paths sum on data based on trees,
 # that are located by indeces in selectors list
 cdef void _paths_sum(selector_t [::1] selectors,
-                         np.int64_t [::1] indices,
-                         floating [:, ::1] data,
-                         np.float64_t [::1] paths,
-                         np.float64_t [::1] weights=*)
+                     np.int64_t [::1] indices,
+                     floating [:, ::1] data,
+                     np.float64_t [::1] paths,
+                     np.float64_t [::1] weights=*,
+                     int num_threads=*)
 
 cdef void _paths_sum_transpose(selector_t [::1] selectors,
-                         np.int64_t [::1] indices,
-                         floating [:, ::1] data,
-                         np.float64_t [::1] values,
-                         np.float64_t [::1] weights=*)
+                               np.int64_t [::1] indices,
+                               floating [:, ::1] data,
+                               np.float64_t [::1] values,
+                               np.float64_t [::1] weights=*,
+                               int num_threads=*)
