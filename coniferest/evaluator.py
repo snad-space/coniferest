@@ -1,3 +1,4 @@
+import joblib
 import numpy as np
 from .utils import average_path_length
 from .calc_paths_sum import calc_paths_sum  # noqa
@@ -9,7 +10,7 @@ __all__ = ['ForestEvaluator']
 class ForestEvaluator:
     selector_dtype = np.dtype([('feature', np.int32), ('left', np.int32), ('value', np.double), ('right', np.int32)])
 
-    def __init__(self, samples, selectors, indices, leaf_count):
+    def __init__(self, samples, selectors, indices, leaf_count, *, num_threads):
         """
         Base class for the forest evaluators. Does the trivial job:
         * runs calc_paths_sum written in cython,
@@ -30,12 +31,23 @@ class ForestEvaluator:
 
         leaf_count
             Total number of leafs in all the trees.
+
+        num_threads : int or None
+            Number of threads to use for calculations. If None then
         """
         self.samples = samples
 
         self.selectors = selectors
         self.indices = indices
         self.leaf_count = leaf_count
+
+        if num_threads is None or num_threads < 1:
+            # Count of available CPUs is not a simple thing, see loky's implementation here:
+            # https://github.com/joblib/joblib/blob/476ff8e62b221fc5816bad9b55dec8883d4f157c/joblib/externals/loky/backend/context.py#L83
+            # We ignore OMP_NUM_THREADS for now
+            self.num_threads = joblib.cpu_count()
+        else:
+            self.num_threads = num_threads
 
     @classmethod
     def combine_selectors(cls, selectors_list):
@@ -90,7 +102,10 @@ class ForestEvaluator:
 
         trees = self.indices.shape[0] - 1
 
-        return -2 ** (- calc_paths_sum(self.selectors, self.indices, x) / (self.average_path_length(self.samples) * trees))
+        return -2 ** (
+                - calc_paths_sum(self.selectors, self.indices, x, num_threads=self.num_threads)
+                / (self.average_path_length(self.samples) * trees)
+        )
 
     @classmethod
     def average_path_length(cls, n_nodes):

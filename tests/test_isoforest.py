@@ -116,3 +116,19 @@ def test_regression(regression_data):
     forest = build_forest(n_features=n_features, random_seed=random_seed)
     scores = forest.score_samples(data)
     regression_data.allclose(scores)
+
+
+def test_n_jobs():
+    random_seed = 0
+    n_features = 16
+    n_samples = 1024
+    rng = np.random.default_rng(random_seed)
+    data = rng.standard_normal((n_samples, n_features))
+
+    reference_forest = IsolationForest(n_trees=5, random_seed=random_seed)
+    reference_forest.fit(data)
+
+    for n_jobs in [1, 2, -1, None]:
+        forest = IsolationForest(n_trees=5, n_jobs=n_jobs, random_seed=random_seed)
+        forest.fit(data)
+        assert_forest_scores(reference_forest, forest, data=data)

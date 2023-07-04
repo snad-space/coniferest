@@ -36,7 +36,7 @@ class AADEvaluator(ConiferestEvaluator):
         if weights is None:
             weights = self.weights
 
-        return calc_paths_sum(self.selectors, self.indices, x, weights)
+        return calc_paths_sum(self.selectors, self.indices, x, weights, num_threads=self.num_threads)
 
     def loss(self, weights, known_data, known_labels, q_tau, C_a = 1.0, prior_influence = 1.0, prior_weights = None):
         """Loss for the known data.
@@ -87,7 +87,8 @@ class AADEvaluator(ConiferestEvaluator):
         if nominal_count:
             sample_weights[(known_labels == Label.REGULAR) & (scores <= 0)] = -1.0 / nominal_count
 
-        grad = calc_paths_sum_transpose(self.selectors, self.indices, known_data, self.leaf_count, sample_weights)
+        grad = calc_paths_sum_transpose(self.selectors, self.indices, known_data, self.leaf_count, sample_weights,
+                                        num_threads=self.num_threads)
         delta_weights = weights - prior_weights
         grad += prior_influence * delta_weights
 
@@ -111,6 +112,9 @@ class AADForest(Coniferest):
     max_depth : int or None, optional
         Maximum depth of every tree. If None, `log2(n_subsamples)` is used.
 
+    n_jobs : int or None, optional
+        Number of threads to use for scoring. If None - all available CPUs are used.
+
     random_seed : int or None, optional
         Random seed to use for reproducibility. If None - random seed is used.
     """
@@ -121,10 +125,12 @@ class AADForest(Coniferest):
                  tau=0.97,
                  C_a=1.0,
                  prior_influence=1.0,
+                 n_jobs=None,
                  random_seed=None):
         super().__init__(trees=[],
                          n_subsamples=n_subsamples,
                          max_depth=max_depth,
+                         n_jobs=n_jobs,
                          random_seed=random_seed)
         self.n_trees = n_trees
         self.tau = tau

@@ -16,10 +16,11 @@ class IsolationForestEvaluator(ForestEvaluator):
         selectors, indices, leaf_count = self.combine_selectors(selectors_list)
 
         super(IsolationForestEvaluator, self).__init__(
-            samples=isoforest.max_samples_,
-            selectors=selectors,
-            indices=indices,
-            leaf_count=leaf_count)
+              samples=isoforest.max_samples_,
+              selectors=selectors,
+              indices=indices,
+              leaf_count=leaf_count,
+              num_threads=isoforest.n_jobs)
 
     @classmethod
     def extract_selectors(cls, estimator):

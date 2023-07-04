@@ -40,14 +40,19 @@ class Coniferest(ABC):
     max_depth : int or None, optional
         Maximum depth of the trees in use. If None, then `log2(n_subsamples)`
 
+    n_jobs : int, optional
+        Number of threads to use for scoring. If -1, then number of CPUs is used.
+
     random_seed : int or None, optional
         Seed for the reproducibility. If None, then random seed is used.
     """
 
-    def __init__(self, trees=None, n_subsamples=256, max_depth=None, random_seed=None):
+    def __init__(self, trees=None, n_subsamples=256, max_depth=None, n_jobs=-1, random_seed=None):
         self.trees = trees or []
         self.n_subsamples = n_subsamples
         self.max_depth = max_depth or int(np.log2(n_subsamples))
+
+        self.n_jobs = n_jobs
 
         # For the better future with reproducible parallel tree building.
         # self.seedseq = np.random.SeedSequence(random_state)
@@ -208,7 +213,8 @@ class ConiferestEvaluator(ForestEvaluator):
             samples=coniferest.n_subsamples,
             selectors=selectors,
             indices=indices,
-            leaf_count=leaf_count)
+            leaf_count=leaf_count,
+            num_threads=coniferest.n_jobs)
 
     @classmethod
     def extract_selectors(cls, tree, map_value=None):
