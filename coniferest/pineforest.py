@@ -186,8 +186,9 @@ class PineForest(Coniferest):
         self.evaluator = ConiferestEvaluator(self)
         return self
 
-    @staticmethod
-    def filter_trees(trees, data, labels, n_filter, weight_ratio=1):
+    # Made non-static to make sure we always use it in a way that makes inheritance with truly non-static methods
+    # possible.
+    def filter_trees(self, trees, data, labels, n_filter, weight_ratio=1):
         """
         Filter the trees out.
 
