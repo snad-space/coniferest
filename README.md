@@ -22,11 +22,12 @@ See the documentation for the [**Tutorial**](https://coniferest.readthedocs.io/e
 
 The project is using [Cython](https://cython.org/) for performance and requires compilation.
 However, binary wheels are available for Linux, macOS and Windows, so you can install the package with `pip install coniferest` on these platforms with no build-time dependencies.
+Currently multithreading is not available in macOS ARM wheels, but you can install the package from the source to enable it, see instructions below. 
 
-If your specific platform is not supported, or you need a development version, you can install the package from source.
+If your specific platform is not supported, or you need a development version, you can install the package from the source.
 To do so, clone the repository and run `pip install .` in the root directory.
 
-Note, that we are using OpenMP for multi-threading, which is not available on macOS with a default Clang compiler.
-You still can install the package with Clang, but it will be single-threaded.
-Also, you can install the package with GCC, which is available on macOS via Homebrew.
-In this case you will need to set environment variables `CC=gcc-12` (or whatever version you have installed) and `CONIFEREST_FORCE_OPENMP_ON_MACOS=1`.
+Note, that we are using OpenMP for multi-threading, which is not available on macOS with the Apple LLVM Clang compiler.
+You still can install the package with Apple LLVM, but it will be single-threaded.
+Alternatively, you can install the package with Clang from Homebrew (`brew install llvm libomp`) or GCC (`brew install gcc`), which will enable multi-threading.
+In this case you will need to set environment variables `CC=gcc-12` (or whatever version you have installed) or `CC=$(brew --preifx llvm)/bin/clang` and `CONIFEREST_FORCE_OPENMP_ON_MACOS=1`.

@@ -7,27 +7,42 @@ on:
 
 jobs:
   build_wheels:
-    name: Build wheels on ${{ matrix.os }}
+    name: Wheels on ${{ matrix.os }} with CIBW_ARCHS=${{ matrix.archs }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        # Numpy provides wheels for x86_64 and aarch64 only, we do the same
+        include:
+          - os: ubuntu-latest
+            archs: x86_64 aarch64
+          - os: macos-latest
+            archs: x86_64
+          - os: macos-latest
+            archs: arm64
+          - os: windows-latest
+            archs: auto
     steps:
     - uses: actions/checkout@v3
     - name: Set up QEMU
-      if: runner.os == 'Linux'
+      if: ${{ runner.os == 'Linux' }}
       uses: docker/setup-qemu-action@v2
       with:
         platforms: all
+    - name: Set up OpenMP
+      # We cannot make OpenMP work for cross-compiled ARM64 macOS wheels, so we do it for x86_64 only
+      if: ${{ runner.os == 'macOS' && matrix.archs == 'x86_64' }}
+      # For OpenMP support we use the LLVM toolchain from Homebrew with libomp.
+      # It looks like LLVM gives faster code than GCC does.
+      run: |
+        brew install llvm libomp
+        echo "CC=$(brew --prefix llvm)/bin/clang" >> $GITHUB_ENV
+        echo "CONIFEREST_FORCE_OPENMP_ON_MACOS=1" >> $GITHUB_ENV
     - name: Build wheels
       uses: pypa/cibuildwheel@v2.13.1
       env:
-        # Numpy provides wheels for x86_64 and aarch64 only, no MUSL support
-        # For building velocity we follow the same pattern
-        CIBW_ARCHS_LINUX: x86_64 aarch64
-        CIBW_ARCHS_MACOS: x86_64 arm64
-        # We do not provide wheels for PyPy
+        CIBW_ARCHS: ${{ matrix.archs }}
+        # We skip MUSL (no numpy binary wheels) and PyPy
         CIBW_SKIP: "pp* *musl*"
     - uses: actions/upload-artifact@v3
       with:
