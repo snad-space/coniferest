@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 
 import numpy as np
-from pkg_resources import parse_version
 
 import sklearn
 from sklearn.tree._criterion import MSE  # noqa
@@ -144,10 +143,6 @@ class Coniferest(ABC):
             'max_depth': self.max_depth,
             'min_impurity_decrease': self.min_impurity_decrease
         }
-
-        # There is no `min_impurity_split` in newer version.
-        if parse_version(sklearn.__version__) < parse_version('0.25.0'):
-            builder_args['min_impurity_split'] = 0
 
         # Initialize the builder
         builder = DepthFirstTreeBuilder(**builder_args)
