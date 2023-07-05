@@ -10,16 +10,16 @@ class TreeViz:
     """
     Tree vizualization with matplotlib or graphviz.
     """
-    def __init__(self, tree, known_data=None, known_labels=None, dataset=None):
+    def __init__(self, tree, known_data=None, known_labels=None, data=None, labels=None):
         self.tree = tree
         self.known_data = known_data
         self.known_labels = known_labels
-        self.dataset = dataset
+        self.data = data
+        self.labels = labels
 
         if known_data is None:
             self.known_data = np.empty((0, tree.n_features))
             self.known_labels = np.empty((0,))
-
 
     @staticmethod
     def _node_label(reds, blues):
@@ -36,7 +36,6 @@ class TreeViz:
             labels = labels[columns:]
 
         return '<' + '<br/>'.join(text) + '>'
-
 
     def _dot_walker(self, current, known_data, known_labels):
         "Walk trough the tree recursively and make a dot file for graphviz"
@@ -68,7 +67,6 @@ class TreeViz:
         return text
 
     def generate_dot(self):
-        tree = self.tree
         text = []
         text.append('graph ""')
         text.append('{')
@@ -91,26 +89,27 @@ class TreeViz:
 
     def display_2d(self, full=False):
         'Display tree like a k2-tree'
-        dataset = self.dataset
+        data = self.data
+        labels = self.labels
         known_data = self.known_data
         known_labels = self.known_labels
-        if dataset is None:
+        if data is None:
             raise ValueError('no data to plot')
 
-        if dataset.data.shape[1] != 2:
+        if data.shape[1] != 2:
             raise ValueError('only 2d plots are supported')
 
         fig, ax = plt.subplots()
 
         frame = np.empty((2, 2))
-        frame[0, :] = dataset.data.min(axis=0)
-        frame[1, :] = dataset.data.max(axis=0)
+        frame[0, :] = data.min(axis=0)
+        frame[1, :] = data.max(axis=0)
 
         self._draw_subsets(ax, frame, 0)
 
         if full:
-            ax.scatter(*dataset.data[dataset.labels == Label.R, :].T, color='blue', s=10, label='Normal')
-            ax.scatter(*dataset.data[dataset.labels == Label.A, :].T, color='red', s=10, label='Anomaluous')
+            ax.scatter(*data[labels == Label.R, :].T, color='blue', s=10, label='Normal')
+            ax.scatter(*data[labels == Label.A, :].T, color='red', s=10, label='Anomaluous')
             ax.scatter(*known_data[known_labels == Label.R, :].T, color='blue', marker='*', s=80)
             ax.scatter(*known_data[known_labels == Label.A, :].T, color='red', marker='*', s=80)
         else:

@@ -1,7 +1,6 @@
 import numpy as np
 
 from .coniferest import Coniferest, ConiferestEvaluator
-from .experiment import AnomalyDetector
 from .utils import average_path_length
 from .label import Label
 
@@ -251,101 +250,3 @@ class PineForest(Coniferest):
         Array with computed scores.
         """
         return self.evaluator.score_samples(samples)
-
-
-class PineForestAnomalyDetector(AnomalyDetector):
-    def __init__(self,
-                 pine_forest,
-                 lazy_training=True,
-                 title='Pine Forest (filtered Isolation Forest)'):
-        """
-        Detector of anomalies with Pine Forest.
-
-        Parameters
-        ----------
-        pine_forest
-            Instance of PineForest to detect anomalies with.
-
-        lazy_training
-            Should we be lazy and don't retrain the forest after true positive
-            results? True by default. So retrain only after receiving falses.
-
-        title
-            What title to use on plots.
-        """
-        super().__init__(title)
-        self.pine_forest = pine_forest
-        self.lazy_training = lazy_training
-        self.train_data = None
-
-    def train(self, data):
-        """
-        Build the forest.
-
-        Parameters
-        ----------
-        data
-            Features to build with.
-
-        Returns
-        -------
-        None
-        """
-        self.train_data = data
-        self.retrain()
-
-    def retrain(self):
-        """
-        Retrain the forest according to available information about known data.
-
-        Returns
-        -------
-        None
-        """
-        if self.train_data is None:
-            raise ValueError('retrain called while no train data set')
-
-        if self.known_data is None:
-            self.pine_forest.fit(self.train_data)
-        else:
-            self.pine_forest.fit_known(self.train_data, self.known_data, self.known_labels)
-
-    def score(self, data):
-        """
-        Calculate scores for given features.
-
-        Parameters
-        ----------
-        data
-            Given features.
-
-        Returns
-        -------
-        Scores of the data.
-        """
-        return self.pine_forest.score_samples(data)
-
-    def observe(self, point, label):
-        """
-        Learn about the next outlier.
-
-        Parameters
-        ----------
-        point
-            Features of the object.
-
-        label
-            True Label of the object.
-
-        Returns
-        -------
-        bool, whether the regressor was changed.
-        """
-        super().observe(point, label)
-
-        # Do retraining either on false positive result or if we are not lazy.
-        do_retrain = np.any(label == Label.REGULAR) or not self.lazy_training
-        if do_retrain:
-            self.retrain()
-
-        return do_retrain
