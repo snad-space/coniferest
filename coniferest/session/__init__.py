@@ -74,8 +74,17 @@ class Session:
     >>> s.run()
     """
     @staticmethod
-    def _validate_callbacks(callbacks):
-        return all([isinstance(cb, Callable) for cb in callbacks])
+    def _prepare_callbacks(input_argument):
+        if input_argument is None:
+            callbacks = []
+        elif isinstance(input_argument, list):
+            callbacks = input_argument
+        else:
+            callbacks = [input_argument, ]
+            
+        if not all([isinstance(cb, Callable) for cb in callbacks]):
+            raise ValueError("At least one of the callbacks is not callable")
+        return callbacks
 
     @staticmethod
     def _invoke_callbacks(callbacks, *args, **kwargs):
@@ -90,26 +99,17 @@ class Session:
 
         if not isinstance(decision_callback, Callable):
             raise ValueError("decision_callback is not a callable")
-
         self._decision_cb = decision_callback
 
-        if on_refit_callbacks is None:
-            on_refit_callbacks = []
-        if not isinstance(on_refit_callbacks, list):
-            on_refit_callbacks = [on_refit_callbacks,]
-        if not self._validate_callbacks(on_refit_callbacks):
+        try:
+            self._on_refit_cb = self._prepare_callbacks(on_refit_callbacks)
+        except ValueError:
             raise ValueError("on_refit_callbacks contains not callable object")
 
-        self._on_refit_cb  = on_refit_callbacks
-
-        if on_decision_callbacks is None:
-            on_decision_callbacks = []
-        if not isinstance(on_decision_callbacks, list):
-            on_decision_callbacks = [on_decision_callbacks,]
-        if not self._validate_callbacks(on_decision_callbacks):
-            raise ValueError("on_decision_callbacks is not callable")
-
-        self._on_decision_cb = on_decision_callbacks
+        try:
+            self._on_decision_cb = self._prepare_callbacks(on_decision_callbacks)
+        except ValueError:
+            raise ValueError("on_decision_callbacks contains not callable object")
 
         if known_labels is None:
             self._known_labels = {}
