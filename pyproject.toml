@@ -49,6 +49,18 @@ dev = [
 [project.urls]
 "Source Code" = "https://github.com/snad-space/coniferest"
 
+[tool.black]
+line-length = 120
+target-version = ["py38"]
+include = '\.py$'
+exclude = '''
+     /(
+       dist
+       | build
+       | \.tox
+     )/
+'''
+
 [tool.setuptools.packages.find]
 exclude = [
   "tests",
