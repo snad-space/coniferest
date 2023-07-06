@@ -5,8 +5,8 @@ import numpy as np
 from coniferest.coniferest import Coniferest
 from coniferest.pineforest import PineForest
 
-from .callback import prompt_decision_callback
 from ..label import Label
+from .callback import prompt_decision_callback
 
 
 class Session:

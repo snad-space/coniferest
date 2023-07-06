@@ -1,18 +1,15 @@
 from abc import ABC, abstractmethod
+from warnings import warn
 
 import numpy as np
-
-import sklearn
+from sklearn.ensemble._bagging import _generate_indices  # noqa
 from sklearn.tree._criterion import MSE  # noqa
 from sklearn.tree._splitter import RandomSplitter  # noqa
-from sklearn.tree._tree import Tree, DepthFirstTreeBuilder  # noqa
-from sklearn.ensemble._bagging import _generate_indices  # noqa
+from sklearn.tree._tree import DepthFirstTreeBuilder, Tree  # noqa
 from sklearn.utils.validation import check_random_state
 
 from .evaluator import ForestEvaluator
 from .utils import average_path_length
-from warnings import warn
-
 
 __all__ = ["Coniferest", "ConiferestEvaluator"]
 

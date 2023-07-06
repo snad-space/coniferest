@@ -1,9 +1,9 @@
 import subprocess
+
+import matplotlib.pyplot as plt
 import numpy as np
 
 from coniferest.datasets import Label
-
-import matplotlib.pyplot as plt
 
 
 class TreeViz:
@@ -67,7 +67,6 @@ class TreeViz:
         return text
 
     def generate_dot(self):
-        tree = self.tree
         text = []
         text.append('graph ""')
         text.append("{")

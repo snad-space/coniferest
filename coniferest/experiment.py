@@ -1,13 +1,11 @@
 import io
-from itertools import count
 from collections import OrderedDict
-
-import numpy as np
+from itertools import count
 
 import matplotlib.patches as mpatches
-from matplotlib.figure import Figure
+import numpy as np
 from matplotlib.backends.backend_agg import FigureCanvas  # noqa
-
+from matplotlib.figure import Figure
 from PIL import Image
 
 from .label import Label

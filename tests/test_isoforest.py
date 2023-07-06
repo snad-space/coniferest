@@ -1,13 +1,11 @@
-import pytest
-
 import numpy as np
+import pytest
 from numpy.testing import assert_allclose, assert_equal
-
-from coniferest.sklearn.isoforest import IsolationForestEvaluator
-from coniferest.isoforest import IsolationForest
 from sklearn.ensemble import IsolationForest as SkIsolationForest
 
 from coniferest.datasets import MalanchevDataset
+from coniferest.isoforest import IsolationForest
+from coniferest.sklearn.isoforest import IsolationForestEvaluator
 
 
 @pytest.fixture()

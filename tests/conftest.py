@@ -4,7 +4,6 @@ from functools import partial
 import pytest
 from numpy.testing import assert_allclose
 
-
 PICKLE_PROTOCOL = 4  # maximum supported by python 3.7
 
 

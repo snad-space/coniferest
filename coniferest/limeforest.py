@@ -1,6 +1,7 @@
 import numpy as np
-from .utils import average_path_length
+
 from .evaluator import ForestEvaluator
+from .utils import average_path_length
 
 # Not very useful classes at the moment.
 # Implemented purely with the educational purpose.

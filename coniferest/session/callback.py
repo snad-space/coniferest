@@ -1,5 +1,6 @@
-import click
 import webbrowser
+
+import click
 
 from coniferest.datasets import Label
 

@@ -1,12 +1,10 @@
 import os
 import sys
-from pathlib import Path
 
-from setuptools import setup, Extension
-from setuptools.command.build_ext import build_ext
-from Cython.Build import cythonize
 import numpy as np
-
+from Cython.Build import cythonize
+from setuptools import Extension, setup
+from setuptools.command.build_ext import build_ext
 
 extra_compile_args = []
 extra_link_args = []

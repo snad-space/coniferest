@@ -1,8 +1,8 @@
 import joblib
 import numpy as np
-from .utils import average_path_length
-from .calc_paths_sum import calc_paths_sum  # noqa
 
+from .calc_paths_sum import calc_paths_sum  # noqa
+from .utils import average_path_length
 
 __all__ = ["ForestEvaluator"]
 

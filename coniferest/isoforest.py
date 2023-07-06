@@ -1,7 +1,6 @@
 from .coniferest import Coniferest, ConiferestEvaluator
 from .experiment import AnomalyDetector
 
-
 __all__ = ["IsolationForest"]
 
 

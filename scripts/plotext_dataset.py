@@ -3,7 +3,8 @@ import sys
 sys.path.append("..")
 
 import plotext as plt
-from coniferest.datasets import MalanchevDataset, Label
+
+from coniferest.datasets import Label, MalanchevDataset
 
 dataset = MalanchevDataset(inliers=100, outliers=10, regions=(Label.R, Label.R, Label.A))
 

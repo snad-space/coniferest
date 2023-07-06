@@ -1,6 +1,5 @@
 from enum import IntEnum
 
-
 __all__ = ["Label"]
 
 

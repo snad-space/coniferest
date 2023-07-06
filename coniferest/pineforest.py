@@ -1,12 +1,10 @@
 import numpy as np
+from sklearn.tree._tree import DTYPE as TreeDTYPE  # noqa
 
 from .coniferest import Coniferest, ConiferestEvaluator
 from .experiment import AnomalyDetector
-from .utils import average_path_length
 from .label import Label
-
-from sklearn.tree._tree import DTYPE as TreeDTYPE  # noqa
-
+from .utils import average_path_length
 
 __all__ = ["PineForest"]
 

@@ -1,4 +1,5 @@
 import numpy as np
+
 from coniferest.label import Label
 
 from .ztf_m31 import ztf_m31
