@@ -51,6 +51,19 @@ exclude = '''
      )/
 '''
 
+[tool.ruff]
+line-length = 120
+select = [
+    # Pyflakes
+    "F",
+    # Pycodestyle
+    "E",
+    "W",
+    # isort
+    "I001"
+]
+target-version = "py38"
+
 [tool.setuptools.packages.find]
 exclude = [
   "tests",
