@@ -17,6 +17,12 @@ repos:
     # Python
     -   id: check-docstring-first # checks a common error of defining a docstring after code
     -   id: debug-statements # checks for debugger imports and py37+ `breakpoint()` calls in python source
+# Ruff should go before other formatters
+-   repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: 'v0.0.260'
+    hooks:
+    -   id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
 -   repo: https://github.com/psf/black
     rev: 23.3.0
     hooks:
