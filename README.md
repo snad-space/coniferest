@@ -37,3 +37,4 @@ In this case you will need to set environment variables `CC=gcc-12` (or whatever
 ### Development
 
 This project makes use of [pre-commit](https://pre-commit.com/) hooks, you can install them with `pre-commit install`.
+[Pre-commit CI](https://results.pre-commit.ci/repo/github/390823585) is used for continuous integration of the hooks, they are applied to every pull request, and CI is responsible for auto-updating the hooks.
