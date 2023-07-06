@@ -2,9 +2,9 @@ import sys
 
 sys.path.append("..")
 
-import plotext as plt
+import plotext as plt  # noqa: E402
 
-from coniferest.datasets import Label, MalanchevDataset
+from coniferest.datasets import Label, MalanchevDataset  # noqa: E402
 
 dataset = MalanchevDataset(inliers=100, outliers=10, regions=(Label.R, Label.R, Label.A))
 

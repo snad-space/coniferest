@@ -2,11 +2,11 @@ import sys
 
 sys.path.append("..")
 
-import numpy as np
-import plotext as plt
+import numpy as np  # noqa: E402
+import plotext as plt  # noqa: E402
 
-from coniferest.datasets import Label, MalanchevDataset
-from coniferest.pineforest import PineForest
+from coniferest.datasets import Label, MalanchevDataset  # noqa: E402
+from coniferest.pineforest import PineForest  # noqa: E402
 
 
 def plotme(data, anomaly_index=None, title=None):

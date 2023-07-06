@@ -70,17 +70,17 @@ class AADEvaluator(ConiferestEvaluator):
         if prior_weights is None:
             prior_weights = self.weights
 
-        l = 0.0
+        loss = 0.0
         if anomaly_count:
             # For anomalies in "nominal" subsample we add their positive scores.
-            l += C_a * np.sum(scores[(known_labels == Label.ANOMALY) & (scores >= 0)]) / anomaly_count
+            loss += C_a * np.sum(scores[(known_labels == Label.ANOMALY) & (scores >= 0)]) / anomaly_count
         if nominal_count:
             # Add for nominals in "anomalous" subsample we add their inverse scores (positive number).
-            l -= np.sum(scores[(known_labels == Label.REGULAR) & (scores <= 0)]) / nominal_count
+            loss -= np.sum(scores[(known_labels == Label.REGULAR) & (scores <= 0)]) / nominal_count
         delta_weights = weights - prior_weights
-        l += 0.5 * prior_influence * np.inner(delta_weights, delta_weights)
+        loss += 0.5 * prior_influence * np.inner(delta_weights, delta_weights)
 
-        return l
+        return loss
 
     def loss_gradient(
         self,
