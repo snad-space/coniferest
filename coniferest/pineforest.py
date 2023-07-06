@@ -8,7 +8,7 @@ from .label import Label
 from sklearn.tree._tree import DTYPE as TreeDTYPE  # noqa
 
 
-__all__ = ['PineForest']
+__all__ = ["PineForest"]
 
 
 class PineForest(Coniferest):
@@ -56,20 +56,20 @@ class PineForest(Coniferest):
         Random seed. If None - random seed is used.
     """
 
-    def __init__(self,
-                 n_trees=100,
-                 n_subsamples=256,
-                 max_depth=None,
-                 n_spare_trees=400,
-                 regenerate_trees=False,
-                 weight_ratio=1.0,
-                 n_jobs=None,
-                 random_seed=None):
-        super().__init__(trees=[],
-                         n_subsamples=n_subsamples,
-                         max_depth=max_depth,
-                         n_jobs=n_jobs,
-                         random_seed=random_seed)
+    def __init__(
+        self,
+        n_trees=100,
+        n_subsamples=256,
+        max_depth=None,
+        n_spare_trees=400,
+        regenerate_trees=False,
+        weight_ratio=1.0,
+        n_jobs=None,
+        random_seed=None,
+    ):
+        super().__init__(
+            trees=[], n_subsamples=n_subsamples, max_depth=max_depth, n_jobs=n_jobs, random_seed=random_seed
+        )
         self.n_trees = n_trees
         self.n_spare_trees = n_spare_trees
         self.weight_ratio = weight_ratio
@@ -118,11 +118,13 @@ class PineForest(Coniferest):
         """
         n_filter = len(self.trees) - n_trees
         if n_filter > 0:
-            self.trees = self.filter_trees(trees=self.trees,
-                                           data=known_data,
-                                           labels=known_labels,
-                                           n_filter=n_filter,
-                                           weight_ratio=self.weight_ratio)
+            self.trees = self.filter_trees(
+                trees=self.trees,
+                data=known_data,
+                labels=known_labels,
+                n_filter=n_filter,
+                weight_ratio=self.weight_ratio,
+            )
 
     def fit(self, data, labels=None):
         """
@@ -180,9 +182,13 @@ class PineForest(Coniferest):
         if self.regenerate_trees:
             self.trees = []
 
-        if known_data is None or len(known_data) == 0 or \
-                known_labels is None or len(known_labels) == 0 or \
-                np.all(known_labels == Label.UNKNOWN):
+        if (
+            known_data is None
+            or len(known_data) == 0
+            or known_labels is None
+            or len(known_labels) == 0
+            or np.all(known_labels == Label.UNKNOWN)
+        ):
             self._expand_trees(data, self.n_trees)
         else:
             self._expand_trees(data, self.n_trees + self.n_spare_trees)
@@ -226,9 +232,9 @@ class PineForest(Coniferest):
             n_samples_leaf = tree.n_node_samples[leaves_index]
             n_samples_leaf = n_samples_leaf.astype(dtype=np.float64)
 
-            heights[:, tree_index] = \
-                np.ravel(tree.decision_path(data).sum(axis=1)) + \
-                average_path_length(n_samples_leaf) - 1
+            heights[:, tree_index] = (
+                np.ravel(tree.decision_path(data).sum(axis=1)) + average_path_length(n_samples_leaf) - 1
+            )
 
         weights = labels.copy()
         weights[labels == Label.REGULAR] = weight_ratio * Label.REGULAR
@@ -254,10 +260,7 @@ class PineForest(Coniferest):
 
 
 class PineForestAnomalyDetector(AnomalyDetector):
-    def __init__(self,
-                 pine_forest,
-                 lazy_training=True,
-                 title='Pine Forest (filtered Isolation Forest)'):
+    def __init__(self, pine_forest, lazy_training=True, title="Pine Forest (filtered Isolation Forest)"):
         """
         Detector of anomalies with Pine Forest.
 
@@ -303,7 +306,7 @@ class PineForestAnomalyDetector(AnomalyDetector):
         None
         """
         if self.train_data is None:
-            raise ValueError('retrain called while no train data set')
+            raise ValueError("retrain called while no train data set")
 
         if self.known_data is None:
             self.pine_forest.fit(self.train_data)

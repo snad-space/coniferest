@@ -10,4 +10,5 @@ def calculate_aadforest_output_shapes(operator):
 
     operator.outputs[0].type = FloatTensorType(shape=[N])
 
-register_shape_calculator('AADForest', calculate_aadforest_output_shapes)
+
+register_shape_calculator("AADForest", calculate_aadforest_output_shapes)

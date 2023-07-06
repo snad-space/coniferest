@@ -13,8 +13,10 @@ from coniferest.session import Session
 @pytest.mark.regression
 def test_e2e_ztf_m31():
     """Basically the same example as in the docs"""
-    class Callback():
+
+    class Callback:
         """Say NO for first three objectsm then say YES and terminate"""
+
         counter = 0
 
         def decision(self, _metadata, _data, _session) -> Label:

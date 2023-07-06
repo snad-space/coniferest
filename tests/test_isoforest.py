@@ -18,10 +18,7 @@ def isoforest_results():
 class IsoforestResults:
     def __init__(self):
         seed = 622341
-        self.dataset = MalanchevDataset(inliers=1000,
-                                        outliers=50,
-                                        regions=[1, 1, -1],
-                                        rng=seed)
+        self.dataset = MalanchevDataset(inliers=1000, outliers=50, regions=[1, 1, -1], rng=seed)
 
         data = self.dataset.data
         trees = 1000
@@ -48,8 +45,9 @@ def test_sklearn_isolation_forest_evaluator(isoforest_results):
     Does evaluator scores coinside with the ones computed by sklearn?
     """
     r = isoforest_results
-    assert_allclose(r.skores1_by_evaluator, r.skores1, atol=1e-10, rtol=0,
-                    err_msg='sklearn and our results nust be the same')
+    assert_allclose(
+        r.skores1_by_evaluator, r.skores1, atol=1e-10, rtol=0, err_msg="sklearn and our results nust be the same"
+    )
 
 
 def test_isolation_forest(isoforest_results):
@@ -81,7 +79,7 @@ def forest_n_features(forest: IsolationForest):
 def assert_forest_scores(forest1: IsolationForest, forest2: IsolationForest, data=None, n_features=None):
     if data is None:
         if n_features is None:
-            raise ValueError('Either data or n_features')
+            raise ValueError("Either data or n_features")
         data = np.random.standard_normal((1024, n_features))
     assert_equal(forest1.score_samples(data), forest2.score_samples(data))
 
@@ -137,7 +135,7 @@ def test_n_jobs():
 @pytest.mark.benchmark
 @pytest.mark.long
 @pytest.mark.parametrize("n_features", [2, 16])
-@pytest.mark.parametrize("n_samples", [1<<10, 1<<20])
+@pytest.mark.parametrize("n_samples", [1 << 10, 1 << 20])
 @pytest.mark.parametrize("n_jobs", [1, -1])
 def test_benchmark_fit(n_features, n_samples, n_jobs, benchmark):
     benchmark.group = f"IsolationForest.fit {n_features = :2d}, {n_samples = :7d}, {n_jobs = :2d}"
@@ -156,7 +154,7 @@ def test_benchmark_fit(n_features, n_samples, n_jobs, benchmark):
 @pytest.mark.benchmark
 @pytest.mark.long
 @pytest.mark.parametrize("n_features", [2, 16])
-@pytest.mark.parametrize("n_samples", [1<<10, 1<<20])
+@pytest.mark.parametrize("n_samples", [1 << 10, 1 << 20])
 @pytest.mark.parametrize("n_jobs", [1, -1])
 def test_benchmark_fit_sklearn(n_features, n_samples, n_jobs, benchmark):
     benchmark.group = f"IsolationForest.fit {n_features = :2d}, {n_samples = :7d}, {n_jobs = :2d}"
@@ -173,7 +171,7 @@ def test_benchmark_fit_sklearn(n_features, n_samples, n_jobs, benchmark):
 @pytest.mark.benchmark
 @pytest.mark.long
 @pytest.mark.parametrize("n_features", [2, 16])
-@pytest.mark.parametrize("n_samples", [1<<10, 1<<20])
+@pytest.mark.parametrize("n_samples", [1 << 10, 1 << 20])
 @pytest.mark.parametrize("n_jobs", [1, -1])
 def test_benchmark_score(n_features, n_samples, n_jobs, benchmark):
     benchmark.group = f"IsolationForest.score_samples {n_features = :2d}, {n_samples = :7d}, {n_jobs = :2d}"
@@ -193,7 +191,7 @@ def test_benchmark_score(n_features, n_samples, n_jobs, benchmark):
 @pytest.mark.benchmark
 @pytest.mark.long
 @pytest.mark.parametrize("n_features", [2, 16])
-@pytest.mark.parametrize("n_samples", [1<<10, 1<<20])
+@pytest.mark.parametrize("n_samples", [1 << 10, 1 << 20])
 @pytest.mark.parametrize("n_jobs", [1, -1])
 def test_benchmark_score_sklearn(n_features, n_samples, n_jobs, benchmark):
     benchmark.group = f"IsolationForest.score_samples {n_features = :2d}, {n_samples = :7d}, {n_jobs = :2d}"

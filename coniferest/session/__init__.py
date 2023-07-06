@@ -73,6 +73,7 @@ class Session:
     >>> s = Session(data, metadata)
     >>> s.run()
     """
+
     @staticmethod
     def _prepare_callbacks(input_argument):
         if input_argument is None:
@@ -80,7 +81,9 @@ class Session:
         elif isinstance(input_argument, list):
             callbacks = input_argument
         else:
-            callbacks = [input_argument, ]
+            callbacks = [
+                input_argument,
+            ]
 
         if not all([isinstance(cb, Callable) for cb in callbacks]):
             raise ValueError("At least one of the callbacks is not callable")
@@ -91,10 +94,18 @@ class Session:
         for cb in callbacks:
             cb(*args, **kwargs)
 
-
-    def __init__(self, data, metadata, decision_callback = prompt_decision_callback, *, on_refit_callbacks = None, on_decision_callbacks = None, known_labels: Dict[int, Label] = None, model: Coniferest = None):
-
-        self._data     = np.atleast_2d(data)
+    def __init__(
+        self,
+        data,
+        metadata,
+        decision_callback=prompt_decision_callback,
+        *,
+        on_refit_callbacks=None,
+        on_decision_callbacks=None,
+        known_labels: Dict[int, Label] = None,
+        model: Coniferest = None,
+    ):
+        self._data = np.atleast_2d(data)
         self._metadata = np.atleast_1d(metadata)
 
         if not isinstance(decision_callback, Callable):
@@ -127,7 +138,7 @@ class Session:
         self._current = None
         self._terminated = False
 
-    def run(self) -> 'Session':
+    def run(self) -> "Session":
         """Evaluate interactive anomaly detection session"""
 
         if self._terminated:
