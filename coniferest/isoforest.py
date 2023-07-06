@@ -2,7 +2,7 @@ from .coniferest import Coniferest, ConiferestEvaluator
 from .experiment import AnomalyDetector
 
 
-__all__ = ['IsolationForest']
+__all__ = ["IsolationForest"]
 
 
 class IsolationForest(Coniferest):
@@ -32,11 +32,9 @@ class IsolationForest(Coniferest):
     """
 
     def __init__(self, n_trees=100, n_subsamples=256, max_depth=None, n_jobs=None, random_seed=None):
-        super().__init__(trees=[],
-                         n_subsamples=n_subsamples,
-                         max_depth=max_depth,
-                         n_jobs=n_jobs,
-                         random_seed=random_seed)
+        super().__init__(
+            trees=[], n_subsamples=n_subsamples, max_depth=max_depth, n_jobs=n_jobs, random_seed=random_seed
+        )
         self.n_trees = n_trees
         self.evaluator = None
 
@@ -80,7 +78,7 @@ class IsolationForest(Coniferest):
 
 
 class IsolationForestAnomalyDetector(AnomalyDetector):
-    def __init__(self, isoforest, title='Isolation Forest'):
+    def __init__(self, isoforest, title="Isolation Forest"):
         """
         Anomaly detection with isolation forest.
         Anomaly detectors are the wrappers around forests for

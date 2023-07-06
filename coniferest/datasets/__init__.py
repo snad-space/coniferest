@@ -76,15 +76,23 @@ class MalanchevDataset(Dataset):
         rng = np.random.default_rng(rng)
         self.rng = rng
 
-        x = np.concatenate([self._generate_inliers(inliers, rng),
-                            self._generate_outliers(outliers, rng, [1, 1]),
-                            self._generate_outliers(outliers, rng, [0, 1]),
-                            self._generate_outliers(outliers, rng, [1, 0])])
+        x = np.concatenate(
+            [
+                self._generate_inliers(inliers, rng),
+                self._generate_outliers(outliers, rng, [1, 1]),
+                self._generate_outliers(outliers, rng, [0, 1]),
+                self._generate_outliers(outliers, rng, [1, 0]),
+            ]
+        )
 
-        x_labels = np.concatenate([np.ones(inliers),
-                                   self.regions[0] * np.ones(outliers),
-                                   self.regions[1] * np.ones(outliers),
-                                   self.regions[2] * np.ones(outliers)])
+        x_labels = np.concatenate(
+            [
+                np.ones(inliers),
+                self.regions[0] * np.ones(outliers),
+                self.regions[1] * np.ones(outliers),
+                self.regions[2] * np.ones(outliers),
+            ]
+        )
 
         super(MalanchevDataset, self).__init__(data=x, labels=x_labels)
 

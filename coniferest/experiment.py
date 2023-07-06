@@ -30,10 +30,10 @@ class AnomalyDetector:
         self.known_labels = None
 
     def train(self, data):
-        raise NotImplementedError('abstract method called')
+        raise NotImplementedError("abstract method called")
 
     def score(self, data):
-        raise NotImplementedError('abstract method called')
+        raise NotImplementedError("abstract method called")
 
     def observe(self, point, label):
         """
@@ -62,7 +62,7 @@ class AnomalyDetector:
 
 
 class AnomalyDetectionExperiment:
-    COLORS = {Label.ANOMALY: 'red', Label.UNKNOWN: 'grey', Label.REGULAR: 'blue'}
+    COLORS = {Label.ANOMALY: "red", Label.UNKNOWN: "grey", Label.REGULAR: "blue"}
 
     def __init__(self, regressor, data_features, data_labels, capacity=300):
         """
@@ -102,7 +102,7 @@ class AnomalyDetectionExperiment:
         data_labels = self.data_labels
 
         # Indices of all the anomalies we are going to detect
-        anomalies_list, = np.where(self.data_labels == -1)
+        (anomalies_list,) = np.where(self.data_labels == -1)
         anomalies = set(anomalies_list)
         n_anomalies = len(anomalies)
 
@@ -121,6 +121,7 @@ class AnomalyDetectionExperiment:
 
         if tqdm:
             from tqdm import tqdm as tqdm_range
+
             iterator = tqdm_range(range(self.capacity))
         else:
             iterator = range(self.capacity)
@@ -140,7 +141,7 @@ class AnomalyDetectionExperiment:
                     break
 
             # Keep the anomaly predictions at each point
-            knowns[outlier] = ordering[:n_anomalies + n_misses]
+            knowns[outlier] = ordering[: n_anomalies + n_misses]
             if data_labels[outlier] == Label.REGULAR:
                 n_misses += 1
 
@@ -172,8 +173,7 @@ class AnomalyDetectionExperiment:
             canvas = FigureCanvas(fig)
 
             ax = fig.subplots()
-            ax.set(title=f'{self.regressor.title}, iteration {i}',
-                   xlabel='x1', ylabel='x2')
+            ax.set(title=f"{self.regressor.title}, iteration {i}", xlabel="x1", ylabel="x2")
 
             ax.scatter(*data_features.T, color=COLORS[Label.REGULAR], s=10)
             ax.scatter(*data_features[trace, :].T, color=COLORS[Label.ANOMALY], s=10)
@@ -181,22 +181,22 @@ class AnomalyDetectionExperiment:
             prehistory = self.trajectory[:i]
             index = data_labels[prehistory] == Label.ANOMALY
             if np.any(index):
-                ax.scatter(*data_features[prehistory[index], :].T, marker='*', color=COLORS[Label.ANOMALY], s=80)
+                ax.scatter(*data_features[prehistory[index], :].T, marker="*", color=COLORS[Label.ANOMALY], s=80)
 
             index = ~index
             if np.any(index):
-                ax.scatter(*data_features[prehistory[index], :].T, marker='*', color=COLORS[Label.REGULAR], s=80)
+                ax.scatter(*data_features[prehistory[index], :].T, marker="*", color=COLORS[Label.REGULAR], s=80)
 
-            ax.scatter(*data_features[self.trajectory[i], :].T, marker='*', color='k', s=80)
+            ax.scatter(*data_features[self.trajectory[i], :].T, marker="*", color="k", s=80)
 
-            normal_patch = mpatches.Patch(color=COLORS[Label.REGULAR], label='Regular')
-            anomalous_patch = mpatches.Patch(color=COLORS[Label.ANOMALY], label='Anomalous')
-            ax.legend(handles=[normal_patch, anomalous_patch], loc='lower left')
+            normal_patch = mpatches.Patch(color=COLORS[Label.REGULAR], label="Regular")
+            anomalous_patch = mpatches.Patch(color=COLORS[Label.ANOMALY], label="Anomalous")
+            ax.legend(handles=[normal_patch, anomalous_patch], loc="lower left")
 
             canvas.draw()
             size = (int(canvas.renderer.width), int(canvas.renderer.height))
             s = canvas.tostring_rgb()
-            image = Image.frombytes('RGB', size, s)
+            image = Image.frombytes("RGB", size, s)
 
             images.append(image)
             del canvas
@@ -218,9 +218,9 @@ class AnomalyDetectionExperiment:
         None
         """
         images = self.draw_cartoon()
-        images[0].save(file, format='GIF',
-                       save_all=True, append_images=images[1:],
-                       optimize=False, duration=500, loop=0)
+        images[0].save(
+            file, format="GIF", save_all=True, append_images=images[1:], optimize=False, duration=500, loop=0
+        )
 
     def display_cartoon(self):
         """

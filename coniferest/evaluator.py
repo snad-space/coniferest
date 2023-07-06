@@ -4,11 +4,11 @@ from .utils import average_path_length
 from .calc_paths_sum import calc_paths_sum  # noqa
 
 
-__all__ = ['ForestEvaluator']
+__all__ = ["ForestEvaluator"]
 
 
 class ForestEvaluator:
-    selector_dtype = np.dtype([('feature', np.int32), ('left', np.int32), ('value', np.double), ('right', np.int32)])
+    selector_dtype = np.dtype([("feature", np.int32), ("left", np.int32), ("value", np.double), ("right", np.int32)])
 
     def __init__(self, samples, selectors, indices, leaf_count, *, num_threads):
         """
@@ -74,13 +74,13 @@ class ForestEvaluator:
         indices[1:] = np.add.accumulate(lens)
 
         for i in range(len(selectors_list)):
-            selectors[indices[i]:indices[i + 1]] = selectors_list[i]
+            selectors[indices[i] : indices[i + 1]] = selectors_list[i]
 
         # Assign a unique sequential index to every leaf
         # The index is used for weighted scores
-        leaf_mask = selectors['feature'] < 0
+        leaf_mask = selectors["feature"] < 0
         leaf_count = np.count_nonzero(leaf_mask)
-        selectors['left'][leaf_mask] = np.arange(0, leaf_count)
+        selectors["left"][leaf_mask] = np.arange(0, leaf_count)
 
         return selectors, indices, leaf_count
 
@@ -97,14 +97,17 @@ class ForestEvaluator:
         -------
         Array of scores.
         """
-        if not x.flags['C_CONTIGUOUS']:
+        if not x.flags["C_CONTIGUOUS"]:
             x = np.ascontiguousarray(x)
 
         trees = self.indices.shape[0] - 1
 
-        return -2 ** (
-                - calc_paths_sum(self.selectors, self.indices, x, num_threads=self.num_threads)
+        return -(
+            2
+            ** (
+                -calc_paths_sum(self.selectors, self.indices, x, num_threads=self.num_threads)
                 / (self.average_path_length(self.samples) * trees)
+            )
         )
 
     @classmethod

@@ -42,6 +42,7 @@ class TerminateAfter:
     budget : int
         Number of iterations after which session will be terminated.
     """
+
     def __init__(self, budget: int):
         self.budget = budget
         self.iteration = 0
