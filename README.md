@@ -36,5 +36,26 @@ In this case you will need to set environment variables `CC=gcc-12` (or whatever
 
 ### Development
 
+You can install the package in editable mode with `pip install -e .[dev]` to install the development dependencies.
+
+#### Linters and formatters
+
 This project makes use of [pre-commit](https://pre-commit.com/) hooks, you can install them with `pre-commit install`.
 [Pre-commit CI](https://results.pre-commit.ci/repo/github/390823585) is used for continuous integration of the hooks, they are applied to every pull request, and CI is responsible for auto-updating the hooks.
+
+#### Testing and benchmarking
+
+We use [tox](https://tox.wiki/en/latest/) to build and test the package in isolated environments with different Python versions.
+To run tests locally, install tox with `pip install tox` and run `tox` in the root directory.
+We configure `tox` to skip long tests.
+
+The project uses [pytest](https://docs.pytest.org/) as a testing framework.
+Tests are located in the `tests` directory, and can be run with `pytest tests` in the root directory.
+By default, all tests are run, but you can select specific tests with `-k` option, e.g. `pytest tests -k test_onnx.test_onnx_aadforest`.
+You can also deselect a specific group of tests with `-m` option, e.g. `pytest tests -m'not long'`, see `pyproject.toml` for the list of markers.
+
+We use [pytest-benchmark](https://pytest-benchmark.readthedocs.io/) for benchmarking.
+You can run benchmarks with `pytest tests --benchmark-enable -m benchmark` in the root directory.
+You can adjust the minimum number of iterations with `--benchmark-min-rounds` and maximum execution time per benchmark with `--benchmark-max-time` (note that the latter can be exceeded if the minimum number of rounds is not reached).
+See `pyproject.toml` for the default benchmarking options.
+You can make a snapshot the current benchmark result with `--benchmark-save=NAME` or with `--benchmark-autosave`, and compare benchmarks with `pytest-benchmark compare` command.
