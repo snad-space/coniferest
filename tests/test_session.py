@@ -14,20 +14,23 @@ from coniferest.session import Session
 def test_e2e_ztf_m31():
     """Basically the same example as in the docs"""
     class Callback():
-        """Say NO for first three objectsm then say YES and terminate"""
+        """Say NO for first few objects, then say YES and terminate"""
         counter = 0
+
+        def __init__(self, n_iter):
+            self.n_iter = n_iter
 
         def decision(self, _metadata, _data, _session) -> Label:
             self.counter += 1
-            if self.counter < 4:
+            if self.counter < self.n_iter:
                 return Label.REGULAR
             return Label.ANOMALY
 
         def on_decision(self, _metadata, _data, session) -> None:
-            if self.counter >= 4:
+            if self.counter >= self.n_iter:
                 session.terminate()
 
-    callback = Callback()
+    callback = Callback(2)
 
     data, metadata = ztf_m31()
     model = AADForest(
@@ -43,9 +46,9 @@ def test_e2e_ztf_m31():
     )
     session.run()
 
-    assert len(session.known_labels) == 4
+    assert len(session.known_labels) == callback.n_iter
 
-    oid = 695211200075348
+    oid = 695211200035023
     idx = np.where(metadata == oid)[0][0]
     assert idx in session.known_labels
     assert session.known_labels[idx] == Label.ANOMALY
