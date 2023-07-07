@@ -251,6 +251,11 @@ class AADForest(Coniferest):
         """
         return self.evaluator.score_samples(samples)
 
+    def feature_signature(self, x):
+        raise NotImplementedError()
+
+    def feature_importance(self, x):
+        raise NotImplementedError()
 
 class AADForestAnomalyDetector(AnomalyDetector):
     def __init__(self,

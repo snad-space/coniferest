@@ -78,6 +78,11 @@ class IsolationForest(Coniferest):
     def fit_known(self, data, known_data=None, known_labels=None):
         return self.fit(data)
 
+    def feature_signature(self, x):
+        return self.evaluator.feature_signature(x)
+
+    def feature_importance(self, x):
+        return self.evaluator.feature_importance(x)
 
 class IsolationForestAnomalyDetector(AnomalyDetector):
     def __init__(self, isoforest, title='Isolation Forest'):
