@@ -81,7 +81,7 @@ class Session:
             callbacks = input_argument
         else:
             callbacks = [input_argument, ]
-            
+
         if not all([isinstance(cb, Callable) for cb in callbacks]):
             raise ValueError("At least one of the callbacks is not callable")
         return callbacks
