@@ -36,6 +36,13 @@ dependencies = [
   "matplotlib",
 ]
 
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  # sciki-learn 1.3 changed pickle format, so we need it for consistency of regression test data
+  "scikit-learn>=1.3",
+]
+
 [project.urls]
 "Source Code" = "https://github.com/snad-space/coniferest"
 
@@ -46,7 +53,6 @@ exclude = [
   "notes",
 ]
 
-# pytest
 [tool.pytest.ini_options]
 testpaths = [
   "tests",
@@ -57,3 +63,15 @@ markers = [
   "regression",
 ]
 addopts = "-m 'not long'"
+
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+envlist = py38,py39,py310,py311
+isolated_build = True
+
+[testenv]
+extras = dev
+commands =
+    pytest
+"""
