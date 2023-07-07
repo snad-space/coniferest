@@ -9,7 +9,6 @@ from coniferest.session import Session
 
 
 @pytest.mark.e2e
-@pytest.mark.long
 @pytest.mark.regression
 def test_e2e_ztf_m31():
     """Basically the same example as in the docs"""
