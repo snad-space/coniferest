@@ -252,6 +252,11 @@ class PineForest(Coniferest):
         """
         return self.evaluator.score_samples(samples)
 
+    def feature_signature(self, x):
+        return self.evaluator.feature_signature(x)
+
+    def feature_importance(self, x):
+        return self.evaluator.feature_importance(x)
 
 class PineForestAnomalyDetector(AnomalyDetector):
     def __init__(self,

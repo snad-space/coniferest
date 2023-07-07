@@ -20,6 +20,12 @@ class ConiferestImpl(Coniferest):
     def score_samples(self, samples):
         return super().score_samples(samples)
 
+    def feature_signature(self, x):
+        raise NotImplementedError()
+
+    def feature_importance(self, x):
+        raise NotImplementedError()
+
 
 def build_one_tree(random_seed) -> Tree:
     shape = 256, 16
