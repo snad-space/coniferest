@@ -34,11 +34,13 @@ dependencies = [
   "numpy",
   "scikit-learn>=1,<2",
   "matplotlib",
+  "onnxconverter-common",
 ]
 
 [project.optional-dependencies]
 dev = [
   "pytest",
+  "onnxruntime",
   # sciki-learn 1.3 changed pickle format, so we need it for consistency of regression test data
   "scikit-learn>=1.3",
 ]
