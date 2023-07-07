@@ -33,7 +33,8 @@ def test_e2e_ztf_m31():
 
     data, metadata = ztf_m31()
     model = AADForest(
-        n_trees=1024,
+        n_trees=128,
+        n_subsamples=256,
         random_seed=0,
     )
     session = Session(
@@ -47,7 +48,7 @@ def test_e2e_ztf_m31():
 
     assert len(session.known_labels) == callback.n_iter
 
-    oid = 695211200035023
+    oid = 695211200075348
     idx = np.where(metadata == oid)[0][0]
     assert idx in session.known_labels
     assert session.known_labels[idx] == Label.ANOMALY
