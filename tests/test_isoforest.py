@@ -116,3 +116,93 @@ def test_regression(regression_data):
     forest = build_forest(n_features=n_features, random_seed=random_seed)
     scores = forest.score_samples(data)
     regression_data.allclose(scores)
+
+
+def test_n_jobs():
+    random_seed = 0
+    n_features = 16
+    n_samples = 1024
+    rng = np.random.default_rng(random_seed)
+    data = rng.standard_normal((n_samples, n_features))
+
+    reference_forest = IsolationForest(n_trees=5, random_seed=random_seed)
+    reference_forest.fit(data)
+
+    for n_jobs in [1, 2, -1, None]:
+        forest = IsolationForest(n_trees=5, n_jobs=n_jobs, random_seed=random_seed)
+        forest.fit(data)
+        assert_forest_scores(reference_forest, forest, data=data)
+
+
+@pytest.mark.benchmark
+@pytest.mark.long
+@pytest.mark.parametrize("n_features", [2, 16])
+@pytest.mark.parametrize("n_samples", [1<<10, 1<<20])
+@pytest.mark.parametrize("n_jobs", [1, -1])
+def test_benchmark_fit(n_features, n_samples, n_jobs, benchmark):
+    benchmark.group = f"IsolationForest.fit {n_features = :2d}, {n_samples = :7d}, {n_jobs = :2d}"
+    benchmark.name = "coniferest.isoforest.IsolationForest"
+
+    random_seed = 0
+    rng = np.random.default_rng(random_seed)
+    data = rng.standard_normal((n_samples, n_features))
+    forest = IsolationForest(n_trees=128, n_jobs=n_jobs, random_seed=random_seed)
+
+    benchmark(forest.fit, data)
+
+
+# We need to merge it with previous one when we make interface consistent with sklearn's
+# https://github.com/snad-space/coniferest/issues/113
+@pytest.mark.benchmark
+@pytest.mark.long
+@pytest.mark.parametrize("n_features", [2, 16])
+@pytest.mark.parametrize("n_samples", [1<<10, 1<<20])
+@pytest.mark.parametrize("n_jobs", [1, -1])
+def test_benchmark_fit_sklearn(n_features, n_samples, n_jobs, benchmark):
+    benchmark.group = f"IsolationForest.fit {n_features = :2d}, {n_samples = :7d}, {n_jobs = :2d}"
+    benchmark.name = "sklearn.ensemble.IsolationForest"
+
+    random_seed = 0
+    rng = np.random.default_rng(random_seed)
+    data = rng.standard_normal((n_samples, n_features))
+    forest = SkIsolationForest(n_estimators=128, n_jobs=n_jobs, random_state=random_seed)
+
+    benchmark(forest.fit, data)
+
+
+@pytest.mark.benchmark
+@pytest.mark.long
+@pytest.mark.parametrize("n_features", [2, 16])
+@pytest.mark.parametrize("n_samples", [1<<10, 1<<20])
+@pytest.mark.parametrize("n_jobs", [1, -1])
+def test_benchmark_score(n_features, n_samples, n_jobs, benchmark):
+    benchmark.group = f"IsolationForest.score_samples {n_features = :2d}, {n_samples = :7d}, {n_jobs = :2d}"
+    benchmark.name = "coniferest.isoforest.IsolationForest"
+
+    random_seed = 0
+    rng = np.random.default_rng(random_seed)
+    data = rng.standard_normal((n_samples, n_features))
+    forest = IsolationForest(n_trees=128, n_jobs=n_jobs, random_seed=random_seed)
+    forest.fit(data)
+
+    benchmark(forest.score_samples, data)
+
+
+# We need to merge it with previous one when we make interface consistent with sklearn's
+# https://github.com/snad-space/coniferest/issues/113
+@pytest.mark.benchmark
+@pytest.mark.long
+@pytest.mark.parametrize("n_features", [2, 16])
+@pytest.mark.parametrize("n_samples", [1<<10, 1<<20])
+@pytest.mark.parametrize("n_jobs", [1, -1])
+def test_benchmark_score_sklearn(n_features, n_samples, n_jobs, benchmark):
+    benchmark.group = f"IsolationForest.score_samples {n_features = :2d}, {n_samples = :7d}, {n_jobs = :2d}"
+    benchmark.name = "sklearn.ensemble.IsolationForest"
+
+    random_seed = 0
+    rng = np.random.default_rng(random_seed)
+    data = rng.standard_normal((n_samples, n_features))
+    forest = SkIsolationForest(n_estimators=128, n_jobs=n_jobs, random_state=random_seed)
+    forest.fit(data)
+
+    benchmark(forest.score_samples, data)

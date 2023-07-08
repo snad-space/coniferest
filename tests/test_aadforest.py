@@ -18,3 +18,17 @@ def test_single_outlier():
     scores = forest.score_samples(data)
     # Outlier goes last and must have the lowest score
     assert np.argmin(scores) == data.shape[0] - 1
+
+def test_prior_influence_value():
+    data, _metadata = single_outlier()
+    forest = AADForest(n_trees=10, random_seed=0, prior_influence=2.0).fit(data)
+    scores = forest.score_samples(data)
+    # Outlier goes last and must have the lowest score
+    assert np.argmin(scores) == data.shape[0] - 1
+
+def test_prior_influence_callable():
+    data, _metadata = single_outlier()
+    forest = AADForest(n_trees=10, random_seed=0, prior_influence=lambda ac, nc: np.max(1.0, 0.5 / (ac + nc))).fit(data)
+    scores = forest.score_samples(data)
+    # Outlier goes last and must have the lowest score
+    assert np.argmin(scores) == data.shape[0] - 1

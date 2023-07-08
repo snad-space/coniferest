@@ -26,12 +26,12 @@ class Session:
         Signature: '(metadata, data, session) -> Label', where metadata is
         metadata of the object to be labeled, data is data of the object to be
         labeled, session is this session instance.
-    on_refit_callbacks : list of callable or callable, optional
+    on_refit_callbacks : list of callable, or callable, or None, optional
         Functions to be called when model is refitted (before
         "decision_callback"), default is empty list. This function may call
         `Session.terminate()`.
         Signature: '(session) -> None', where session is this session instance.
-    on_decision_callbacks : list of callable or callable, optional
+    on_decision_callbacks : list of callable, or callable, or None, optional
         Functions to be called when expert decision is made (after
         "decision_callback"), default is empty list. This function may call
         `Session.terminate()`.
@@ -41,7 +41,7 @@ class Session:
     known_labels : dict, optional
         Dictionary of known anomaly labels, keys are data/metadata indices,
         values are labels of type `Label`. Default is empty dictionary.
-    model : Coniferest, optional
+    model : Coniferest or None, optional
         Anomaly detection model to use, default is `PineForest()`.
 
     Attributes
@@ -74,8 +74,17 @@ class Session:
     >>> s.run()
     """
     @staticmethod
-    def _validate_callbacks(callbacks):
-        return all([isinstance(cb, Callable) for cb in callbacks])
+    def _prepare_callbacks(input_argument):
+        if input_argument is None:
+            callbacks = []
+        elif isinstance(input_argument, list):
+            callbacks = input_argument
+        else:
+            callbacks = [input_argument, ]
+
+        if not all([isinstance(cb, Callable) for cb in callbacks]):
+            raise ValueError("At least one of the callbacks is not callable")
+        return callbacks
 
     @staticmethod
     def _invoke_callbacks(callbacks, *args, **kwargs):
@@ -83,31 +92,24 @@ class Session:
             cb(*args, **kwargs)
 
 
-    def __init__(self, data, metadata, decision_callback = prompt_decision_callback, *, on_refit_callbacks = [], on_decision_callbacks = [], known_labels: Dict[int, Label] = None, model: Coniferest = PineForest()):
+    def __init__(self, data, metadata, decision_callback = prompt_decision_callback, *, on_refit_callbacks = None, on_decision_callbacks = None, known_labels: Dict[int, Label] = None, model: Coniferest = None):
 
         self._data     = np.atleast_2d(data)
         self._metadata = np.atleast_1d(metadata)
 
         if not isinstance(decision_callback, Callable):
             raise ValueError("decision_callback is not a callable")
-
         self._decision_cb = decision_callback
 
-        if not isinstance(on_refit_callbacks, list):
-            on_refit_callbacks = [on_refit_callbacks,]
-
-        if not self._validate_callbacks(on_refit_callbacks):
+        try:
+            self._on_refit_cb = self._prepare_callbacks(on_refit_callbacks)
+        except ValueError:
             raise ValueError("on_refit_callbacks contains not callable object")
 
-        self._on_refit_cb  = on_refit_callbacks
-
-        if not isinstance(on_decision_callbacks, list):
-            on_decision_callbacks = [on_decision_callbacks,]
-
-        if not self._validate_callbacks(on_decision_callbacks):
-            raise ValueError("on_decision_callbacks is not callable")
-
-        self._on_decision_cb = on_decision_callbacks
+        try:
+            self._on_decision_cb = self._prepare_callbacks(on_decision_callbacks)
+        except ValueError:
+            raise ValueError("on_decision_callbacks contains not callable object")
 
         if known_labels is None:
             self._known_labels = {}
@@ -117,6 +119,8 @@ class Session:
         if not isinstance(model, Coniferest):
             raise ValueError("model is not a Coniferest object")
 
+        if model is None:
+            model = PineForest()
         self._model = model
 
         self._scores = None

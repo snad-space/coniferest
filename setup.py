@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -9,8 +10,8 @@ import numpy as np
 
 extra_compile_args = []
 extra_link_args = []
-# macOS Clang doesn't support OpenMP
-if sys.platform != 'darwin':
+# macOS Clang doesn't support OpenMP, but we allow to force build with it anyway
+if sys.platform != 'darwin' or os.environ.get('CONIFEREST_FORCE_OPENMP_ON_MACOS', False):
     extra_compile_args.append('-fopenmp')
     extra_link_args.append('-fopenmp')
 

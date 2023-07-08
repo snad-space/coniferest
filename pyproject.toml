@@ -29,9 +29,21 @@ classifiers =  [
 ]
 dependencies = [
   "click",
+  # We need it for cpu_count() only, but we have it anyway as a dependency of scikit-learn
+  "joblib",
   "numpy",
-  "scikit-learn",
+  "scikit-learn>=1,<2",
   "matplotlib",
+  "onnxconverter-common",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "pytest-benchmark[histogram]",
+  "onnxruntime",
+  # sciki-learn 1.3 changed pickle format, so we need it for consistency of regression test data
+  "scikit-learn>=1.3",
 ]
 
 [project.urls]
@@ -44,9 +56,8 @@ exclude = [
   "notes",
 ]
 
-# pytest
 [tool.pytest.ini_options]
-tests_paths = [
+testpaths = [
   "tests",
 ]
 markers = [
@@ -54,4 +65,16 @@ markers = [
   "long",
   "regression",
 ]
-addopts = "-m 'not long'"
+addopts = "--benchmark-min-time=0.1 --benchmark-max-time=5.0 --benchmark-min-rounds=5 --benchmark-sort=mean --benchmark-disable"
+
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+envlist = py38,py39,py310,py311
+isolated_build = True
+
+[testenv]
+extras = dev
+commands =
+    pytest -m 'not long'
+"""

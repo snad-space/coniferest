@@ -49,6 +49,9 @@ class PineForest(Coniferest):
         detection, right?). The weight is used during the filtering
         process.
 
+    n_jobs : int, optional
+        Number of threads to use for scoring. If None - number of CPUs is used.
+
     random_seed : int or None, optional
         Random seed. If None - random seed is used.
     """
@@ -60,10 +63,12 @@ class PineForest(Coniferest):
                  n_spare_trees=400,
                  regenerate_trees=False,
                  weight_ratio=1.0,
+                 n_jobs=None,
                  random_seed=None):
         super().__init__(trees=[],
                          n_subsamples=n_subsamples,
                          max_depth=max_depth,
+                         n_jobs=n_jobs,
                          random_seed=random_seed)
         self.n_trees = n_trees
         self.n_spare_trees = n_spare_trees
@@ -186,8 +191,9 @@ class PineForest(Coniferest):
         self.evaluator = ConiferestEvaluator(self)
         return self
 
-    @staticmethod
-    def filter_trees(trees, data, labels, n_filter, weight_ratio=1):
+    # Made non-static to make sure we always use it in a way that makes inheritance with truly non-static methods
+    # possible.
+    def filter_trees(self, trees, data, labels, n_filter, weight_ratio=1):
         """
         Filter the trees out.
 
