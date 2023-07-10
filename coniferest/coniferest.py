@@ -255,6 +255,8 @@ class ConiferestEvaluator(ForestEvaluator):
         #selectors['log_n_node_samples'] = np.log(n_node_samples)
         selectors['log_n_node_samples'] = average_path_length(n_node_samples)/2 # because x2 in calc_path_sum
 
+        selectors['log_n_node_samples'] = np.log(n_node_samples)
+
         def correct_values(i, depth):
             if selectors[i]['feature'] < 0:
                 value = depth + average_path_length(n_node_samples[i])
