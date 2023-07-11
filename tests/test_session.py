@@ -54,6 +54,9 @@ def test_e2e_ztf_m31():
     assert session.known_labels[idx] == Label.ANOMALY
 
 
+# We mark it long because for some platforms it sometimes takes an hour to run it for the AAD case
+# https://github.com/snad-space/coniferest/issues/121
+@pytest.mark.long
 @pytest.mark.e2e
 @pytest.mark.regression
 @pytest.mark.parametrize(
