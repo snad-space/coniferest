@@ -33,7 +33,7 @@ jobs:
         python-version: '3.11'
     - name: Install the package
       run: python3.11 -m pip install -e '.[dev]'
-    - name: Run the benchmark
+    - name: Run benchmarks
       run: python3.11 -m pytest --benchmark-enable -m benchmark --benchmark-json output.json
     - name: Download previous benchmark data
       uses: actions/cache@v1
@@ -48,8 +48,9 @@ jobs:
         external-data-json-path: ./cache/benchmark-data.json
         fail-on-alert: true
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        # Comment comment at benchmark alerts
+        # Comment commits at benchmark alerts
         comment-on-alert: true
+        # And notify this user about the problem
         # alert-comment-cc-users: '@matwey'
         # Comment PRs
         summary-always: true
