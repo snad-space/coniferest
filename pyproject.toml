@@ -1,11 +1,6 @@
 [build-system]
-requires = [
-  "setuptools",
-  "wheel",
-  "oldest-supported-numpy",
-  "Cython",
-]
-build-backend = "setuptools.build_meta"
+requires = ["maturin>=1.1,<2.0"]
+build-backend = "maturin"
 
 [project]
 name = "coniferest"
@@ -48,12 +43,14 @@ dev = [
 [project.urls]
 "Source Code" = "https://github.com/snad-space/coniferest"
 
-[tool.setuptools.packages.find]
-exclude = [
-  "tests",
-  "notebooks",
-  "notes",
-]
+[tool.maturin]
+module-name = "coniferest.calc_paths_sum"
+# It asks to use Cargo.lock to make the build reproducible
+locked = true
+
+[tool.maturin.target.aarch64-apple-darwin]
+# I belive Rust requires it
+macos-deployment-target = "11.0"
 
 [tool.pytest.ini_options]
 testpaths = [
