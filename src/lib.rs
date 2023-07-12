@@ -8,6 +8,9 @@ use pyo3::py_run;
 use pyo3::types::PyDict;
 
 /// Selector is the representation of decision tree nodes: either branches or leafs.
+///
+/// We use "C"-representation with standard alignment (np.dtype(align=True)), but "packed"
+/// (dtype(aligh=False)) would work as well.
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub(crate) struct Selector {
@@ -25,10 +28,15 @@ impl Selector {
     pub(crate) fn dtype(py: Python) -> PyResult<&PyArrayDescr> {
         let locals = PyDict::new(py);
         py_run!(
-        py,
-        *locals,
-        "dtype = __import__('numpy').dtype([('feature', 'i4'), ('left', 'i4'), ('value', 'f8'), ('right', 'i4')], align=True)"
-    );
+            py,
+            *locals,
+            r#"
+            dtype = __import__('numpy').dtype(
+                [('feature', 'i4'), ('left', 'i4'), ('value', 'f8'), ('right', 'i4')],
+                align=True,
+            )
+            "#
+        );
         Ok(locals
             .get_item("dtype")
             .expect("Error in built-in Python code for dtype initialization")
@@ -53,7 +61,7 @@ unsafe impl Element for Selector {
     }
 }
 
-// TODO: should we retrun reference from here? Will it be faster?
+// It looks like the performance is not affected by returning a copy of Selector, not reference.
 #[inline]
 fn find_leaf<T>(tree: &[Selector], sample: &[T]) -> Selector
 where
@@ -133,10 +141,11 @@ where
             Zip::from(paths.view_mut())
                 .and(data.rows())
                 .par_for_each(|path, sample| {
-                    for (tree_start, tree_end) in indices.iter().copied().tuple_windows() {
-                        let tree_selectors = unsafe {
-                            selectors.get_unchecked(tree_start as usize..tree_end as usize)
-                        };
+                    for (tree_start, tree_end) in
+                        indices.iter().map(|i| *i as usize).tuple_windows()
+                    {
+                        let tree_selectors =
+                            unsafe { selectors.get_unchecked(tree_start..tree_end) };
 
                         let leaf = find_leaf(tree_selectors, sample.as_slice().unwrap());
 
