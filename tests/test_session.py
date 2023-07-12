@@ -9,29 +9,32 @@ from coniferest.session import Session
 
 
 @pytest.mark.e2e
-@pytest.mark.long
 @pytest.mark.regression
 def test_e2e_ztf_m31():
     """Basically the same example as in the docs"""
     class Callback():
-        """Say NO for first three objectsm then say YES and terminate"""
+        """Say NO for first few objects, then say YES and terminate"""
         counter = 0
+
+        def __init__(self, n_iter):
+            self.n_iter = n_iter
 
         def decision(self, _metadata, _data, _session) -> Label:
             self.counter += 1
-            if self.counter < 4:
+            if self.counter < self.n_iter:
                 return Label.REGULAR
             return Label.ANOMALY
 
         def on_decision(self, _metadata, _data, session) -> None:
-            if self.counter >= 4:
+            if self.counter >= self.n_iter:
                 session.terminate()
 
-    callback = Callback()
+    callback = Callback(2)
 
     data, metadata = ztf_m31()
     model = AADForest(
-        n_trees=1024,
+        n_trees=128,
+        n_subsamples=256,
         random_seed=0,
     )
     session = Session(
@@ -43,7 +46,7 @@ def test_e2e_ztf_m31():
     )
     session.run()
 
-    assert len(session.known_labels) == 4
+    assert len(session.known_labels) == callback.n_iter
 
     oid = 695211200075348
     idx = np.where(metadata == oid)[0][0]
@@ -51,6 +54,9 @@ def test_e2e_ztf_m31():
     assert session.known_labels[idx] == Label.ANOMALY
 
 
+# We mark it long because for some platforms it sometimes takes an hour to run it for the AAD case
+# https://github.com/snad-space/coniferest/issues/121
+@pytest.mark.long
 @pytest.mark.e2e
 @pytest.mark.regression
 @pytest.mark.parametrize(
