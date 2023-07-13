@@ -3,6 +3,7 @@ use ndarray::{Array1, ArrayView1, ArrayView2, Zip};
 use num_traits::AsPrimitive;
 use numpy::{Element, PyArray, PyArrayDescr};
 use numpy::{PyArray1, PyArray2};
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::PyDict;
@@ -85,6 +86,49 @@ where
     }
 }
 
+#[inline]
+fn check_selectors(selectors: ArrayView1<Selector>) -> PyResult<()> {
+    if !selectors.is_standard_layout() {
+        return Err(PyValueError::new_err(
+            "selectors must be contiguous and in memory order",
+        ));
+    }
+    Ok(())
+}
+
+#[inline]
+fn check_indices(indices: ArrayView1<i64>, selectors_length: usize) -> PyResult<()> {
+    if let Some(indices) = indices.as_slice() {
+        for (x, y) in indices.iter().copied().tuple_windows() {
+            if x > y {
+                return Err(PyValueError::new_err(
+                    "indices must be sorted in ascending order",
+                ));
+            }
+        }
+        if indices[indices.len() - 1] as usize > selectors_length {
+            return Err(PyValueError::new_err(
+                "indices are out of range of the selectors",
+            ));
+        }
+        Ok(())
+    } else {
+        Err(PyValueError::new_err(
+            "indices must be contiguous and in memory order",
+        ))
+    }
+}
+
+#[inline]
+fn check_data<T>(data: ArrayView2<T>) -> PyResult<()> {
+    if !data.is_standard_layout() {
+        return Err(PyValueError::new_err(
+            "data must be contiguous and in memory order",
+        ));
+    }
+    Ok(())
+}
+
 #[pyfunction]
 #[pyo3(signature = (selectors, indices, data, weights = None, num_threads = 0))]
 pub(crate) fn calc_paths_sum<'py>(
@@ -97,20 +141,25 @@ pub(crate) fn calc_paths_sum<'py>(
     num_threads: usize,
 ) -> PyResult<&'py PyArray1<f64>> {
     let selectors = selectors.readonly();
+    let selectors_view = selectors.as_array();
+    check_selectors(selectors_view)?;
+
     let indices = indices.readonly();
+    let indices_view = indices.as_array();
+    check_indices(indices_view, selectors.len())?;
+
     let data = data.readonly();
+    let data_view = data.as_array();
+    check_data(data_view)?;
+
     let weights = weights.map(|weights| weights.readonly());
     let weights_view = weights.as_ref().map(|weights| weights.as_array());
 
-    // TODO: add indices check
-
-    // TODO: check arrays are contiguous and in memory order
-
     // Here we need to dispatch `data` and run the template function
     let paths = calc_paths_sum_impl(
-        selectors.as_array(),
-        indices.as_array(),
-        data.as_array(),
+        selectors_view,
+        indices_view,
+        data_view,
         weights_view,
         num_threads,
     );
@@ -183,6 +232,7 @@ where
 //     Ok(values)
 // }
 //
+// // See https://users.rust-lang.org/t/multithreading-with-multiple-writes-to-same-slice-without-lock/52415/12
 // fn paths_sum_transpose(
 //     selectors: &[Selector],
 //     indices: &[i64],
