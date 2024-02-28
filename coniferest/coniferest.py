@@ -138,7 +138,8 @@ class Coniferest(ABC):
                                   max_features=1,
                                   min_samples_leaf=self.min_samples_leaf,
                                   min_weight_leaf=self.min_weight_leaf,
-                                  random_state=splitter_state)
+                                  random_state=splitter_state,
+                                  monotonic_cst=None)
 
         builder_args = {
             'splitter': splitter,
