@@ -43,7 +43,8 @@ jobs:
       env:
         CIBW_ARCHS: ${{ matrix.archs }}
         # We skip MUSL (no numpy binary wheels) and PyPy
-        CIBW_SKIP: "pp* *musl*"
+        # We skip Python 3.12, onnx 1.15 is not compatible yet
+        CIBW_SKIP: "pp* *musl* cp312-*"
     - uses: actions/upload-artifact@v3
       with:
         path: wheelhouse/*.whl

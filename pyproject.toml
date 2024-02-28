@@ -12,7 +12,7 @@ name = "coniferest"
 version = "0.0.11"
 description = "Coniferous forests for better machine learning"
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.9"
 authors = [
   { name = "Vladimir Korolev", email = "balodja@gmail.com" },
   { name = "SNAD team" },
@@ -32,7 +32,8 @@ dependencies = [
   # We need it for cpu_count() only, but we have it anyway as a dependency of scikit-learn
   "joblib",
   "numpy",
-  "scikit-learn>=1,<2",
+  # sklearn.tree._splitter.RandomSplitter changed signature in 1.4.0
+  "scikit-learn>=1.4,<2",
   "matplotlib",
   "onnxconverter-common",
 ]
@@ -42,8 +43,6 @@ dev = [
   "pytest",
   "pytest-benchmark[histogram]",
   "onnxruntime",
-  # sciki-learn 1.3 changed pickle format, so we need it for consistency of regression test data
-  "scikit-learn>=1.3",
 ]
 
 [project.urls]
@@ -70,7 +69,7 @@ addopts = "--benchmark-min-time=0.1 --benchmark-max-time=5.0 --benchmark-min-rou
 [tool.tox]
 legacy_tox_ini = """
 [tox]
-envlist = py38,py39,py310,py311
+envlist = py39,py310,py311
 isolated_build = True
 
 [testenv]
