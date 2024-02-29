@@ -1,0 +1,7 @@
+sphinx
+sphinx-autoapi
+sphinx-copybutton
+nbsphinx
+ipython
+jupytext
+jupyter

@@ -12,6 +12,7 @@ Welcome to coniferest's documentation!
 
    tutorial.rst
    isoforest.rst
+   notebooks.rst
    modules.rst
 
 Indices and tables

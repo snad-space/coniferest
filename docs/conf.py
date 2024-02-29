@@ -7,16 +7,17 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'coniferest'
-copyright = '2023, SNAD team'
+copyright = '2024, SNAD team'
 author = 'SNAD team'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon', 'sphinx.ext.viewcode']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon', 'sphinx.ext.viewcode', 'nbsphinx',
+              'sphinx_copybutton']
 
 templates_path = ['_templates']
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '**.ipynb_checkpoints']
 
 
 # -- Options for HTML output -------------------------------------------------
