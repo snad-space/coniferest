@@ -7,7 +7,11 @@ build:
 
 formats: all
 
+sphinx:
+   configuration: docs/conf.py
+
 python:
   install:
+    - requirements: docs/requirements.txt
     - method: pip
       path: .

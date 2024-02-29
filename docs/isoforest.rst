@@ -1,5 +1,5 @@
-Isolation forest
-================
+Exploring Isolation Forest
+==========================
 
 Introduction
 ------------
