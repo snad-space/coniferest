@@ -41,6 +41,7 @@ impl Selector {
         Ok(locals
             .get_item("dtype")
             .expect("Error in built-in Python code for dtype initialization")
+            .expect("Error in built-in Python code for dtype initialization: dtype cannot be None")
             .downcast::<PyArrayDescr>()?)
     }
 
