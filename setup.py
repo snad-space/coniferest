@@ -17,7 +17,7 @@ if sys.platform != 'darwin' or os.environ.get('CONIFEREST_FORCE_OPENMP_ON_MACOS'
 
 
 extensions = [Extension("coniferest.calc_paths_sum",
-                        ["coniferest/calc_paths_sum.pyx"],
+                        ["src/coniferest/calc_paths_sum.pyx"],
                         include_dirs=[np.get_include()],
                         extra_compile_args=extra_compile_args,
                         extra_link_args=extra_link_args,

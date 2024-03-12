@@ -49,11 +49,7 @@ dev = [
 "Source Code" = "https://github.com/snad-space/coniferest"
 
 [tool.setuptools.packages.find]
-exclude = [
-  "tests",
-  "notebooks",
-  "notes",
-]
+where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = [
