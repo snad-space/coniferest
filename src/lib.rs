@@ -211,6 +211,31 @@ where
     paths
 }
 
+fn calc_paths_sum_transpose_impl<T>(
+    selectors: ArrayView1<Selector>,
+    indices: ArrayView1<i64>,
+    leaf_count: usize,
+    data: ArrayView2<T>,
+    weights: Option<ArrayView1<f64>>,
+    num_threads: usize,
+) -> Array1<f64>
+    where
+        T: Copy + Send + Sync + PartialOrd + 'static,
+        f64: AsPrimitive<T>,
+{
+    let values = Array1::zeros(leaf_count);
+
+
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(num_threads)
+        .build()
+        .expect("Cannot build rayon ThreadPool")
+        .install(|| {
+        });
+
+    values
+}
+
 // #[pyfunction]
 // pub fn calc_paths_sum_transpose(
 //     selectors: Vec<Selector>,
