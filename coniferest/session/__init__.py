@@ -62,6 +62,9 @@ class Session:
         Array of indices of known regular objects
     known_unknowns : array-like
         Array of indices of known objects marked with `Label::UNKNOWN`
+    trajectory : array-like
+        Array of indices of objects that were labeled during the session.
+        If no `known_labels` were provided, it is equal to `list(known_labels.keys())`.
     model : Coniferest
         Anomaly detection model used
 
@@ -126,6 +129,7 @@ class Session:
         self._scores = None
         self._current = None
         self._terminated = False
+        self._trajectory = []
 
     def run(self) -> 'Session':
         """Evaluate interactive anomaly detection session"""
@@ -156,6 +160,7 @@ class Session:
 
             decision = self._decision_cb(self._metadata[self._current], self._data[self._current], self)
             self._known_labels[self._current] = decision
+            self._trajectory.append(self._current)
 
             self._invoke_callbacks(self._on_decision_cb, self._metadata[self._current], self._data[self._current], self)
 
@@ -165,37 +170,53 @@ class Session:
         self._terminated = True
 
     @property
-    def current(self) -> int:
-        return self._current
+    def current(self) -> Optional[int]:
+        """Index of the last anomaly candidate or None if no decision was made"""
+        return np.array(self._current) if self._current is not None else None
 
     @property
     def last_decision(self) -> Optional[Label]:
+        """Label of the last anomaly candidate or None if no decision was made"""
         return self._known_labels.get(self._current, None)
 
     @property
-    def scores(self) -> np.ndarray:
-        return self._scores
+    def scores(self) -> Optional[np.ndarray]:
+        """Current anomaly scores for all data points or None if session is not yet run"""
+        return np.array(self._scores) if self._scores is not None else None
 
     @property
     def known_labels(self) -> Dict[int, Label]:
+        """Current dictionary of labeled objects and their labels"""
         return self._known_labels
 
     @property
     def known_anomalies(self) -> np.ndarray:
+        """Array of indices of known anomalies"""
         return np.array([idx for idx, label in self._known_labels.items() if label == Label.ANOMALY])
 
     @property
     def known_regulars(self) -> np.ndarray:
+        """Array of indices of known regular objects"""
         return np.array([idx for idx, label in self._known_labels.items() if label == Label.REGULAR])
 
     @property
     def known_unknowns(self) -> np.ndarray:
+        """Array of indices of known objects marked with `Label.UNKNOWN`"""
         return np.array([idx for idx, label in self._known_labels.items() if label == Label.UNKNOWN])
 
     @property
     def model(self) -> Coniferest:
+        """Anomaly detection model used"""
         return self._model
 
     @property
     def terminated(self) -> bool:
+        """True if session is terminated"""
         return self._terminated
+
+    def trajectory(self) -> np.ndarray:
+        """Array of indices of objects that were labeled during the session.
+
+        If no `known_labels` were provided, it is equal to `list(known_labels.keys())`.
+        """
+        return np.array(self._trajectory)
