@@ -1,0 +1,22 @@
+[package]
+name = "coniferest"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "coniferest"
+crate-type = ["cdylib"]
+
+# We'd like to build fast code with `pip install -e '.[dev]'`
+[profile.dev]
+opt-level = 3
+
+[dependencies]
+itertools = "0.12"
+pyo3 = { version = "0.20", features = ["extension-module"] }
+# Needs to be consistent with ndarray dependecy in numpy
+ndarray = { version = "0.15", features = ["rayon"] }
+num-traits = "0.2"
+numpy = "0.20"
+# Needs to be consistent with rayon dependecy in ndarray
+rayon = "1.9"
