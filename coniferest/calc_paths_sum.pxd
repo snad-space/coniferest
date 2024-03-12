@@ -11,6 +11,8 @@ cdef packed struct selector_t:
     np.float64_t value
     # Index of right subtree
     np.int32_t right
+    # Log of samples count covered by this node
+    np.float32_t log_n_node_samples
 
     # In case of leaf the fields have special values:
     # * feature == -1
@@ -40,3 +42,10 @@ cdef void _paths_sum_transpose(selector_t [::1] selectors,
                                np.float64_t [::1] values,
                                np.float64_t [::1] weights=*,
                                int num_threads=*)
+
+cdef void _feature_delta_sum(selector_t [::1] selectors,
+                             np.int64_t [::1] indices,
+                             floating [:, ::1] data,
+                             np.float64_t [:, ::1] delta_sum,
+                             np.int64_t [:, ::1] hit_count,
+                             int num_threads=*)

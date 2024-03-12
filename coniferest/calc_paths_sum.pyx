@@ -47,6 +47,28 @@ def calc_paths_sum_transpose(selector_t [::1] selectors,
     return values
 
 
+def calc_feature_delta_sum(selector_t [::1] selectors,
+                   np.int64_t [::1] indices,
+                   floating [:, ::1] data,
+                   int num_threads=1):
+    cdef np.ndarray [np.double_t, ndim=2] delta_sum = np.zeros([data.shape[0], data.shape[1]])
+    cdef np.float64_t [:, ::1] delta_sum_view = delta_sum
+    cdef np.ndarray [np.int64_t, ndim=2] hit_count = np.zeros([data.shape[0], data.shape[1]], dtype=np.int64)
+    cdef np.int64_t [:, ::1] hit_count_view = hit_count
+    cdef Py_ssize_t sellen = selectors.shape[0]
+
+    if np.any(np.diff(indices) < 0):
+        raise ValueError('indices should be an increasing sequence')
+
+    if indices[-1] > sellen:
+        raise ValueError('indices are out of range of the selectors')
+
+    _feature_delta_sum(selectors, indices, data, delta_sum_view, hit_count_view, num_threads)
+    return delta_sum, hit_count
+
+
+
+
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef void _paths_sum(selector_t [::1] selectors,
@@ -125,3 +147,43 @@ cdef void _paths_sum_transpose(selector_t [::1] selectors,
                     values[selector.left] += selector.value
                 else:
                     values[selector.left] += weights[x_index] * selector.value
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef void _feature_delta_sum(selector_t [::1] selectors,
+                     np.int64_t [::1] indices,
+                     floating [:, ::1] data,
+                     np.float64_t [:, ::1] delta_sum,
+                     np.int64_t [:, ::1] hit_count,
+                     int num_threads=1):
+
+    cdef Py_ssize_t trees
+    cdef Py_ssize_t tree_index
+    cdef Py_ssize_t x_index
+    cdef selector_t selector, child_selector
+    cdef Py_ssize_t tree_offset
+    cdef np.int32_t feature, i
+
+    with nogil, parallel(num_threads=num_threads):
+        trees = indices.shape[0] - 1
+
+        for x_index in prange(data.shape[0], schedule='static'):
+            for tree_index in range(trees):
+                tree_offset = indices[tree_index]
+                i = 0
+                while True:
+                    selector = selectors[tree_offset + i]
+                    feature = selector.feature
+                    if feature < 0:
+                        break
+
+                    if data[x_index, feature] <= selector.value:
+                        i = selector.left
+                    else:
+                        i = selector.right
+
+                    child_selector = selectors[tree_offset + i]
+
+                    delta_sum[x_index, feature] += 1.0 + 2.0 * (child_selector.log_n_node_samples - selector.log_n_node_samples)
+                    hit_count[x_index, feature] += 1

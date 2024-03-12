@@ -192,6 +192,13 @@ class Coniferest(ABC):
         """
         raise NotImplementedError()
 
+    @abstractmethod
+    def feature_signature(self, x):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def feature_importance(self, x):
+        raise NotImplementedError()
 
 class ConiferestEvaluator(ForestEvaluator):
     """
@@ -244,6 +251,8 @@ class ConiferestEvaluator(ForestEvaluator):
         selectors['value'] = nodes['threshold']
 
         n_node_samples = nodes['n_node_samples']
+
+        selectors['log_n_node_samples'] = np.log(n_node_samples)
 
         def correct_values(i, depth):
             if selectors[i]['feature'] < 0:
