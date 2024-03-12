@@ -54,6 +54,7 @@ class Session:
         Current anomaly scores for all data points
     terminated : bool
         True if session is terminated
+    trajectory : array-like
     known_labels : dict[int, Label]
         Current dictionary of known anomaly labels
     known_anomalies : array-like
@@ -68,10 +69,17 @@ class Session:
     Examples
     --------
 
-    >>> from coniferest.session import Session
-    >>> data, metadata = ztf_dataset()
-    >>> s = Session(data, metadata)
-    >>> s.run()
+    >>> from coniferest.datasets import ztf_m31
+    >>> from coniferest.session import Label, Session
+    >>> data, metadata = ztf_m31()
+    >>> s = Session(
+    ...    data=data,
+    ...    metadata=metadata,
+    ...    decision_callback=lambda *_: Label.ANOMALY,
+    ...    on_decision_callbacks=[lambda _metadata, _data, session: session.terminate()],
+    ... )
+    >>> _ = s.run()
+    >>> assert len(s.known_labels) == len(s.known_anomalies) == 1
     """
     @staticmethod
     def _prepare_callbacks(input_argument):
@@ -116,11 +124,10 @@ class Session:
         else:
             self._known_labels = dict(known_labels)
 
-        if not isinstance(model, Coniferest):
-            raise ValueError("model is not a Coniferest object")
-
         if model is None:
             model = PineForest()
+        if not isinstance(model, Coniferest):
+            raise ValueError("model is not a Coniferest object")
         self._model = model
 
         self._scores = None
