@@ -1,7 +1,4 @@
 include README.md
-include coniferest/*.pxd
-include coniferest/*.pyx
-include tests/*
-include scripts/*
-include notebooks/*
-include coniferest/datasets/*.npz
+include src/coniferest/*.pxd
+include src/coniferest/*.pyx
+include src/coniferest/datasets/*.npz
