@@ -54,13 +54,14 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = [
   "tests",
+  "src/coniferest",
 ]
 markers = [
   "e2e",
   "long",
   "regression",
 ]
-addopts = "--benchmark-min-time=0.1 --benchmark-max-time=5.0 --benchmark-min-rounds=5 --benchmark-sort=mean --benchmark-disable"
+addopts = "--benchmark-min-time=0.1 --benchmark-max-time=5.0 --benchmark-min-rounds=5 --benchmark-sort=mean --benchmark-disable --doctest-modules"
 
 [tool.tox]
 legacy_tox_ini = """
@@ -70,6 +71,9 @@ isolated_build = True
 
 [testenv]
 extras = dev
+set_env =
+    # For doctests
+    PY_IGNORE_IMPORTMISMATCH=1
 commands =
     pytest -m 'not long' --durations=0
 """
