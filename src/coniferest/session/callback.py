@@ -56,11 +56,6 @@ class TerminateAfter:
             session.terminate()
 
 
-def autonomous_decider_callback(metadata: Label, data: np.ndarray, session: 'Session') -> Label:
-    "Use metadata as already defined labels for making decision."
-    return metadata
-
-
 class AutonomousExperiment:
     """
     A callback for tracing the experiment and terminating it on the fetched
