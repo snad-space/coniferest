@@ -39,6 +39,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+datasets = [
+  # For downloading and parsing DevNet datasets
+  "pandas",
+]
 dev = [
   "pytest",
   "pytest-benchmark[histogram]",
@@ -70,7 +74,9 @@ envlist = py39,py310,py311
 isolated_build = True
 
 [testenv]
-extras = dev
+extras =
+    dev
+    datasets
 set_env =
     # For doctests
     PY_IGNORE_IMPORTMISMATCH=1

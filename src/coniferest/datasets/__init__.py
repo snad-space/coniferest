@@ -100,3 +100,80 @@ class MalanchevDataset(Dataset):
 
 def non_anomalous_outliers(inliers=1 << 10, outliers=1 << 5, regions=None, seed=0):
     return MalanchevDataset(inliers, outliers, regions, seed).to_data_metadata()
+
+
+class DevNetDataset(Dataset):
+    """Deviation Network paper datasets.
+
+    This class constructor would download datasets from the Deviation Network GitHub:
+    https://github.com/GuansongPang/deviation-network
+
+    It requires pandas to be installed.
+
+    Arguments
+    ---------
+    name : str
+        Name of the dataset to download. See `.avialble_datasets`.
+
+    Attributes
+    ----------
+    avialble_datasets : list[str]
+        List of available datasets to download.
+    """
+
+    _dataset_filenames = {
+        "donors": "KDD2014_donors_10feat_nomissing_normalised.csv",
+        "census": "census-income-full-mixed-binarized.tar.xz",
+        "fraud": "creditcardfraud_normalised.tar.xz",
+        "celeba": "celeba_baldvsnonbald_normalised.csv",
+        "backdoor": "UNSW_NB15_traintest_backdoor.tar.xz",
+        "campaign": "bank-additional-full_normalised.csv",
+        "thyroid": "annthyroid_21feat_normalised.csv",
+    }
+    _dataset_urls = {name: f"https://github.com/GuansongPang/deviation-network/raw/master/dataset/{filename}" for name, filename in _dataset_filenames.items()}
+    avialble_datasets = list(_dataset_filenames.keys())
+
+    def __init__(self, name: str):
+        try:
+            import pandas as pd
+        except ImportError:
+            raise ImportError("Pandas is required to load DevNet datasets, install it with `pip install pandas` or reinstall the package with `pip install coniferest[datasets]`")
+
+        if name not in self.avialble_datasets:
+            raise ValueError(f"Dataset {name} is not available. Available datasets are: {self.avialble_datasets}")
+
+        df = pd.read_csv(self._dataset_urls[name])
+
+        # Last column is for class, the rest are features
+        data = df.iloc[:, :-1].to_numpy()
+
+        # In the original data, the labels are 1 for anomalies and 0 for regular data
+        # We need 1 for regular data and -1 for anomalies
+        labels = 1 - 2 * df.iloc[:, -1].to_numpy(dtype=int)
+
+        super().__init__(data, labels)
+
+
+def dev_net_dataset(name: str):
+    f"""Download and return metadata and data for the Deviation Network dataset.
+   
+    This class constructor would download datasets from the Deviation Network GitHub:
+    https://github.com/GuansongPang/deviation-network
+
+    It requires pandas to be installed.
+    
+    Avialable datasets are: {", ".join(DevNetDataset.avialble_datasets)}
+
+    Arguments
+    ---------
+    name : str
+        Name of the dataset to download. See `.avialble_datasets`. 
+    
+    Returns
+    -------
+    data : array-like, shape (n_samples, n_features)
+        2-D array of data points
+    labels : array-like, shape (n_samples,)
+        1-D array of `Label` objects for each data point
+    """
+    return DevNetDataset(name).to_data_metadata()
