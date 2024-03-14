@@ -1,5 +1,4 @@
 from .coniferest import Coniferest, ConiferestEvaluator
-from .experiment import AnomalyDetector
 
 
 __all__ = ['IsolationForest']
@@ -83,71 +82,3 @@ class IsolationForest(Coniferest):
 
     def feature_importance(self, x):
         return self.evaluator.feature_importance(x)
-
-class IsolationForestAnomalyDetector(AnomalyDetector):
-    def __init__(self, isoforest, title='Isolation Forest'):
-        """
-        Anomaly detection with isolation forest.
-        Anomaly detectors are the wrappers around forests for
-        interaction with the AnomalyDetectionExperiment.
-
-        Parameters
-        ----------
-        isoforest
-            Regressor to detect anomalies with.
-
-        title
-            Title for plots.
-        """
-        super().__init__(title)
-        self.isoforest = isoforest
-
-    def train(self, data):
-        """
-        Training is just building the trees out of the supplied data.
-
-        Parameters
-        ----------
-        data
-            2-d array with features to build trees of.
-
-        Returns
-        -------
-        Trained forest.
-        """
-        return self.isoforest.fit(data)
-
-    def score(self, data):
-        """
-        Compute the scores for the data.
-
-        Parameters
-        ----------
-        data
-            2-d array with features to compute scores of.
-
-        Returns
-        -------
-        Scores.
-        """
-        return self.isoforest.score_samples(data)
-
-    def observe(self, point, label):
-        """
-        Learn about new data. Observe it!
-
-        Parameters
-        ----------
-        point
-            Features of the data point.
-
-        label
-            True label of the data point.
-
-        Returns
-        -------
-        Whether the regressor changed itself.
-        """
-        super().observe(point, label)
-        # done nothing, it's classic, you know
-        return False

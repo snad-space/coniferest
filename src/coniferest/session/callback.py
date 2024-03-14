@@ -1,6 +1,10 @@
 import click
 import webbrowser
 
+from typing import List, Optional
+
+import numpy as np
+
 from coniferest.datasets import Label
 
 
@@ -37,6 +41,9 @@ class TerminateAfter:
     """
     Terminate session after given number of iterations.
 
+    This callback to be used as "on decision callback":
+    Session(..., on_decision_callbacks=[TerminateAfter(budget)])
+
     Parameters
     ----------
     budget : int
@@ -49,4 +56,26 @@ class TerminateAfter:
     def __call__(self, metadata, data, session) -> None:
         self.iteration += 1
         if self.iteration >= self.budget:
+            session.terminate()
+
+
+class TerminateAfterNAnomalies:
+    """
+    Terminate session after given number of newly labeled anomalies.
+
+    This callback to be used as "on decision callback":
+    Session(..., on_decision_callbacks=[TerminateAfter(budget)])
+
+    Parameters
+    ----------
+    budget : int
+        Number of anomalies to stop after.
+    """
+    def __init__(self, budget: int):
+        self.budget = budget
+        self.anomalies_count = 0
+
+    def __call__(self, label, _data, session) -> None:
+        self.anomalies_count += label == Label.ANOMALY
+        if self.anomalies_count >= self.budget:
             session.terminate()
