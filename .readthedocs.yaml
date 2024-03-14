@@ -4,6 +4,9 @@ build:
   os: "ubuntu-20.04"
   tools:
     python: "3.11"
+  apt_packages:
+    # For the iTree visualization notebook
+    - graphviz
 
 formats: all
 

@@ -6,4 +6,6 @@ Notebooks with examples
 
     MNIST handwritten digits  <notebooks/mnist>
     US baby names <notebooks/us-names>
+    Animated discovery plots <notebooks/animated-discovery>
+    Visualisation of iTree <notebooks/itree-visualisation>
     AISSAI 2024 Anomaly Detection Workshop tutorial <notebooks/AISSAI_2024_tutorial>
