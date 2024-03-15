@@ -21,3 +21,22 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Run tox
       run: pipx run tox -e py${{ matrix.python-version }}
+
+  benchmark:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.11
+    - name: Run benchmarks
+      uses: CodSpeedHQ/action@v2
+      with:
+        token: ${{ secrets.CODSPEED_TOKEN }}
+        run: |
+          pip install -e '.[dev]'
+          # https://github.com/CodSpeedHQ/pytest-codspeed/issues/27
+          pip install 'pytest!=8.1.1' pytest-codspeed
+          python3 -mpytest --codspeed
