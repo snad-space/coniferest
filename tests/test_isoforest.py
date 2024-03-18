@@ -137,16 +137,17 @@ def test_n_jobs():
 @pytest.mark.benchmark
 @pytest.mark.long
 @pytest.mark.parametrize("n_features", [2, 16])
-@pytest.mark.parametrize("n_samples", [1<<10, 1<<20])
+@pytest.mark.parametrize("n_trees", [128, 1024])
 @pytest.mark.parametrize("n_jobs", [1, -1])
-def test_benchmark_fit(n_features, n_samples, n_jobs, benchmark):
-    benchmark.group = f"IsolationForest.fit {n_features = :2d}, {n_samples = :7d}, {n_jobs = :2d}"
+def test_benchmark_fit(n_features, n_trees, n_jobs, benchmark):
+    benchmark.group = f"IsolationForest.fit {n_features = :2d}, {n_trees = :4d}, {n_jobs = :2d}"
     benchmark.name = "coniferest.isoforest.IsolationForest"
 
     random_seed = 0
+    n_samples = 16_384
     rng = np.random.default_rng(random_seed)
     data = rng.standard_normal((n_samples, n_features))
-    forest = IsolationForest(n_trees=128, n_jobs=n_jobs, random_seed=random_seed)
+    forest = IsolationForest(n_trees=n_trees, n_jobs=n_jobs, random_seed=random_seed)
 
     benchmark(forest.fit, data)
 
@@ -156,16 +157,17 @@ def test_benchmark_fit(n_features, n_samples, n_jobs, benchmark):
 @pytest.mark.benchmark
 @pytest.mark.long
 @pytest.mark.parametrize("n_features", [2, 16])
-@pytest.mark.parametrize("n_samples", [1<<10, 1<<20])
+@pytest.mark.parametrize("n_trees", [128, 1024])
 @pytest.mark.parametrize("n_jobs", [1, -1])
-def test_benchmark_fit_sklearn(n_features, n_samples, n_jobs, benchmark):
-    benchmark.group = f"IsolationForest.fit {n_features = :2d}, {n_samples = :7d}, {n_jobs = :2d}"
+def test_benchmark_fit_sklearn(n_features, n_trees, n_jobs, benchmark):
+    benchmark.group = f"IsolationForest.fit {n_features = :2d}, {n_trees = :4d}, {n_jobs = :2d}"
     benchmark.name = "sklearn.ensemble.IsolationForest"
 
     random_seed = 0
+    n_samples = 16_384
     rng = np.random.default_rng(random_seed)
     data = rng.standard_normal((n_samples, n_features))
-    forest = SkIsolationForest(n_estimators=128, n_jobs=n_jobs, random_state=random_seed)
+    forest = SkIsolationForest(n_estimators=n_trees, n_jobs=n_jobs, random_state=random_seed)
 
     benchmark(forest.fit, data)
 
