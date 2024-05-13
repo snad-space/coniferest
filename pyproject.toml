@@ -42,6 +42,8 @@ dependencies = [
 datasets = [
   # For downloading and parsing DevNet datasets
   "pandas",
+  # For Plasticc dataset
+  "pyarrow",
 ]
 dev = [
   "pytest",
