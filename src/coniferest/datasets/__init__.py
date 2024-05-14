@@ -1,9 +1,10 @@
 import numpy as np
 from coniferest.label import Label
 
+from .plasticc_gp import plasticc_gp
 from .ztf_m31 import ztf_m31
 
-__all__ = ["ztf_m31", "single_outlier", "non_anomalous_outliers"]
+__all__ = ["ztf_m31", "plasticc_gp", "single_outlier", "non_anomalous_outliers"]
 
 
 class Dataset:
