@@ -8,7 +8,10 @@ build:
     # For the iTree visualization notebook
     - graphviz
 
-formats: all
+# PDF build doesn't work, so we exclude it
+formats:
+  - htmlzip
+  - epub
 
 sphinx:
    configuration: docs/conf.py
