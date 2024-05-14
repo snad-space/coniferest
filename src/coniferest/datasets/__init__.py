@@ -146,7 +146,7 @@ class DevNetDataset(Dataset):
         df = pd.read_csv(self._dataset_urls[name])
 
         # Last column is for class, the rest are features
-        data = df.iloc[:, :-1].to_numpy()
+        data = df.iloc[:, :-1].to_numpy(dtype=float)
 
         # In the original data, the labels are 1 for anomalies and 0 for regular data
         # We need 1 for regular data and -1 for anomalies
