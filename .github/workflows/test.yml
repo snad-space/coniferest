@@ -36,7 +36,7 @@ jobs:
       with:
         token: ${{ secrets.CODSPEED_TOKEN }}
         run: |
-          pip install -e '.[dev]'
+          pip install -e '.[dev,datasets]'
           # https://github.com/CodSpeedHQ/pytest-codspeed/issues/27
           pip install 'pytest!=8.1.1' pytest-codspeed
           python3 -mpytest --codspeed
