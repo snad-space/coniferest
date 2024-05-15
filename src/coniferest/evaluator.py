@@ -1,22 +1,14 @@
 import joblib
 import numpy as np
 
-from .calc_paths_sum import calc_apply, calc_feature_delta_sum, calc_paths_sum  # noqa
+from .calc_paths_sum import calc_paths_sum, selector_dtype  # noqa
 from .utils import average_path_length
 
 __all__ = ["ForestEvaluator"]
 
 
 class ForestEvaluator:
-    selector_dtype = np.dtype(
-        [
-            ("feature", np.int32),
-            ("left", np.int32),
-            ("value", np.double),
-            ("right", np.int32),
-            ("log_n_node_samples", np.float32),
-        ]
-    )
+    selector_dtype = selector_dtype
 
     def __init__(self, samples, selectors, indices, leaf_count, *, num_threads):
         """
@@ -82,7 +74,7 @@ class ForestEvaluator:
         indices[1:] = np.add.accumulate(lens)
 
         for i in range(len(selectors_list)):
-            selectors[indices[i] : indices[i + 1]] = selectors_list[i]
+            selectors[indices[i]: indices[i + 1]] = selectors_list[i]
 
         # Assign a unique sequential index to every leaf
         # The index is used for weighted scores
@@ -111,11 +103,11 @@ class ForestEvaluator:
         trees = self.indices.shape[0] - 1
 
         return -(
-            2
-            ** (
-                -calc_paths_sum(self.selectors, self.indices, x, num_threads=self.num_threads)
-                / (self.average_path_length(self.samples) * trees)
-            )
+                2
+                ** (
+                        -calc_paths_sum(self.selectors, self.indices, x, num_threads=self.num_threads)
+                        / (self.average_path_length(self.samples) * trees)
+                )
         )
 
     def _feature_delta_sum(self, x):
@@ -135,6 +127,8 @@ class ForestEvaluator:
         return np.sum(delta_sum, axis=0) / np.sum(hit_count, axis=0) / self.average_path_length(self.samples)
 
     def apply(self, x):
+        raise NotImplemented("Not implemented in Rust yet")
+
         if not x.flags["C_CONTIGUOUS"]:
             x = np.ascontiguousarray(x)
 
