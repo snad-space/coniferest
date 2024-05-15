@@ -1,71 +1,71 @@
 [build-system]
-requires = [
-  "setuptools",
-  "wheel",
-  "oldest-supported-numpy",
-  "Cython",
-]
-build-backend = "setuptools.build_meta"
+requires = ["maturin>=1.1,<2.0"]
+build-backend = "maturin"
 
 [project]
 name = "coniferest"
-version = "0.0.13"
 description = "Coniferous forests for better machine learning"
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [
-  { name = "Vladimir Korolev", email = "balodja@gmail.com" },
-  { name = "SNAD team" },
+    { name = "Vladimir Korolev", email = "balodja@gmail.com" },
+    { name = "SNAD team" },
 ]
 license = { text = "MIT" }
-classifiers =  [
-  "License :: OSI Approved :: MIT License",
-  "Intended Audience :: Science/Research",
-  "Operating System :: Microsoft :: Windows",
-  "Operating System :: POSIX :: Linux",
-  "Operating System :: MacOS",
-  "Programming Language :: Python",
-  "Topic :: Scientific/Engineering",
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Science/Research",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python",
+    "Topic :: Scientific/Engineering",
 ]
 dependencies = [
-  "click",
-  # We need it for cpu_count() only, but we have it anyway as a dependency of scikit-learn
-  "joblib",
-  "numpy",
-  # sklearn.tree._splitter.RandomSplitter changed signature in 1.4.0
-  "scikit-learn>=1.4,<2",
-  "matplotlib",
-  "onnxconverter-common",
+    "click",
+    # We need it for cpu_count() only, but we have it anyway as a dependency of scikit-learn
+    "joblib",
+    "numpy",
+    # sklearn.tree._splitter.RandomSplitter changed signature in 1.4.0
+    "scikit-learn>=1.4,<2",
+    "matplotlib",
+    "onnxconverter-common",
 ]
 
 [project.optional-dependencies]
 datasets = [
-  # For downloading and parsing DevNet datasets
-  "pandas",
-  # For Plasticc dataset
-  "pyarrow",
+    # For downloading and parsing DevNet datasets
+    "pandas",
+    # For Plasticc dataset
+    "pyarrow",
 ]
 dev = [
-  "pytest",
-  "pytest-benchmark[histogram]",
-  "onnxruntime",
+    "pytest",
+    "pytest-benchmark[histogram]",
+    "onnxruntime",
 ]
 
 [project.urls]
 "Source Code" = "https://github.com/snad-space/coniferest"
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.maturin]
+module-name = "coniferest.calc_paths_sum"
+# It asks to use Cargo.lock to make the build reproducible
+locked = true
+
+[tool.maturin.target.aarch64-apple-darwin]
+# I belive Rust requires it
+macos-deployment-target = "11.0"
 
 [tool.pytest.ini_options]
 testpaths = [
-  "tests",
-  "src/coniferest",
+    "tests",
+    "src/coniferest",
 ]
 markers = [
-  "e2e",
-  "long",
-  "regression",
+    "e2e",
+    "long",
+    "regression",
 ]
 addopts = "--benchmark-min-time=0.1 --benchmark-max-time=5.0 --benchmark-min-rounds=5 --benchmark-sort=mean --benchmark-disable --doctest-modules"
 
