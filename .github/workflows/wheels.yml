@@ -23,52 +23,54 @@ jobs:
           - os: windows-latest
             archs: auto
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up QEMU
-      if: ${{ runner.os == 'Linux' }}
-      uses: docker/setup-qemu-action@v3
-      with:
-        platforms: all
-    - name: Set up OpenMP
-      # We cannot make OpenMP work for cross-compiled ARM64 macOS wheels, so we do it for x86_64 only
-      if: ${{ runner.os == 'macOS' && matrix.archs == 'x86_64' }}
-      # For OpenMP support we use the LLVM toolchain from Homebrew with libomp.
-      # It looks like LLVM gives faster code than GCC does.
-      run: |
-        brew install llvm libomp
-        echo "CC=$(brew --prefix llvm)/bin/clang" >> $GITHUB_ENV
-        echo "CONIFEREST_FORCE_OPENMP_ON_MACOS=1" >> $GITHUB_ENV
-    - name: Build wheels
-      uses: pypa/cibuildwheel@v2.17.0
-      env:
-        CIBW_ARCHS: ${{ matrix.archs }}
-        # We skip MUSL (no numpy binary wheels) and PyPy
-        CIBW_SKIP: "pp* *musl*"
-    - uses: actions/upload-artifact@v3
-      with:
-        path: wheelhouse/*.whl
+      - uses: actions/checkout@v4
+      - name: Set up QEMU
+        if: ${{ runner.os == 'Linux' }}
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
+      - name: Set up OpenMP
+        # We cannot make OpenMP work for cross-compiled ARM64 macOS wheels, so we do it for x86_64 only
+        if: ${{ runner.os == 'macOS' && matrix.archs == 'x86_64' }}
+        # For OpenMP support we use the LLVM toolchain from Homebrew with libomp.
+        # It looks like LLVM gives faster code than GCC does.
+        run: |
+          brew install llvm libomp
+          echo "CC=$(brew --prefix llvm)/bin/clang" >> $GITHUB_ENV
+          echo "CONIFEREST_FORCE_OPENMP_ON_MACOS=1" >> $GITHUB_ENV
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.17.0
+        env:
+          CIBW_ARCHS: ${{ matrix.archs }}
+          # We use a single Python version to build ABI3 wheels, we don't use PyPy
+          CIBW_BUILD: "cp39-*"
+          # We skip MUSL (no numpy binary wheels)
+          CIBW_SKIP: "*musl*"
+      - uses: actions/upload-artifact@v3
+        with:
+          path: wheelhouse/*.whl
 
   make_sdist:
     name: Make SDist
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Build SDist
-      run: pipx run build --sdist
-    - uses: actions/upload-artifact@v3
-      with:
-        path: dist/*.tar.gz
+      - uses: actions/checkout@v4
+      - name: Build SDist
+        run: pipx run build --sdist
+      - uses: actions/upload-artifact@v3
+        with:
+          path: dist/*.tar.gz
 
   publish:
     needs: [ build_wheels, make_sdist ]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/download-artifact@v3
-      with:
-        name: artifact
-        path: dist
-    - uses: pypa/gh-action-pypi-publish@release/v1
-      if: startsWith(github.ref, 'refs/tags/v')
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_API_TOKEN }}
+      - uses: actions/download-artifact@v3
+        with:
+          name: artifact
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
