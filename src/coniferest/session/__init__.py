@@ -54,7 +54,6 @@ class Session:
         Current anomaly scores for all data points
     terminated : bool
         True if session is terminated
-    trajectory : array-like
     known_labels : dict[int, Label]
         Current dictionary of known anomaly labels
     known_anomalies : array-like
