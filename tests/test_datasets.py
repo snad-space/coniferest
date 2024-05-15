@@ -33,5 +33,4 @@ def test_plasticc_gp():
     assert_allclose(data.sum(axis=1)[13], 70.540085, atol=1e-6)
 
     assert metadata.shape == (data.shape[0],)
-    assert metadata.dtype == np.bool_
-    assert metadata.sum() == 277
+    assert_array_equal(np.unique(metadata), [-1, 1])

@@ -32,4 +32,8 @@ def plasticc_gp():
         except ImportError:
             raise ImportError("PyArrow is required to load PLAsTiCC datasets, install it with `pip install pyarrow` or reinstall the package with `pip install coniferest[datasets]`")
         feature_columns = [name for name in df.columns if name.startswith("feature")]
-        return df[feature_columns].to_numpy(), df["answer"].to_numpy(dtype=bool)
+        data = df[feature_columns].to_numpy()
+        # The source file uses 1 for anomaly and 0 for nominals,
+        # while we need Label.ANOMALY == -1 and Label.REGULAR == 1.
+        metadata = 1 - 2 * df["answer"].to_numpy(dtype=int)
+        return data, metadata
