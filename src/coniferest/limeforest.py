@@ -2,6 +2,7 @@ import numpy as np
 from .utils import average_path_length
 from .evaluator import ForestEvaluator
 
+
 # Not very useful classes at the moment.
 # Implemented purely with the educational purpose.
 
@@ -115,7 +116,7 @@ class RandomLimeGenerator:
         if minval == maxval:
             self.selectors[i] = -1
             self.values[i] = np.floor(np.log2(i)) + \
-                average_path_length(sample.shape[0])
+                             average_path_length(sample.shape[0])
 
             return
 
@@ -133,14 +134,14 @@ class LimeEvaluator(ForestEvaluator):
         if self.trees < 1:
             raise ValueError('a forest without trees?')
 
-        selectors, indices, leaf_count = self.combine_selectors(
+        selectors, node_offsets, leaf_offsets = self.combine_selectors(
             [self.extract_selectors(pine) for pine in pines])
 
         super(LimeEvaluator, self).__init__(
             samples=pine_forest.subsamples,
             selectors=selectors,
-            indices=indices,
-            leaf_count=leaf_count)
+            node_offsets=node_offsets,
+            leaf_offsets=leaf_offsets)
 
     @classmethod
     def extract_selectors(cls, pine):

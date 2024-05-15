@@ -13,14 +13,14 @@ from .evaluator import ForestEvaluator
 from .utils import average_path_length
 from warnings import warn
 
-
 __all__ = ['Coniferest', 'ConiferestEvaluator']
-
 
 # Instead of doing:
 # from sklearn.utils._random import RAND_R_MAX
 # we have:
 RAND_R_MAX = 0x7FFFFFFF
+
+
 # Cause RAND_R_MAX is restricted to C-code.
 
 
@@ -200,6 +200,7 @@ class Coniferest(ABC):
     def feature_importance(self, x):
         raise NotImplementedError()
 
+
 class ConiferestEvaluator(ForestEvaluator):
     """
     Fast evaluator of scores for Coniferests.
@@ -215,13 +216,13 @@ class ConiferestEvaluator(ForestEvaluator):
 
     def __init__(self, coniferest, map_value=None):
         selectors_list = [self.extract_selectors(t, map_value) for t in coniferest.trees]
-        selectors, indices, leaf_count = self.combine_selectors(selectors_list)
+        selectors, node_offsets, leaf_offsets = self.combine_selectors(selectors_list)
 
         super().__init__(
             samples=coniferest.n_subsamples,
             selectors=selectors,
-            indices=indices,
-            leaf_count=leaf_count,
+            node_offsets=node_offsets,
+            leaf_offsets=leaf_offsets,
             num_threads=coniferest.n_jobs)
 
     @classmethod
