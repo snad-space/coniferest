@@ -17,9 +17,7 @@ jobs:
           - os: ubuntu-latest
             archs: x86_64 aarch64
           - os: macos-latest
-            archs: x86_64
-          - os: macos-latest
-            archs: arm64
+            archs: universal2
           - os: windows-latest
             archs: auto
     steps:
@@ -29,15 +27,6 @@ jobs:
         uses: docker/setup-qemu-action@v3
         with:
           platforms: all
-      - name: Set up OpenMP
-        # We cannot make OpenMP work for cross-compiled ARM64 macOS wheels, so we do it for x86_64 only
-        if: ${{ runner.os == 'macOS' && matrix.archs == 'x86_64' }}
-        # For OpenMP support we use the LLVM toolchain from Homebrew with libomp.
-        # It looks like LLVM gives faster code than GCC does.
-        run: |
-          brew install llvm libomp
-          echo "CC=$(brew --prefix llvm)/bin/clang" >> $GITHUB_ENV
-          echo "CONIFEREST_FORCE_OPENMP_ON_MACOS=1" >> $GITHUB_ENV
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.17.0
         env:
@@ -46,6 +35,9 @@ jobs:
           CIBW_BUILD: "cp39-*"
           # We skip MUSL (no numpy binary wheels)
           CIBW_SKIP: "*musl*"
+          # Maturin images have Rust toolchain pre-installed
+          CIBW_MANYLINUX_X86_64_IMAGE: "ghcr.io/pyo3/maturin"
+          CIBW_MANYLINUX_AARCH64_IMAGE: "ghcr.io/pyo3/maturin"
       - uses: actions/upload-artifact@v3
         with:
           path: wheelhouse/*.whl
