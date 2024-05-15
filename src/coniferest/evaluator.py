@@ -11,7 +11,7 @@ __all__ = ["ForestEvaluator"]
 class ForestEvaluator:
     selector_dtype = selector_dtype
 
-    def __init__(self, samples, selectors, indices, leaf_count, *, num_threads):
+    def __init__(self, samples, selectors, node_offsets, leaf_offsets, *, num_threads):
         """
         Base class for the forest evaluators. Does the trivial job:
         * runs calc_paths_sum written in Rust,
@@ -42,9 +42,10 @@ class ForestEvaluator:
         self.node_offsets = node_offsets
         self.leaf_offsets = leaf_offsets
 
-        if num_threads is None or num_threads < 0:
-            # Ask Rust's rayon to use all available threads
-            self.num_threads = 0
+        if num_threads is None or num_threads < 1:
+            # Count of available CPUs is not a simple thing, see loky's implementation here:
+            # https://github.com/joblib/joblib/blob/476ff8e62b221fc5816bad9b55dec8883d4f157c/joblib/externals/loky/backend/context.py#L83
+            self.num_threads = joblib.cpu_count()
         else:
             self.num_threads = num_threads
 
@@ -103,7 +104,7 @@ class ForestEvaluator:
         node_offsets[1:] = np.add.accumulate(lens)
 
         for i in range(len(selectors_list)):
-            selectors[indices[i]: indices[i + 1]] = selectors_list[i]
+            selectors[node_offsets[i]: node_offsets[i + 1]] = selectors_list[i]
 
         # Assign a unique sequential index to every leaf
         # The index is used for weighted scores
@@ -145,8 +146,8 @@ class ForestEvaluator:
         return -(
                 2
                 ** (
-                        -calc_paths_sum(self.selectors, self.indices, x, num_threads=self.num_threads)
-                        / (self.average_path_length(self.samples) * trees)
+                        -calc_paths_sum(self.selectors, self.node_offsets, x, num_threads=self.num_threads)
+                        / (self.average_path_length(self.samples) * self.n_trees)
                 )
         )
 
@@ -154,13 +155,7 @@ class ForestEvaluator:
         if not x.flags["C_CONTIGUOUS"]:
             x = np.ascontiguousarray(x)
 
-        return calc_feature_delta_sum(
-            self.selectors,
-            self.node_offsets,
-            x,
-            num_threads=self.num_threads,
-            batch_size=self.get_batch_size(self.n_trees),
-        )
+        return calc_feature_delta_sum(self.selectors, self.node_offsets, x, num_threads=self.num_threads)
 
     def feature_signature(self, x):
         delta_sum, hit_count = self._feature_delta_sum(x)

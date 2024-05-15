@@ -37,14 +37,7 @@ class AADEvaluator(ConiferestEvaluator):
         if weights is None:
             weights = self.weights
 
-        return calc_paths_sum(
-            self.selectors,
-            self.node_offsets,
-            x,
-            weights,
-            num_threads=self.num_threads,
-            batch_size=self.get_batch_size(self.n_trees),
-        )
+        return calc_paths_sum(self.selectors, self.node_offsets, x, weights, num_threads=self.num_threads)
 
     def loss(
         self,
@@ -192,12 +185,7 @@ class AADForest(Coniferest):
         map_value=None,
     ):
         super().__init__(
-            trees=[],
-            n_subsamples=n_subsamples,
-            max_depth=max_depth,
-            n_jobs=n_jobs,
-            random_seed=random_seed,
-            sampletrees_per_batch=sampletrees_per_batch,
+            trees=[], n_subsamples=n_subsamples, max_depth=max_depth, n_jobs=n_jobs, random_seed=random_seed
         )
         self.n_trees = n_trees
 
