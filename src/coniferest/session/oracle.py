@@ -22,13 +22,6 @@ class OracleSession(Session):
         Maximum number of asked decisions
     max_anomalies : int
         Maximum number of anomalies to search for
-    trace : bool or None, optional
-        Whether to save the trace of the experiment. Default is True.
-
-    Attributes
-    ----------
-    trace : list of np.ndarray
-        Trace of the experiment, if trace=True
 
     Also see methods and attributes from the base `Session` class
     """
