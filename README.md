@@ -6,7 +6,6 @@
 ![Build and publish wheels](https://github.com/snad-space/coniferest/actions/workflows/wheels.yml/badge.svg)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/snad-space/coniferest/master.svg)](https://results.pre-commit.ci/latest/github/snad-space/coniferest/master)
 
-
 Package for active anomaly detection with isolation forests, made by [SNAD collaboration](https://snad.space/).
 
 It includes:
