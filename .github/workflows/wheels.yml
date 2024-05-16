@@ -37,7 +37,7 @@ jobs:
           pip install maturin ziglang
       - name: Set up Rust on Linux
         if: ${{ runner.os == 'ubuntu-latest' }}
-        uses: actions/setup-rust@v1
+        uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
           targets: aarch64-unknown-linux-gnu,x86_64-unknown-linux-gnu
