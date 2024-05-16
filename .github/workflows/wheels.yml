@@ -48,7 +48,7 @@ jobs:
         with:
           path: wheelhouse/*.whl
           if-no-files-found: error
-          name: artifact_${{ matrix.os }}_${{ replace(matrix.archs, ' ', '-') }}
+          name: "artifact_${{ matrix.os }}_${{ matrix.archs }}"
   
   make_sdist:
     name: Make SDist
