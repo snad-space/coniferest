@@ -36,11 +36,11 @@ jobs:
         run: |
           pip install maturin
       - name: Install zig on Linux
-        if: ${{ runner.os == 'ubuntu-latest' }}
+        if: ${{ runner.os == 'Linux' }}
         run: |
           pip install ziglang
       - name: Set up Rust on Linux
-        if: ${{ runner.os == 'ubuntu-latest' }}
+        if: ${{ runner.os == 'Linux' }}
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-unknown-linux-gnu,x86_64-unknown-linux-gnu
