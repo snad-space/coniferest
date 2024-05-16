@@ -71,7 +71,7 @@ jobs:
         with:
           pattern: artifact_*
           merge-multiple: true
-          path: artifact
+          path: dist
       - uses: pypa/gh-action-pypi-publish@release/v1
         if: startsWith(github.ref, 'refs/tags/v')
         with:
