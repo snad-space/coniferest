@@ -1,5 +1,3 @@
 include README.md
 include src/coniferest/*.pxd
 include src/coniferest/*.pyx
-include src/coniferest/datasets/*.npz
-include src/coniferest/datasets/*.parquet
