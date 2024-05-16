@@ -14,35 +14,35 @@ jobs:
       matrix:
         # Numpy provides wheels for x86_64 and aarch64 only, we do the same
         include:
+          # x86_64 Linux
           - os: ubuntu-latest
-            archs: x86_64 aarch64
+            flags: "--zig --target=x86_64-unknown-linux-gnu --compatibility=manylinux2014"
+          # aarch64 Linux
+          - os: ubuntu-latest
+            flags: "--zig --target=aarch64-unknown-linux-gnu --compatibility=manylinux2014"
+          # x86_64 + aarch single wheel on macOS
           - os: macos-latest
-            archs: universal2
+            flags: "--target=universal2-apple-darwin"
+          # Default Windows build
           - os: windows-latest
-            archs: auto
+            flags: ""
     steps:
       - uses: actions/checkout@v4
-      - name: Set up QEMU
-        if: ${{ runner.os == 'Linux' }}
-        uses: docker/setup-qemu-action@v3
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          platforms: all
+          python-version: 3.9
+      - name: Install maturin and ziglang
+        run: |
+          pip install maturin ziglang
       - name: Set up Rust on macOS
         if: ${{ runner.os == 'macos' }}
         uses: dtolnay/rust-toolchain@master
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.17.0
-        env:
-          CIBW_ARCHS: ${{ matrix.archs }}
-          # We use a single Python version to build ABI3 wheels, we don't use PyPy
-          CIBW_BUILD: "cp39-*"
-          # We skip MUSL (no numpy binary wheels)
-          CIBW_SKIP: "*musl*"
-          # Maturin images have Rust toolchain pre-installed
-          CIBW_MANYLINUX_X86_64_IMAGE: "ghcr.io/pyo3/maturin"
-          CIBW_MANYLINUX_AARCH64_IMAGE: "ghcr.io/pyo3/maturin"
+        run: |
+          maturin build --release -o dist ${{ matrix.flags }}
       - uses: actions/upload-artifact@v3
         with:
           path: wheelhouse/*.whl
