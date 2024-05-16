@@ -32,20 +32,22 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: 3.9
-      - name: Install maturin and ziglang
+      - name: Install maturin
         run: |
-          pip install maturin ziglang
+          pip install maturin
+      - name: Install zig on Linux
+        if: ${{ runner.os == 'ubuntu-latest' }}
+        run: |
+          pip install ziglang
       - name: Set up Rust on Linux
         if: ${{ runner.os == 'ubuntu-latest' }}
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
           targets: aarch64-unknown-linux-gnu,x86_64-unknown-linux-gnu
       - name: Set up Rust on macOS
         if: ${{ runner.os == 'macos' }}
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
           targets: aarch64-apple-darwin,x86_64-apple-darwin
       - name: Build wheels
         run: |
