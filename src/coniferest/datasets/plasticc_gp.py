@@ -1,8 +1,7 @@
 from __future__ import annotations  # "|" syntax is not available in Python 3.9
 
-
 IMPORT_ERROR_MESSAGE = (
-    "`datasets' library is required to load PLAsTiCC datasets, install it with `pip install datasets` "
+    "`datasets' library is required to load PLAsTiCC dataset, install it with `pip install datasets` "
     "or reinstall the package with `pip install coniferest[datasets]`"
 )
 
