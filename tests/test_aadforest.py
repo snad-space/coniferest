@@ -40,7 +40,6 @@ def test_prior_influence_callable():
 
 @pytest.mark.benchmark
 @pytest.mark.long
-@pytest.mark.parametrize("n_jobs", [1, -1])
 def test_benchmark_fit_known(n_jobs, benchmark):
     benchmark.group = f"AADForest.fit_known {n_jobs = :2d}"
     benchmark.name = "coniferest.aadforest.AADForest"
@@ -65,7 +64,6 @@ def test_benchmark_fit_known(n_jobs, benchmark):
 @pytest.mark.long
 @pytest.mark.parametrize("n_samples", [1 << 10, 1 << 16])
 @pytest.mark.parametrize("n_trees", [1 << 10, 1 << 14])
-@pytest.mark.parametrize("n_jobs", [1, -1])
 def test_benchmark_loss_gradient(n_samples, n_trees, n_jobs, benchmark):
     benchmark.group = f"AADEvaluator.loss_graident {n_samples = :6d} {n_trees = :4d}, {n_jobs = :2d}"
     benchmark.name = "coniferest.aadforest.AADEvaluator"

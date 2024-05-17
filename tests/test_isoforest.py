@@ -138,7 +138,6 @@ def test_n_jobs():
 @pytest.mark.benchmark
 @pytest.mark.long
 @pytest.mark.parametrize("n_trees", [128, 1024])
-@pytest.mark.parametrize("n_jobs", [1, -1])
 def test_benchmark_fit(n_trees, n_jobs, benchmark):
     benchmark.group = f"IsolationForest.fit {n_trees = :4d}, {n_jobs = :2d}"
     benchmark.name = "coniferest.isoforest.IsolationForest"
@@ -158,7 +157,6 @@ def test_benchmark_fit(n_trees, n_jobs, benchmark):
 @pytest.mark.benchmark
 @pytest.mark.long
 @pytest.mark.parametrize("n_trees", [128, 1024])
-@pytest.mark.parametrize("n_jobs", [1, -1])
 def test_benchmark_fit_sklearn(n_trees, n_jobs, benchmark):
     benchmark.group = f"IsolationForest.fit {n_trees = :4d}, {n_jobs = :2d}"
     benchmark.name = "sklearn.ensemble.IsolationForest"
@@ -176,7 +174,6 @@ def test_benchmark_fit_sklearn(n_trees, n_jobs, benchmark):
 @pytest.mark.benchmark
 @pytest.mark.long
 @pytest.mark.parametrize("n_samples", [1 << 10, 1 << 20])
-@pytest.mark.parametrize("n_jobs", [1, -1])
 def test_benchmark_score(n_samples, n_jobs, benchmark):
     benchmark.group = f"IsolationForest.score_samples {n_samples = :7d}, {n_jobs = :2d}"
     benchmark.name = "coniferest.isoforest.IsolationForest"
@@ -196,7 +193,6 @@ def test_benchmark_score(n_samples, n_jobs, benchmark):
 @pytest.mark.benchmark
 @pytest.mark.long
 @pytest.mark.parametrize("n_samples", [1 << 10, 1 << 20])
-@pytest.mark.parametrize("n_jobs", [1, -1])
 def test_benchmark_score_sklearn(n_samples, n_jobs, benchmark):
     benchmark.group = f"IsolationForest.score_samples {n_samples = :7d}, {n_jobs = :2d}"
     benchmark.name = "sklearn.ensemble.IsolationForest"
