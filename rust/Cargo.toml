@@ -24,3 +24,6 @@ num-traits = "0.2"
 numpy = "0.21"
 # Needs to be consistent with rayon dependecy in ndarray
 rayon = "1.9"
+sas = "0.1.3"
+hwlocality = { version = "1.0.0-alpha.3", features = ["vendored"] }
+

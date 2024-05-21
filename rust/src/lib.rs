@@ -528,6 +528,8 @@ where
 #[pymodule]
 #[pyo3(name = "calc_paths_sum")]
 fn rust_module(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
+    sas::init();
+
     m.add("selector_dtype", Selector::dtype(_py)?)?;
     m.add_function(wrap_pyfunction!(calc_paths_sum, m)?)?;
     m.add_function(wrap_pyfunction!(calc_paths_sum_transpose, m)?)?;
