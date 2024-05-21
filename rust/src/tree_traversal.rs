@@ -2,16 +2,13 @@ use crate::mut_slices::MutSlices;
 use crate::selector::Selector;
 use enum_dispatch::enum_dispatch;
 use itertools::Itertools;
-use ndarray::parallel::prelude::*;
-use ndarray::{ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2, Axis, Zip};
+use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis, Zip};
 use num_traits::AsPrimitive;
-use numpy::{Element, PyArray1, PyArray2, PyArrayMethods};
+use numpy::{Element, PyArray, PyArray1, PyArray2, PyArrayMethods};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::PyAnyMethods;
 use pyo3::{pyfunction, Bound, FromPyObject, PyResult, Python};
-use rayon::prelude::*;
-
-type DeltaSumHitCount<'py> = (Bound<'py, PyArray2<f64>>, Bound<'py, PyArray2<i64>>);
+use rayon::iter::{ParallelBridge, ParallelIterator};
 
 #[enum_dispatch]
 trait DataTrait<'py> {
@@ -22,10 +19,8 @@ trait DataTrait<'py> {
         node_offsets: Bound<'py, PyArray1<usize>>,
         weights: Option<Bound<'py, PyArray1<f64>>>,
         num_threads: usize,
-        batch_size: usize,
     ) -> PyResult<Bound<'py, PyArray1<f64>>>;
 
-    #[allow(clippy::too_many_arguments)]
     fn calc_paths_sum_transpose(
         &self,
         py: Python<'py>,
@@ -34,7 +29,6 @@ trait DataTrait<'py> {
         leaf_offsets: Bound<'py, PyArray1<usize>>,
         weights: Option<Bound<'py, PyArray1<f64>>>,
         num_threads: usize,
-        batch_size: usize,
     ) -> PyResult<Bound<'py, PyArray1<f64>>>;
 
     fn calc_feature_delta_sum(
@@ -43,17 +37,7 @@ trait DataTrait<'py> {
         selectors: Bound<'py, PyArray1<Selector>>,
         node_offsets: Bound<'py, PyArray1<usize>>,
         num_threads: usize,
-        batch_size: usize,
-    ) -> PyResult<DeltaSumHitCount<'py>>;
-
-    fn calc_apply(
-        &self,
-        py: Python<'py>,
-        selectors: Bound<'py, PyArray1<Selector>>,
-        node_offsets: Bound<'py, PyArray1<usize>>,
-        num_threads: usize,
-        batch_size: usize,
-    ) -> PyResult<Bound<'py, PyArray2<i32>>>;
+    ) -> PyResult<(Bound<'py, PyArray2<f64>>, Bound<'py, PyArray2<i64>>)>;
 }
 
 impl<'py, T> DataTrait<'py> for Bound<'py, PyArray2<T>>
@@ -68,7 +52,6 @@ where
         node_offsets: Bound<'py, PyArray1<usize>>,
         weights: Option<Bound<'py, PyArray1<f64>>>,
         num_threads: usize,
-        batch_size: usize,
     ) -> PyResult<Bound<'py, PyArray1<f64>>> {
         let selectors = selectors.readonly();
         let selectors_view = selectors.as_array();
@@ -85,25 +68,15 @@ where
         let weights = weights.map(|weights| weights.readonly());
         let weights_view = weights.as_ref().map(|weights| weights.as_array());
 
-        let num_threads = get_num_threads(data_view.nrows(), num_threads, batch_size)?;
-
-        Ok({
-            let paths = PyArray1::zeros(py, data_view.nrows(), false);
-            // SAFETY: this call invalidates other views, but it is the only view we need
-            let paths_view_mut = unsafe { paths.as_array_mut() };
-
-            // Here we need to dispatch `data` and run the template function
-            calc_paths_sum_impl(
-                selectors_view,
-                node_offsets_view,
-                data_view,
-                weights_view,
-                num_threads,
-                batch_size,
-                paths_view_mut,
-            );
-            paths
-        })
+        // Here we need to dispatch `data` and run the template function
+        let values = calc_paths_sum_impl(
+            selectors_view,
+            node_offsets_view,
+            data_view,
+            weights_view,
+            num_threads,
+        );
+        Ok(PyArray::from_owned_array_bound(py, values))
     }
 
     fn calc_paths_sum_transpose(
@@ -114,7 +87,6 @@ where
         leaf_offsets: Bound<'py, PyArray1<usize>>,
         weights: Option<Bound<'py, PyArray1<f64>>>,
         num_threads: usize,
-        batch_size: usize,
     ) -> PyResult<Bound<'py, PyArray1<f64>>> {
         let selectors = selectors.readonly();
         let selectors_view = selectors.as_array();
@@ -135,33 +107,16 @@ where
         let weights = weights.map(|weights| weights.readonly());
         let weights_view = weights.as_ref().map(|weights| weights.as_array());
 
-        let num_threads = get_num_threads(data_view.ncols(), num_threads, batch_size)?;
-
-        Ok({
-            let values = PyArray1::zeros(
-                py,
-                *leaf_offsets_view
-                    .last()
-                    .expect("leaf_offsets array must not be empty"),
-                false,
-            );
-
-            // SAFETY: this call invalidates other views, but it is the only view we need
-            let values_view = unsafe { values.as_array_mut() };
-
-            // Here we need to dispatch `data` and run the template function
-            calc_paths_sum_transpose_impl(
-                selectors_view,
-                node_offsets_view,
-                leaf_offsets_view,
-                data_view,
-                weights_view,
-                num_threads,
-                batch_size,
-                values_view,
-            );
-            values
-        })
+        // Here we need to dispatch `data` and run the template function
+        let values = calc_paths_sum_transpose_impl(
+            selectors_view,
+            node_offsets_view,
+            leaf_offsets_view,
+            data_view,
+            weights_view,
+            num_threads,
+        );
+        Ok(PyArray::from_owned_array_bound(py, values))
     }
 
     fn calc_feature_delta_sum(
@@ -170,8 +125,7 @@ where
         selectors: Bound<'py, PyArray1<Selector>>,
         node_offsets: Bound<'py, PyArray1<usize>>,
         num_threads: usize,
-        batch_size: usize,
-    ) -> PyResult<DeltaSumHitCount<'py>> {
+    ) -> PyResult<(Bound<'py, PyArray2<f64>>, Bound<'py, PyArray2<i64>>)> {
         let selectors = selectors.readonly();
         let selectors_view = selectors.as_array();
         check_selectors(selectors_view)?;
@@ -184,70 +138,13 @@ where
         let data_view = data.as_array();
         check_data(data_view)?;
 
-        let num_threads = get_num_threads(data_view.nrows(), num_threads, batch_size)?;
+        let (delta_sum, hit_count) =
+            calc_feature_delta_sum_impl(selectors_view, node_offsets_view, data_view, num_threads);
 
-        Ok({
-            let delta_sum = PyArray2::zeros(py, (data_view.nrows(), data_view.ncols()), false);
-            let hit_count = PyArray2::zeros(py, (data_view.nrows(), data_view.ncols()), false);
+        let delta_sum = PyArray::from_owned_array_bound(py, delta_sum);
+        let hit_count = PyArray::from_owned_array_bound(py, hit_count);
 
-            // SAFETY: this call invalidates other views, but it is the only view we need
-            let delta_sum_view = unsafe { delta_sum.as_array_mut() };
-            // SAFETY: this call invalidates other views, but it is the only view we need
-            let hit_count_view = unsafe { hit_count.as_array_mut() };
-
-            calc_feature_delta_sum_impl(
-                selectors_view,
-                node_offsets_view,
-                data_view,
-                num_threads,
-                batch_size,
-                delta_sum_view,
-                hit_count_view,
-            );
-
-            (delta_sum, hit_count)
-        })
-    }
-
-    fn calc_apply(
-        &self,
-        py: Python<'py>,
-        selectors: Bound<'py, PyArray1<Selector>>,
-        node_offsets: Bound<'py, PyArray1<usize>>,
-        num_threads: usize,
-        batch_size: usize,
-    ) -> PyResult<Bound<'py, PyArray2<i32>>> {
-        let selectors = selectors.readonly();
-        let selectors_view = selectors.as_array();
-        check_selectors(selectors_view)?;
-
-        let node_offsets = node_offsets.readonly();
-        let node_offsets_view = node_offsets.as_array();
-        check_node_offsets(node_offsets_view, selectors.len()?)?;
-
-        let data = self.readonly();
-        let data_view = data.as_array();
-        check_data(data_view)?;
-
-        let num_threads = get_num_threads(data_view.nrows(), num_threads, batch_size)?;
-
-        Ok({
-            let leafs =
-                PyArray2::zeros(py, (data_view.nrows(), node_offsets_view.len() - 1), false);
-            // SAFETY: this call invalidates other views, but it is the only view we need
-            let leafs_view = unsafe { leafs.as_array_mut() };
-
-            calc_apply_impl(
-                selectors_view,
-                node_offsets_view,
-                data_view,
-                num_threads,
-                batch_size,
-                leafs_view,
-            );
-
-            leafs
-        })
+        Ok((delta_sum, hit_count))
     }
 }
 
@@ -294,11 +191,6 @@ fn check_selectors(selectors: ArrayView1<Selector>) -> PyResult<()> {
 
 #[inline]
 fn check_node_offsets(node_offsets: ArrayView1<usize>, selectors_length: usize) -> PyResult<()> {
-    if node_offsets.len() <= 1 {
-        return Err(PyValueError::new_err(
-            "node_offsets must have at least two elements",
-        ));
-    }
     if let Some(node_offsets) = node_offsets.as_slice() {
         for (x, y) in node_offsets.iter().copied().tuple_windows() {
             if x > y {
@@ -307,13 +199,12 @@ fn check_node_offsets(node_offsets: ArrayView1<usize>, selectors_length: usize) 
                 ));
             }
         }
-        if node_offsets[node_offsets.len() - 1] > selectors_length {
-            Err(PyValueError::new_err(
+        if node_offsets[node_offsets.len() - 1] as usize > selectors_length {
+            return Err(PyValueError::new_err(
                 "node_offsets are out of range of the selectors",
-            ))
-        } else {
-            Ok(())
+            ));
         }
+        Ok(())
     } else {
         Err(PyValueError::new_err(
             "node_offsets must be contiguous and in memory order",
@@ -323,11 +214,6 @@ fn check_node_offsets(node_offsets: ArrayView1<usize>, selectors_length: usize) 
 
 #[inline]
 fn check_leaf_offsets(leaf_offsets: ArrayView1<usize>, node_offset_len: usize) -> PyResult<()> {
-    if leaf_offsets.len() <= 1 {
-        return Err(PyValueError::new_err(
-            "leaf_offsets must have at least two elements",
-        ));
-    }
     if leaf_offsets.len() != node_offset_len {
         return Err(PyValueError::new_err(
             "leaf_offsets must have the same length as node_offsets",
@@ -359,18 +245,8 @@ fn check_data<T>(data: ArrayView2<T>) -> PyResult<()> {
     Ok(())
 }
 
-#[inline]
-fn get_num_threads(nrows: usize, num_threads: usize, batch_size: usize) -> PyResult<usize> {
-    if batch_size == 0 {
-        Err(PyValueError::new_err("batch_size must be greater than 0"))
-    } else {
-        let n_jobs = nrows.div_ceil(batch_size);
-        Ok(usize::min(num_threads, n_jobs))
-    }
-}
-
 #[pyfunction]
-#[pyo3(signature = (selectors, node_offsets, data, weights = None, *, num_threads, batch_size))]
+#[pyo3(signature = (selectors, node_offsets, data, weights = None, num_threads = 0))]
 pub(crate) fn calc_paths_sum<'py>(
     py: Python<'py>,
     selectors: Bound<'py, PyArray1<Selector>>,
@@ -379,16 +255,8 @@ pub(crate) fn calc_paths_sum<'py>(
     data: Data<'py>,
     weights: Option<Bound<'py, PyArray1<f64>>>,
     num_threads: usize,
-    batch_size: usize,
 ) -> PyResult<Bound<'py, PyArray1<f64>>> {
-    data.calc_paths_sum(
-        py,
-        selectors,
-        node_offsets,
-        weights,
-        num_threads,
-        batch_size,
-    )
+    data.calc_paths_sum(py, selectors, node_offsets, weights, num_threads)
 }
 
 fn calc_paths_sum_impl<T>(
@@ -397,49 +265,46 @@ fn calc_paths_sum_impl<T>(
     data: ArrayView2<T>,
     weights: Option<ArrayView1<f64>>,
     num_threads: usize,
-    batch_size: usize,
-    paths: ArrayViewMut1<f64>,
-) where
+) -> Array1<f64>
+where
     T: Copy + Send + Sync + PartialOrd + 'static,
     f64: AsPrimitive<T>,
 {
+    let mut paths = Array1::zeros(data.nrows());
+
     let node_offsets = node_offsets.as_slice().unwrap();
     let selectors = selectors.as_slice().unwrap();
 
-    let inner_fn = |path: &mut f64, sample: ArrayView1<T>| {
-        for (tree_start, tree_end) in node_offsets.iter().copied().tuple_windows() {
-            let tree_selectors = unsafe { selectors.get_unchecked(tree_start..tree_end) };
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(num_threads)
+        .build()
+        .expect("Cannot build rayon ThreadPool")
+        .install(|| {
+            Zip::from(paths.view_mut())
+                .and(data.rows())
+                .par_for_each(|path, sample| {
+                    for (tree_start, tree_end) in
+                        node_offsets.iter().map(|i| *i as usize).tuple_windows()
+                    {
+                        let tree_selectors =
+                            unsafe { selectors.get_unchecked(tree_start..tree_end) };
 
-            let leaf = find_leaf(tree_selectors, sample.as_slice().unwrap());
+                        let leaf = find_leaf(tree_selectors, sample.as_slice().unwrap());
 
-            if let Some(weights) = weights {
-                *path += *unsafe { weights.uget(leaf.left as usize) } * leaf.value;
-            } else {
-                *path += leaf.value;
-            }
-        }
-    };
+                        if let Some(weights) = weights {
+                            *path += *unsafe { weights.uget(leaf.left as usize) } * leaf.value;
+                        } else {
+                            *path += leaf.value;
+                        }
+                    }
+                })
+        });
 
-    let zip = Zip::from(paths).and(data.rows());
-
-    if num_threads == 1 {
-        zip.for_each(inner_fn);
-    } else {
-        rayon::ThreadPoolBuilder::new()
-            .num_threads(num_threads)
-            .build()
-            .expect("Cannot build rayon ThreadPool")
-            .install(|| {
-                zip.into_par_iter()
-                    .with_min_len(batch_size)
-                    .for_each(|(path, sample)| inner_fn(path, sample));
-            });
-    }
+    paths
 }
 
-#[allow(clippy::too_many_arguments)]
 #[pyfunction]
-#[pyo3(signature = (selectors, node_offsets, leaf_offsets, data, weights = None, *, num_threads, batch_size))]
+#[pyo3(signature = (selectors, node_offsets, leaf_offsets, data, weights = None, num_threads = 0))]
 pub(crate) fn calc_paths_sum_transpose<'py>(
     py: Python<'py>,
     selectors: Bound<'py, PyArray1<Selector>>,
@@ -448,7 +313,6 @@ pub(crate) fn calc_paths_sum_transpose<'py>(
     data: Data<'py>,
     weights: Option<Bound<'py, PyArray1<f64>>>,
     num_threads: usize,
-    batch_size: usize,
 ) -> PyResult<Bound<'py, PyArray1<f64>>> {
     data.calc_paths_sum_transpose(
         py,
@@ -457,11 +321,9 @@ pub(crate) fn calc_paths_sum_transpose<'py>(
         leaf_offsets,
         weights,
         num_threads,
-        batch_size,
     )
 }
 
-#[allow(clippy::too_many_arguments)]
 fn calc_paths_sum_transpose_impl<T>(
     selectors: ArrayView1<Selector>,
     node_offsets: ArrayView1<usize>,
@@ -469,85 +331,67 @@ fn calc_paths_sum_transpose_impl<T>(
     data: ArrayView2<T>,
     weights: Option<ArrayView1<f64>>,
     num_threads: usize,
-    batch_size: usize,
-    mut values: ArrayViewMut1<f64>,
-) where
+) -> Array1<f64>
+where
     T: Copy + Send + Sync + PartialOrd + 'static,
     f64: AsPrimitive<T>,
 {
     let selectors = selectors
         .as_slice()
-        .expect("selectors must be contiguous and in memory order");
-    let node_offsets = node_offsets
-        .as_slice()
-        .expect("node_offsets must be contiguous and in memory order");
+        .expect("Cannot get selectors slice from ArrayView");
     let leaf_offsets = leaf_offsets
         .as_slice()
-        .expect("leaf_offsets must be contiguous and in memory order");
+        .expect("Cannot get leaf_offsets slice from ArrayView");
 
-    let values_iter = MutSlices::new(
-        values
-            .as_slice_mut()
-            .expect("values must be contiguous and in memory order"),
-        leaf_offsets,
-    );
+    let leaf_count = *leaf_offsets
+        .last()
+        .expect("leaf_offsets array cannot be empty") as usize;
+    let mut values = vec![0.0; leaf_count];
+    let values_iter = MutSlices::new(&mut values, leaf_offsets);
 
-    let inner_fn =
-        |(((tree_start, tree_end), values), &leaf_first): (((usize, usize), &mut [f64]), _)| {
-            for (x_index, sample) in data.axis_iter(Axis(0)).enumerate() {
-                let tree_selectors = unsafe { selectors.get_unchecked(tree_start..tree_end) };
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(num_threads)
+        .build()
+        .expect("Cannot build rayon ThreadPool")
+        .install(|| {
+            node_offsets
+                .iter()
+                .map(|i| *i as usize)
+                .tuple_windows()
+                .zip(values_iter)
+                .zip(leaf_offsets)
+                .par_bridge()
+                .for_each(|(((tree_start, tree_end), values), &leaf_offset)| {
+                    for (x_index, sample) in data.axis_iter(Axis(0)).enumerate() {
+                        let tree_selectors =
+                            unsafe { selectors.get_unchecked(tree_start..tree_end) };
 
-                let leaf = find_leaf(tree_selectors, sample.as_slice().unwrap());
+                        let leaf = find_leaf(tree_selectors, sample.as_slice().unwrap());
 
-                let value = unsafe { values.get_unchecked_mut(leaf.left as usize - leaf_first) };
-                if let Some(weights) = weights {
-                    *value += weights[x_index] * leaf.value;
-                } else {
-                    *value += leaf.value;
-                }
-            }
-        };
+                        let value =
+                            unsafe { values.get_unchecked_mut(leaf.left as usize - leaf_offset) };
+                        if let Some(weights) = weights {
+                            *value += weights[x_index] * leaf.value;
+                        } else {
+                            *value += leaf.value;
+                        }
+                    }
+                })
+        });
 
-    let leaf_firsts = &leaf_offsets[..leaf_offsets.len() - 1];
-
-    if num_threads == 1 {
-        // Here we use itertools methods
-        node_offsets
-            .iter()
-            .copied()
-            .tuple_windows()
-            .zip_eq(values_iter)
-            .zip_eq(leaf_firsts)
-            .for_each(inner_fn);
-    } else {
-        rayon::ThreadPoolBuilder::new()
-            .num_threads(num_threads)
-            .build()
-            .expect("Cannot build rayon ThreadPool")
-            .install(|| {
-                // Here we use rayon methods
-                node_offsets
-                    .par_windows(2)
-                    .map(|window| (window[0], window[1]))
-                    .zip_eq(values_iter)
-                    .zip_eq(leaf_firsts)
-                    .with_min_len(batch_size)
-                    .for_each(inner_fn);
-            });
-    }
+    values.into()
 }
 
 #[pyfunction]
-#[pyo3(signature = (selectors, node_offsets, data, *, num_threads, batch_size))]
+#[pyo3(signature = (selectors, node_offsets, data, num_threads = 0))]
 pub(crate) fn calc_feature_delta_sum<'py>(
     py: Python<'py>,
     selectors: Bound<'py, PyArray1<Selector>>,
     node_offsets: Bound<'py, PyArray1<usize>>,
     data: Data<'py>,
     num_threads: usize,
-    batch_size: usize,
-) -> PyResult<DeltaSumHitCount<'py>> {
-    data.calc_feature_delta_sum(py, selectors, node_offsets, num_threads, batch_size)
+) -> PyResult<(Bound<'py, PyArray2<f64>>, Bound<'py, PyArray2<i64>>)> {
+    data.calc_feature_delta_sum(py, selectors, node_offsets, num_threads)
 }
 
 fn calc_feature_delta_sum_impl<T>(
@@ -555,126 +399,61 @@ fn calc_feature_delta_sum_impl<T>(
     node_offsets: ArrayView1<usize>,
     data: ArrayView2<T>,
     num_threads: usize,
-    batch_size: usize,
-    mut delta_sum: ArrayViewMut2<f64>,
-    mut hit_count: ArrayViewMut2<i64>,
-) where
+) -> (Array2<f64>, Array2<i64>)
+where
     T: Copy + Send + Sync + PartialOrd + 'static,
     f64: AsPrimitive<T>,
 {
     let node_offsets = node_offsets.as_slice().unwrap();
     let selectors = selectors.as_slice().unwrap();
 
-    let inner_fn = |sample: ArrayView1<T>,
-                    mut delta_sum_row: ArrayViewMut1<f64>,
-                    mut hit_count_row: ArrayViewMut1<i64>| {
-        for (tree_start, tree_end) in node_offsets.iter().copied().tuple_windows() {
-            let tree_selectors = unsafe { selectors.get_unchecked(tree_start..tree_end) };
+    let mut delta_sum = Array2::zeros((data.nrows(), data.ncols()));
+    let mut hit_count = Array2::zeros((data.nrows(), data.ncols()));
 
-            let mut i = 0;
-            let mut parent_selector: &Selector;
-            loop {
-                parent_selector = unsafe { tree_selectors.get_unchecked(i) };
-                if parent_selector.is_leaf() {
-                    break;
-                }
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(num_threads)
+        .build()
+        .expect("Cannot build rayon ThreadPool")
+        .install(|| {
+            Zip::from(data.rows())
+                .and(delta_sum.rows_mut())
+                .and(hit_count.rows_mut())
+                .par_for_each(|sample, mut delta_sum_row, mut hit_count_row| {
+                    for (tree_start, tree_end) in
+                        node_offsets.iter().map(|i| *i as usize).tuple_windows()
+                    {
+                        let tree_selectors =
+                            unsafe { selectors.get_unchecked(tree_start..tree_end) };
 
-                // TODO: do opposite type casting: what if we trained on huge f64 and predict on f32?
-                let threshold: T = parent_selector.value.as_();
-                i = if *unsafe { sample.uget(parent_selector.feature as usize) } <= threshold {
-                    parent_selector.left as usize
-                } else {
-                    parent_selector.right as usize
-                };
+                        let mut i = 0;
+                        let mut parent_selector: &Selector;
+                        loop {
+                            parent_selector = unsafe { tree_selectors.get_unchecked(i) };
+                            if parent_selector.is_leaf() {
+                                break;
+                            }
 
-                let child_selector = unsafe { tree_selectors.get_unchecked(i) };
-                // Here we cast to f64 following the original Cython implementation, but
-                // it is a subject to change.
-                *unsafe { delta_sum_row.uget_mut(parent_selector.feature as usize) } += 1.0
-                    + 2.0
-                        * (child_selector.log_n_node_samples - parent_selector.log_n_node_samples)
-                            as f64;
-                *unsafe { hit_count_row.uget_mut(parent_selector.feature as usize) } += 1;
-            }
-        }
-    };
+                            // TODO: do opposite type casting: what if we trained on huge f64 and predict on f32?
+                            let threshold: T = parent_selector.value.as_();
+                            i = if *unsafe { sample.uget(parent_selector.feature as usize) }
+                                <= threshold
+                            {
+                                parent_selector.left as usize
+                            } else {
+                                parent_selector.right as usize
+                            };
 
-    let zip = Zip::from(data.rows())
-        .and(delta_sum.rows_mut())
-        .and(hit_count.rows_mut());
+                            let child_selector = unsafe { tree_selectors.get_unchecked(i) };
+                            *unsafe { delta_sum_row.uget_mut(parent_selector.feature as usize) } +=
+                                1.0 + 2.0
+                                    * (child_selector.log_n_node_samples as f64
+                                        - parent_selector.log_n_node_samples as f64);
+                            *unsafe { hit_count_row.uget_mut(parent_selector.feature as usize) } +=
+                                1;
+                        }
+                    }
+                });
+        });
 
-    if num_threads == 1 {
-        zip.for_each(inner_fn);
-    } else {
-        rayon::ThreadPoolBuilder::new()
-            .num_threads(num_threads)
-            .build()
-            .expect("Cannot build rayon ThreadPool")
-            .install(|| {
-                zip.into_par_iter().with_min_len(batch_size).for_each(
-                    |(sample, delta_sum_row, hit_count_row)| {
-                        inner_fn(sample, delta_sum_row, hit_count_row)
-                    },
-                );
-            });
-    }
-}
-
-#[pyfunction]
-#[pyo3(signature = (selectors, node_offsets, data, *, num_threads, batch_size))]
-pub(crate) fn calc_apply<'py>(
-    py: Python<'py>,
-    selectors: Bound<'py, PyArray1<Selector>>,
-    node_offsets: Bound<'py, PyArray1<usize>>,
-    data: Data<'py>,
-    num_threads: usize,
-    batch_size: usize,
-) -> PyResult<Bound<'py, PyArray2<i32>>> {
-    data.calc_apply(py, selectors, node_offsets, num_threads, batch_size)
-}
-
-fn calc_apply_impl<T>(
-    selectors: ArrayView1<Selector>,
-    node_offsets: ArrayView1<usize>,
-    data: ArrayView2<T>,
-    num_threads: usize,
-    batch_size: usize,
-    mut leafs: ArrayViewMut2<i32>,
-) where
-    T: Copy + Send + Sync + PartialOrd + 'static,
-    f64: AsPrimitive<T>,
-{
-    let node_offsets = node_offsets.as_slice().unwrap();
-    let selectors = selectors.as_slice().unwrap();
-
-    let inner_fn = |sample: ArrayView1<T>, mut sample_leafs: ArrayViewMut1<i32>| {
-        let sample_slice = sample.as_slice().unwrap();
-        let leafs_slice = sample_leafs.as_slice_mut().unwrap();
-        for ((tree_start, tree_end), leaf_id) in node_offsets
-            .iter()
-            .copied()
-            .tuple_windows()
-            .zip(leafs_slice.iter_mut())
-        {
-            let tree_selectors = unsafe { selectors.get_unchecked(tree_start..tree_end) };
-            let leaf = find_leaf(tree_selectors, sample_slice);
-            *leaf_id = leaf.left;
-        }
-    };
-
-    let zip = Zip::from(data.rows()).and(leafs.rows_mut());
-
-    if num_threads == 1 {
-        zip.for_each(inner_fn);
-    } else {
-        rayon::ThreadPoolBuilder::new()
-            .num_threads(num_threads)
-            .build()
-            .expect("Cannot build rayon ThreadPool")
-            .install(|| {
-                zip.into_par_iter()
-                    .with_min_len(batch_size)
-                    .for_each(|(sample, sample_leafs)| inner_fn(sample, sample_leafs));
-            });
-    }
+    (delta_sum, hit_count)
 }
