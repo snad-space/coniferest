@@ -56,6 +56,8 @@ You can also deselect a specific group of tests with `-m` option, e.g. `pytest t
 
 We use [pytest-benchmark](https://pytest-benchmark.readthedocs.io/) for benchmarking.
 You can run benchmarks with `pytest tests --benchmark-enable -m benchmark` in the root directory.
+Most of the benchmarks have `n_jobs` fixture set to 1 by default, you can change it with `--n_jobs` option.
 You can adjust the minimum number of iterations with `--benchmark-min-rounds` and maximum execution time per benchmark with `--benchmark-max-time` (note that the latter can be exceeded if the minimum number of rounds is not reached).
 See `pyproject.toml` for the default benchmarking options.
 You can make a snapshot the current benchmark result with `--benchmark-save=NAME` or with `--benchmark-autosave`, and compare benchmarks with `pytest-benchmark compare` command.
+

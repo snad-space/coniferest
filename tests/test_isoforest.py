@@ -93,7 +93,8 @@ def build_forest(n_features: int, random_seed: int) -> IsolationForest:
     rng = np.random.default_rng(random_seed)
     data = rng.standard_normal((n_trees * n_subsamples, n_features))
 
-    forest = IsolationForest(n_trees=n_trees, n_subsamples=n_subsamples, max_depth=None, random_seed=random_seed)
+    forest = IsolationForest(n_trees=n_trees, n_subsamples=n_subsamples, max_depth=None,
+                             random_seed=random_seed)
     forest.fit(data)
     return forest
 
@@ -136,15 +137,14 @@ def test_n_jobs():
 
 @pytest.mark.benchmark
 @pytest.mark.long
-@pytest.mark.parametrize("n_features", [2, 16])
 @pytest.mark.parametrize("n_trees", [128, 1024])
-@pytest.mark.parametrize("n_jobs", [1, -1])
-def test_benchmark_fit(n_features, n_trees, n_jobs, benchmark):
-    benchmark.group = f"IsolationForest.fit {n_features = :2d}, {n_trees = :4d}, {n_jobs = :2d}"
+def test_benchmark_fit(n_trees, n_jobs, benchmark):
+    benchmark.group = f"IsolationForest.fit {n_trees = :4d}, {n_jobs = :2d}"
     benchmark.name = "coniferest.isoforest.IsolationForest"
 
     random_seed = 0
     n_samples = 16_384
+    n_features = 16
     rng = np.random.default_rng(random_seed)
     data = rng.standard_normal((n_samples, n_features))
     forest = IsolationForest(n_trees=n_trees, n_jobs=n_jobs, random_seed=random_seed)
@@ -156,15 +156,14 @@ def test_benchmark_fit(n_features, n_trees, n_jobs, benchmark):
 # https://github.com/snad-space/coniferest/issues/113
 @pytest.mark.benchmark
 @pytest.mark.long
-@pytest.mark.parametrize("n_features", [2, 16])
 @pytest.mark.parametrize("n_trees", [128, 1024])
-@pytest.mark.parametrize("n_jobs", [1, -1])
-def test_benchmark_fit_sklearn(n_features, n_trees, n_jobs, benchmark):
-    benchmark.group = f"IsolationForest.fit {n_features = :2d}, {n_trees = :4d}, {n_jobs = :2d}"
+def test_benchmark_fit_sklearn(n_trees, n_jobs, benchmark):
+    benchmark.group = f"IsolationForest.fit {n_trees = :4d}, {n_jobs = :2d}"
     benchmark.name = "sklearn.ensemble.IsolationForest"
 
     random_seed = 0
     n_samples = 16_384
+    n_features = 16
     rng = np.random.default_rng(random_seed)
     data = rng.standard_normal((n_samples, n_features))
     forest = SkIsolationForest(n_estimators=n_trees, n_jobs=n_jobs, random_state=random_seed)
@@ -174,14 +173,13 @@ def test_benchmark_fit_sklearn(n_features, n_trees, n_jobs, benchmark):
 
 @pytest.mark.benchmark
 @pytest.mark.long
-@pytest.mark.parametrize("n_features", [2, 16])
-@pytest.mark.parametrize("n_samples", [1<<10, 1<<20])
-@pytest.mark.parametrize("n_jobs", [1, -1])
-def test_benchmark_score(n_features, n_samples, n_jobs, benchmark):
-    benchmark.group = f"IsolationForest.score_samples {n_features = :2d}, {n_samples = :7d}, {n_jobs = :2d}"
+@pytest.mark.parametrize("n_samples", [1 << 10, 1 << 20])
+def test_benchmark_score(n_samples, n_jobs, benchmark):
+    benchmark.group = f"IsolationForest.score_samples {n_samples = :7d}, {n_jobs = :2d}"
     benchmark.name = "coniferest.isoforest.IsolationForest"
 
     random_seed = 0
+    n_features = 16
     rng = np.random.default_rng(random_seed)
     data = rng.standard_normal((n_samples, n_features))
     forest = IsolationForest(n_trees=128, n_jobs=n_jobs, random_seed=random_seed)
@@ -194,17 +192,34 @@ def test_benchmark_score(n_features, n_samples, n_jobs, benchmark):
 # https://github.com/snad-space/coniferest/issues/113
 @pytest.mark.benchmark
 @pytest.mark.long
-@pytest.mark.parametrize("n_features", [2, 16])
-@pytest.mark.parametrize("n_samples", [1<<10, 1<<20])
-@pytest.mark.parametrize("n_jobs", [1, -1])
-def test_benchmark_score_sklearn(n_features, n_samples, n_jobs, benchmark):
-    benchmark.group = f"IsolationForest.score_samples {n_features = :2d}, {n_samples = :7d}, {n_jobs = :2d}"
+@pytest.mark.parametrize("n_samples", [1 << 10, 1 << 20])
+def test_benchmark_score_sklearn(n_samples, n_jobs, benchmark):
+    benchmark.group = f"IsolationForest.score_samples {n_samples = :7d}, {n_jobs = :2d}"
     benchmark.name = "sklearn.ensemble.IsolationForest"
 
     random_seed = 0
+    n_features = 16
     rng = np.random.default_rng(random_seed)
     data = rng.standard_normal((n_samples, n_features))
     forest = SkIsolationForest(n_estimators=128, n_jobs=n_jobs, random_state=random_seed)
     forest.fit(data)
 
     benchmark(forest.score_samples, data)
+
+
+@pytest.mark.benchmark
+@pytest.mark.long
+@pytest.mark.parametrize("n_features", [2, 128])
+def test_benchmark_feature_signature(n_features, n_jobs, benchmark):
+    benchmark.group = f"IsolationForest.feature_signature {n_features = :3d}, {n_jobs = :2d}"
+    benchmark.name = "coniferest.isoforest.IsolationForest"
+
+    random_seed = 0
+    n_samples = 1 << 14
+    n_trees = 1024
+    rng = np.random.default_rng(random_seed)
+    data = rng.standard_normal((n_samples, n_features))
+    forest = IsolationForest(n_trees=n_trees, n_jobs=n_jobs, random_seed=random_seed)
+    forest.fit(data)
+
+    benchmark(forest.feature_signature, data[:1])

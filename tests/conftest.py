@@ -4,7 +4,6 @@ from functools import partial
 import pytest
 from numpy.testing import assert_allclose
 
-
 PICKLE_PROTOCOL = 4  # maximum supported by python 3.7
 
 
@@ -32,3 +31,12 @@ class RegressionData:
 def regression_data(request):
     path = request.path.parent.joinpath(request.path.stem, f'{request.function.__name__}.pickle')
     return RegressionData(path)
+
+
+def pytest_addoption(parser):
+    parser.addoption("--n_jobs", default=1, type=int, help="n_jobs parameter for benchmarks")
+
+
+@pytest.fixture
+def n_jobs(request):
+    return request.config.getoption("--n_jobs")
