@@ -23,8 +23,8 @@ class RegressionData:
             assert False, f'File {self.path} does not exist, given object saved to this location'
         assert_func(actual, self.obj)
 
-    def allclose(self, a, **kwargs):
-        self.check_with(partial(assert_allclose, **kwargs), a)
+    def assert_allclose(self, actual, **kwargs):
+        self.check_with(partial(assert_allclose, **kwargs), actual)
 
 
 @pytest.fixture
