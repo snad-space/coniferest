@@ -7,7 +7,7 @@ from coniferest.sklearn.isoforest import IsolationForestEvaluator
 from coniferest.isoforest import IsolationForest
 from sklearn.ensemble import IsolationForest as SkIsolationForest
 
-from coniferest.datasets import MalanchevDataset
+from coniferest.datasets import MalanchevDataset, plasticc_gp
 
 
 @pytest.fixture()
@@ -116,7 +116,31 @@ def test_regression(regression_data):
     data = rng.standard_normal((n_samples, n_features))
     forest = build_forest(n_features=n_features, random_seed=random_seed)
     scores = forest.score_samples(data)
-    regression_data.allclose(scores)
+    regression_data.assert_allclose(scores)
+
+
+@pytest.mark.regression
+def test_regression_signatures(regression_data):
+    random_seed = 0
+    n_features = 16
+    n_samples = 128
+    rng = np.random.default_rng(random_seed)
+    data = rng.standard_normal((n_samples, n_features))
+    forest = build_forest(n_features=n_features, random_seed=random_seed)
+    signatures = forest.feature_signature(data)
+    regression_data.assert_allclose(signatures)
+
+
+@pytest.mark.regression
+def test_regression_importance(regression_data):
+    random_seed = 0
+    n_features = 16
+    n_samples = 128
+    rng = np.random.default_rng(random_seed)
+    data = rng.standard_normal((n_samples, n_features))
+    forest = build_forest(n_features=n_features, random_seed=random_seed)
+    importance = forest.feature_importance(data)
+    regression_data.assert_allclose(importance)
 
 
 def test_n_jobs():
