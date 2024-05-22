@@ -38,6 +38,30 @@ def test_prior_influence_callable():
     assert np.argmin(scores) == data.shape[0] - 1
 
 
+@pytest.mark.regression
+def test_regression_fit_known(regression_data):
+    random_seed = 0
+    n_samples = 1024
+    n_features = 16
+    n_known = 16
+    n_trees = 128
+    rng = np.random.default_rng(random_seed)
+    data = rng.standard_normal((n_samples, n_features))
+    known_data = data[rng.choice(n_samples, n_known, replace=False)]
+    known_labels = rng.choice([-1, 1], n_known, replace=True)
+
+    forest = AADForest(n_trees=n_trees, random_seed=random_seed)
+    forest.fit(data)
+    pre_fit_known_scores = forest.score_samples(data)
+
+    forest.fit_known(data, known_data=known_data, known_labels=known_labels)
+    scores = forest.score_samples(data)
+
+    assert not np.allclose(pre_fit_known_scores, scores, rtol=1e-3), "Scores must change after fit_known"
+
+    regression_data.assert_allclose(scores)
+
+
 @pytest.mark.benchmark
 @pytest.mark.long
 def test_benchmark_fit_known(n_jobs, benchmark):
