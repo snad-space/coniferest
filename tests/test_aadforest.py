@@ -31,8 +31,11 @@ def test_prior_influence_value():
 
 def test_prior_influence_callable():
     data, _metadata = single_outlier()
-    forest = AADForest(n_trees=10, random_seed=0,
-                       prior_influence=lambda ac, nc: np.max(1.0, 0.5 / (ac + nc))).fit(data)
+    forest = AADForest(
+        n_trees=10,
+        random_seed=0,
+        prior_influence=lambda ac, nc: np.max(1.0, 0.5 / (ac + nc)),
+    ).fit(data)
     scores = forest.score_samples(data)
     # Outlier goes last and must have the lowest score
     assert np.argmin(scores) == data.shape[0] - 1
@@ -57,7 +60,9 @@ def test_regression_fit_known(regression_data):
     forest.fit_known(data, known_data=known_data, known_labels=known_labels)
     scores = forest.score_samples(data)
 
-    assert not np.allclose(pre_fit_known_scores, scores, rtol=1e-3), "Scores must change after fit_known"
+    assert not np.allclose(
+        pre_fit_known_scores, scores, rtol=1e-3
+    ), "Scores must change after fit_known"
 
     regression_data.assert_allclose(scores)
 
@@ -89,7 +94,9 @@ def test_benchmark_fit_known(n_jobs, benchmark):
 @pytest.mark.parametrize("n_samples", [1 << 10, 1 << 16])
 @pytest.mark.parametrize("n_trees", [1 << 10, 1 << 14])
 def test_benchmark_loss_gradient(n_samples, n_trees, n_jobs, benchmark):
-    benchmark.group = f"AADEvaluator.loss_graident {n_samples = :6d} {n_trees = :4d}, {n_jobs = :2d}"
+    benchmark.group = (
+        f"AADEvaluator.loss_graident {n_samples = :6d} {n_trees = :4d}, {n_jobs = :2d}"
+    )
     benchmark.name = "coniferest.aadforest.AADEvaluator"
 
     random_seed = 0
@@ -108,5 +115,12 @@ def test_benchmark_loss_gradient(n_samples, n_trees, n_jobs, benchmark):
     scores = forest.score_samples(data)
     q_tau = np.quantile(scores, 1.0 - forest.tau)
 
-    benchmark(forest.evaluator.loss_gradient, forest.evaluator.weights, known_data, known_labels,
-              anomaly_count, nominal_count, q_tau)
+    benchmark(
+        forest.evaluator.loss_gradient,
+        forest.evaluator.weights,
+        known_data,
+        known_labels,
+        anomaly_count,
+        nominal_count,
+        q_tau,
+    )

@@ -1,7 +1,7 @@
 from .coniferest import Coniferest, ConiferestEvaluator
 
 
-__all__ = ['IsolationForest']
+__all__ = ["IsolationForest"]
 
 
 class IsolationForest(Coniferest):
@@ -30,12 +30,21 @@ class IsolationForest(Coniferest):
         Seed for reproducibility. If None, random seed is used.
     """
 
-    def __init__(self, n_trees=100, n_subsamples=256, max_depth=None, n_jobs=None, random_seed=None):
-        super().__init__(trees=[],
-                         n_subsamples=n_subsamples,
-                         max_depth=max_depth,
-                         n_jobs=n_jobs,
-                         random_seed=random_seed)
+    def __init__(
+        self,
+        n_trees=100,
+        n_subsamples=256,
+        max_depth=None,
+        n_jobs=None,
+        random_seed=None,
+    ):
+        super().__init__(
+            trees=[],
+            n_subsamples=n_subsamples,
+            max_depth=max_depth,
+            n_jobs=n_jobs,
+            random_seed=random_seed,
+        )
         self.n_trees = n_trees
         self.evaluator = None
 

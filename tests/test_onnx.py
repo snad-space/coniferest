@@ -12,8 +12,9 @@ from coniferest.onnx import to_onnx
 def _evaluate_onnx(o, data):
     sess = rt.InferenceSession(o.SerializeToString())
     input_name = sess.get_inputs()[0].name
-    label_name = 'score'
+    label_name = "score"
     return sess.run([label_name], {input_name: data})[0].reshape(-1)
+
 
 def test_onnx_aadforest():
     data, _metadata = single_outlier()

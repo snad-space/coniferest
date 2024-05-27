@@ -80,6 +80,7 @@ class Session:
     >>> _ = s.run()
     >>> assert len(s.known_labels) == len(s.known_anomalies) == 1
     """
+
     @staticmethod
     def _prepare_callbacks(input_argument):
         if input_argument is None:
@@ -87,7 +88,9 @@ class Session:
         elif isinstance(input_argument, list):
             callbacks = input_argument
         else:
-            callbacks = [input_argument, ]
+            callbacks = [
+                input_argument,
+            ]
 
         if not all([isinstance(cb, Callable) for cb in callbacks]):
             raise ValueError("At least one of the callbacks is not callable")
@@ -98,10 +101,18 @@ class Session:
         for cb in callbacks:
             cb(*args, **kwargs)
 
-
-    def __init__(self, data, metadata, decision_callback = prompt_decision_callback, *, on_refit_callbacks = None, on_decision_callbacks = None, known_labels: Dict[int, Label] = None, model: Coniferest = None):
-
-        self._data     = np.atleast_2d(data)
+    def __init__(
+        self,
+        data,
+        metadata,
+        decision_callback=prompt_decision_callback,
+        *,
+        on_refit_callbacks=None,
+        on_decision_callbacks=None,
+        known_labels: Dict[int, Label] = None,
+        model: Coniferest = None,
+    ):
+        self._data = np.atleast_2d(data)
         self._metadata = np.atleast_1d(metadata)
 
         if not isinstance(decision_callback, Callable):
@@ -133,7 +144,7 @@ class Session:
         self._current = None
         self._terminated = False
 
-    def run(self) -> 'Session':
+    def run(self) -> "Session":
         """Evaluate interactive anomaly detection session"""
 
         if self._terminated:
@@ -143,7 +154,9 @@ class Session:
 
         while not self._terminated:
             known_data = self._data[list(self._known_labels.keys())]
-            known_labels = np.fromiter(self._known_labels.values(), dtype=int, count=len(self._known_labels))
+            known_labels = np.fromiter(
+                self._known_labels.values(), dtype=int, count=len(self._known_labels)
+            )
             self.model.fit_known(self._data, known_data, known_labels)
 
             self._invoke_callbacks(self._on_refit_cb, self)
@@ -160,10 +173,17 @@ class Session:
                 self.terminate()
                 break
 
-            decision = self._decision_cb(self._metadata[self._current], self._data[self._current], self)
+            decision = self._decision_cb(
+                self._metadata[self._current], self._data[self._current], self
+            )
             self._known_labels[self._current] = decision
 
-            self._invoke_callbacks(self._on_decision_cb, self._metadata[self._current], self._data[self._current], self)
+            self._invoke_callbacks(
+                self._on_decision_cb,
+                self._metadata[self._current],
+                self._data[self._current],
+                self,
+            )
 
         return self
 
@@ -188,15 +208,21 @@ class Session:
 
     @property
     def known_anomalies(self) -> np.ndarray:
-        return np.array([idx for idx, label in self._known_labels.items() if label == Label.ANOMALY])
+        return np.array(
+            [idx for idx, label in self._known_labels.items() if label == Label.ANOMALY]
+        )
 
     @property
     def known_regulars(self) -> np.ndarray:
-        return np.array([idx for idx, label in self._known_labels.items() if label == Label.REGULAR])
+        return np.array(
+            [idx for idx, label in self._known_labels.items() if label == Label.REGULAR]
+        )
 
     @property
     def known_unknowns(self) -> np.ndarray:
-        return np.array([idx for idx, label in self._known_labels.items() if label == Label.UNKNOWN])
+        return np.array(
+            [idx for idx, label in self._known_labels.items() if label == Label.UNKNOWN]
+        )
 
     @property
     def model(self) -> Coniferest:

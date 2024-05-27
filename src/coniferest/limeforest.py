@@ -45,7 +45,7 @@ class RandomLimeForest:
 
     def scores(self, data):
         means = self.mean_paths(data)
-        return - 2 ** (-means / average_path_length(self.subsamples))
+        return -(2 ** (-means / average_path_length(self.subsamples)))
 
 
 class RandomLime:
@@ -96,14 +96,12 @@ class RandomLimeGenerator:
         self.pine = RandomLime(self.features, self.selectors, self.values)
 
     def _populate(self, i, sample):
-
         if sample.shape[0] == 1:
             self.values[i] = np.floor(np.log2(i))
             return
 
         if self.length <= 2 * i:
-            self.values[i] = np.floor(np.log2(i)) + \
-                             average_path_length(sample.shape[0])
+            self.values[i] = np.floor(np.log2(i)) + average_path_length(sample.shape[0])
 
             return
 
@@ -114,8 +112,7 @@ class RandomLimeGenerator:
         maxval = np.max(sample[:, selector])
         if minval == maxval:
             self.selectors[i] = -1
-            self.values[i] = np.floor(np.log2(i)) + \
-                average_path_length(sample.shape[0])
+            self.values[i] = np.floor(np.log2(i)) + average_path_length(sample.shape[0])
 
             return
 
@@ -131,16 +128,18 @@ class LimeEvaluator(ForestEvaluator):
         pines = pine_forest.estimators
         self.trees = len(pines)
         if self.trees < 1:
-            raise ValueError('a forest without trees?')
+            raise ValueError("a forest without trees?")
 
         selectors, indices, leaf_count = self.combine_selectors(
-            [self.extract_selectors(pine) for pine in pines])
+            [self.extract_selectors(pine) for pine in pines]
+        )
 
         super(LimeEvaluator, self).__init__(
             samples=pine_forest.subsamples,
             selectors=selectors,
             indices=indices,
-            leaf_count=leaf_count)
+            leaf_count=leaf_count,
+        )
 
     @classmethod
     def extract_selectors(cls, pine):
@@ -160,13 +159,13 @@ class LimeEvaluator(ForestEvaluator):
                 current = mapping[i]
 
                 feature = pine.selectors[i]
-                selectors[current]['feature'] = feature
-                selectors[current]['value'] = pine.values[i]
+                selectors[current]["feature"] = feature
+                selectors[current]["value"] = pine.values[i]
 
                 if 2 * i >= pine.len:
                     continue
 
-                selectors[current]['left'] = mapping[2 * i]
-                selectors[current]['right'] = mapping[2 * i + 1]
+                selectors[current]["left"] = mapping[2 * i]
+                selectors[current]["right"] = mapping[2 * i + 1]
 
         return selectors

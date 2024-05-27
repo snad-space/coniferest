@@ -33,7 +33,9 @@ def build_one_tree(random_seed) -> Tree:
     rng = np.random.default_rng(random_seed)
     data = rng.standard_normal(shape)
 
-    coniferest = ConiferestImpl(trees=None, n_subsamples=data.shape[0], max_depth=None, random_seed=random_seed)
+    coniferest = ConiferestImpl(
+        trees=None, n_subsamples=data.shape[0], max_depth=None, random_seed=random_seed
+    )
     return coniferest.build_one_tree(data)
 
 
@@ -67,7 +69,9 @@ def build_trees(random_seed) -> List[Tree]:
     rng = np.random.default_rng(random_seed)
     data = rng.standard_normal(shape)
 
-    coniferest = ConiferestImpl(trees=None, n_subsamples=n_subsamples, max_depth=None, random_seed=random_seed)
+    coniferest = ConiferestImpl(
+        trees=None, n_subsamples=n_subsamples, max_depth=None, random_seed=random_seed
+    )
     return coniferest.build_trees(data, n_trees)
 
 
@@ -88,6 +92,8 @@ def test_reproducibility_build_trees():
 def test_regression_build_trees(regression_data):
     trees = build_trees(0)
     regression_data.check_with(
-        lambda actual, desired: [assert_tree_equal(a, b) for a, b in zip(actual, desired)],
-        trees
+        lambda actual, desired: [
+            assert_tree_equal(a, b) for a, b in zip(actual, desired)
+        ],
+        trees,
     )

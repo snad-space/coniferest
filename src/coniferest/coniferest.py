@@ -14,7 +14,7 @@ from .utils import average_path_length
 from warnings import warn
 
 
-__all__ = ['Coniferest', 'ConiferestEvaluator']
+__all__ = ["Coniferest", "ConiferestEvaluator"]
 
 
 # Instead of doing:
@@ -47,7 +47,9 @@ class Coniferest(ABC):
         Seed for the reproducibility. If None, then random seed is used.
     """
 
-    def __init__(self, trees=None, n_subsamples=256, max_depth=None, n_jobs=-1, random_seed=None):
+    def __init__(
+        self, trees=None, n_subsamples=256, max_depth=None, n_jobs=-1, random_seed=None
+    ):
         self.trees = trees or []
         self.n_subsamples = n_subsamples
         self.max_depth = max_depth or int(np.log2(n_subsamples))
@@ -96,19 +98,21 @@ class Coniferest(ABC):
 
         n_samples = self.n_subsamples
         if n_samples > n_population:
-            msg1 = 'population should be greater or equal than subsamples number'
-            msg2 = f'got n_population < n_subsamples ({n_population} < {n_samples})'
-            msg3 = f'assuming n_subsamples = {n_population}'
-            warn(msg1 + ', ' + msg2 + ', ' + msg3)
+            msg1 = "population should be greater or equal than subsamples number"
+            msg2 = f"got n_population < n_subsamples ({n_population} < {n_samples})"
+            msg3 = f"assuming n_subsamples = {n_population}"
+            warn(msg1 + ", " + msg2 + ", " + msg3)
             n_samples = n_population
 
         trees = []
         for tree_index in range(n_trees):
             random_state = check_random_state(self.rng.integers(RAND_R_MAX))
-            indices = _generate_indices(random_state=random_state,
-                                        bootstrap=self.bootstrap_samples,
-                                        n_population=n_population,
-                                        n_samples=n_samples)
+            indices = _generate_indices(
+                random_state=random_state,
+                bootstrap=self.bootstrap_samples,
+                n_population=n_population,
+                n_samples=n_samples,
+            )
 
             subsamples = data[indices, :]
             tree = self.build_one_tree(subsamples)
@@ -134,20 +138,22 @@ class Coniferest(ABC):
 
         # Splitter for splitting the nodes.
         splitter_state = check_random_state(self.rng.integers(RAND_R_MAX))
-        splitter = RandomSplitter(criterion=criterion,
-                                  max_features=1,
-                                  min_samples_leaf=self.min_samples_leaf,
-                                  min_weight_leaf=self.min_weight_leaf,
-                                  random_state=splitter_state,
-                                  monotonic_cst=None)
+        splitter = RandomSplitter(
+            criterion=criterion,
+            max_features=1,
+            min_samples_leaf=self.min_samples_leaf,
+            min_weight_leaf=self.min_weight_leaf,
+            random_state=splitter_state,
+            monotonic_cst=None,
+        )
 
         builder_args = {
-            'splitter': splitter,
-            'min_samples_split': self.min_samples_split,
-            'min_samples_leaf': self.min_samples_leaf,
-            'min_weight_leaf': self.min_weight_leaf,
-            'max_depth': self.max_depth,
-            'min_impurity_decrease': self.min_impurity_decrease
+            "splitter": splitter,
+            "min_samples_split": self.min_samples_split,
+            "min_samples_leaf": self.min_samples_leaf,
+            "min_weight_leaf": self.min_weight_leaf,
+            "max_depth": self.max_depth,
+            "min_impurity_decrease": self.min_impurity_decrease,
         }
 
         # Initialize the builder
@@ -155,7 +161,9 @@ class Coniferest(ABC):
 
         # Initialize the tree
         n_samples, n_features = data.shape
-        tree = Tree(n_features, np.array([1] * self.n_outputs, dtype=np.int64), self.n_outputs)
+        tree = Tree(
+            n_features, np.array([1] * self.n_outputs, dtype=np.int64), self.n_outputs
+        )
 
         # Cause of sklearn bugs we cannot do this:
         # y = np.zeros((n_samples, self.n_outputs))
@@ -200,6 +208,7 @@ class Coniferest(ABC):
     def feature_importance(self, x):
         raise NotImplementedError()
 
+
 class ConiferestEvaluator(ForestEvaluator):
     """
     Fast evaluator of scores for Coniferests.
@@ -214,7 +223,9 @@ class ConiferestEvaluator(ForestEvaluator):
     """
 
     def __init__(self, coniferest, map_value=None):
-        selectors_list = [self.extract_selectors(t, map_value) for t in coniferest.trees]
+        selectors_list = [
+            self.extract_selectors(t, map_value) for t in coniferest.trees
+        ]
         selectors, indices, leaf_count = self.combine_selectors(selectors_list)
 
         super().__init__(
@@ -222,7 +233,8 @@ class ConiferestEvaluator(ForestEvaluator):
             selectors=selectors,
             indices=indices,
             leaf_count=leaf_count,
-            num_threads=coniferest.n_jobs)
+            num_threads=coniferest.n_jobs,
+        )
 
     @classmethod
     def extract_selectors(cls, tree, map_value=None):
@@ -240,27 +252,27 @@ class ConiferestEvaluator(ForestEvaluator):
         -------
         Array with selectors.
         """
-        nodes = tree.__getstate__()['nodes']
+        nodes = tree.__getstate__()["nodes"]
         selectors = np.zeros_like(nodes, dtype=cls.selector_dtype)
 
-        selectors['feature'] = nodes['feature']
-        selectors['feature'][selectors['feature'] < 0] = -1
+        selectors["feature"] = nodes["feature"]
+        selectors["feature"][selectors["feature"] < 0] = -1
 
-        selectors['left'] = nodes['left_child']
-        selectors['right'] = nodes['right_child']
-        selectors['value'] = nodes['threshold']
+        selectors["left"] = nodes["left_child"]
+        selectors["right"] = nodes["right_child"]
+        selectors["value"] = nodes["threshold"]
 
-        n_node_samples = nodes['n_node_samples']
+        n_node_samples = nodes["n_node_samples"]
 
-        selectors['log_n_node_samples'] = np.log(n_node_samples)
+        selectors["log_n_node_samples"] = np.log(n_node_samples)
 
         def correct_values(i, depth):
-            if selectors[i]['feature'] < 0:
+            if selectors[i]["feature"] < 0:
                 value = depth + average_path_length(n_node_samples[i])
-                selectors[i]['value'] = value if map_value is None else map_value(value)
+                selectors[i]["value"] = value if map_value is None else map_value(value)
             else:
-                correct_values(selectors[i]['left'], depth + 1)
-                correct_values(selectors[i]['right'], depth + 1)
+                correct_values(selectors[i]["left"], depth + 1)
+                correct_values(selectors[i]["right"], depth + 1)
 
         correct_values(0, 0)
 
