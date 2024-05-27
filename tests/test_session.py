@@ -1,8 +1,7 @@
 import numpy as np
 import pytest
-
 from coniferest.aadforest import AADForest
-from coniferest.datasets import ztf_m31, non_anomalous_outliers
+from coniferest.datasets import non_anomalous_outliers, ztf_m31
 from coniferest.label import Label
 from coniferest.pineforest import PineForest
 from coniferest.session import Session
@@ -12,8 +11,10 @@ from coniferest.session import Session
 @pytest.mark.regression
 def test_e2e_ztf_m31():
     """Basically the same example as in the docs"""
-    class Callback():
+
+    class Callback:
         """Say NO for first few objects, then say YES and terminate"""
+
         counter = 0
 
         def __init__(self, n_iter):

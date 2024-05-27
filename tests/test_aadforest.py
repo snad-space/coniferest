@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-
 from coniferest.aadforest import AADForest
 from coniferest.datasets import single_outlier
 from coniferest.label import Label
@@ -31,8 +30,11 @@ def test_prior_influence_value():
 
 def test_prior_influence_callable():
     data, _metadata = single_outlier()
-    forest = AADForest(n_trees=10, random_seed=0,
-                       prior_influence=lambda ac, nc: np.max(1.0, 0.5 / (ac + nc))).fit(data)
+    forest = AADForest(
+        n_trees=10,
+        random_seed=0,
+        prior_influence=lambda ac, nc: np.max(1.0, 0.5 / (ac + nc)),
+    ).fit(data)
     scores = forest.score_samples(data)
     # Outlier goes last and must have the lowest score
     assert np.argmin(scores) == data.shape[0] - 1
@@ -108,5 +110,12 @@ def test_benchmark_loss_gradient(n_samples, n_trees, n_jobs, benchmark):
     scores = forest.score_samples(data)
     q_tau = np.quantile(scores, 1.0 - forest.tau)
 
-    benchmark(forest.evaluator.loss_gradient, forest.evaluator.weights, known_data, known_labels,
-              anomaly_count, nominal_count, q_tau)
+    benchmark(
+        forest.evaluator.loss_gradient,
+        forest.evaluator.weights,
+        known_data,
+        known_labels,
+        anomaly_count,
+        nominal_count,
+        q_tau,
+    )

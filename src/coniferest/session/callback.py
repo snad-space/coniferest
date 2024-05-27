@@ -1,9 +1,6 @@
-import click
 import webbrowser
 
-from typing import List, Optional
-
-import numpy as np
+import click
 
 from coniferest.datasets import Label
 
@@ -49,6 +46,7 @@ class TerminateAfter:
     budget : int
         Number of iterations after which session will be terminated.
     """
+
     def __init__(self, budget: int):
         self.budget = budget
         self.iteration = 0
@@ -71,6 +69,7 @@ class TerminateAfterNAnomalies:
     budget : int
         Number of anomalies to stop after.
     """
+
     def __init__(self, budget: int):
         self.budget = budget
         self.anomalies_count = 0

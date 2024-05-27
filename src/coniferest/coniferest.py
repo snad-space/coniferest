@@ -1,20 +1,17 @@
 from abc import ABC, abstractmethod
+from warnings import warn
 
 import numpy as np
-
-import sklearn
+from sklearn.ensemble._bagging import _generate_indices  # noqa
 from sklearn.tree._criterion import MSE  # noqa
 from sklearn.tree._splitter import RandomSplitter  # noqa
-from sklearn.tree._tree import Tree, DepthFirstTreeBuilder  # noqa
-from sklearn.ensemble._bagging import _generate_indices  # noqa
+from sklearn.tree._tree import DepthFirstTreeBuilder, Tree  # noqa
 from sklearn.utils.validation import check_random_state
 
 from .evaluator import ForestEvaluator
 from .utils import average_path_length
-from warnings import warn
 
-
-__all__ = ['Coniferest', 'ConiferestEvaluator']
+__all__ = ["Coniferest", "ConiferestEvaluator"]
 
 
 # Instead of doing:
@@ -96,19 +93,21 @@ class Coniferest(ABC):
 
         n_samples = self.n_subsamples
         if n_samples > n_population:
-            msg1 = 'population should be greater or equal than subsamples number'
-            msg2 = f'got n_population < n_subsamples ({n_population} < {n_samples})'
-            msg3 = f'assuming n_subsamples = {n_population}'
-            warn(msg1 + ', ' + msg2 + ', ' + msg3)
+            msg1 = "population should be greater or equal than subsamples number"
+            msg2 = f"got n_population < n_subsamples ({n_population} < {n_samples})"
+            msg3 = f"assuming n_subsamples = {n_population}"
+            warn(msg1 + ", " + msg2 + ", " + msg3)
             n_samples = n_population
 
         trees = []
         for tree_index in range(n_trees):
             random_state = check_random_state(self.rng.integers(RAND_R_MAX))
-            indices = _generate_indices(random_state=random_state,
-                                        bootstrap=self.bootstrap_samples,
-                                        n_population=n_population,
-                                        n_samples=n_samples)
+            indices = _generate_indices(
+                random_state=random_state,
+                bootstrap=self.bootstrap_samples,
+                n_population=n_population,
+                n_samples=n_samples,
+            )
 
             subsamples = data[indices, :]
             tree = self.build_one_tree(subsamples)
@@ -134,20 +133,22 @@ class Coniferest(ABC):
 
         # Splitter for splitting the nodes.
         splitter_state = check_random_state(self.rng.integers(RAND_R_MAX))
-        splitter = RandomSplitter(criterion=criterion,
-                                  max_features=1,
-                                  min_samples_leaf=self.min_samples_leaf,
-                                  min_weight_leaf=self.min_weight_leaf,
-                                  random_state=splitter_state,
-                                  monotonic_cst=None)
+        splitter = RandomSplitter(
+            criterion=criterion,
+            max_features=1,
+            min_samples_leaf=self.min_samples_leaf,
+            min_weight_leaf=self.min_weight_leaf,
+            random_state=splitter_state,
+            monotonic_cst=None,
+        )
 
         builder_args = {
-            'splitter': splitter,
-            'min_samples_split': self.min_samples_split,
-            'min_samples_leaf': self.min_samples_leaf,
-            'min_weight_leaf': self.min_weight_leaf,
-            'max_depth': self.max_depth,
-            'min_impurity_decrease': self.min_impurity_decrease
+            "splitter": splitter,
+            "min_samples_split": self.min_samples_split,
+            "min_samples_leaf": self.min_samples_leaf,
+            "min_weight_leaf": self.min_weight_leaf,
+            "max_depth": self.max_depth,
+            "min_impurity_decrease": self.min_impurity_decrease,
         }
 
         # Initialize the builder
@@ -200,6 +201,7 @@ class Coniferest(ABC):
     def feature_importance(self, x):
         raise NotImplementedError()
 
+
 class ConiferestEvaluator(ForestEvaluator):
     """
     Fast evaluator of scores for Coniferests.
@@ -222,7 +224,8 @@ class ConiferestEvaluator(ForestEvaluator):
             selectors=selectors,
             indices=indices,
             leaf_count=leaf_count,
-            num_threads=coniferest.n_jobs)
+            num_threads=coniferest.n_jobs,
+        )
 
     @classmethod
     def extract_selectors(cls, tree, map_value=None):
@@ -240,27 +243,27 @@ class ConiferestEvaluator(ForestEvaluator):
         -------
         Array with selectors.
         """
-        nodes = tree.__getstate__()['nodes']
+        nodes = tree.__getstate__()["nodes"]
         selectors = np.zeros_like(nodes, dtype=cls.selector_dtype)
 
-        selectors['feature'] = nodes['feature']
-        selectors['feature'][selectors['feature'] < 0] = -1
+        selectors["feature"] = nodes["feature"]
+        selectors["feature"][selectors["feature"] < 0] = -1
 
-        selectors['left'] = nodes['left_child']
-        selectors['right'] = nodes['right_child']
-        selectors['value'] = nodes['threshold']
+        selectors["left"] = nodes["left_child"]
+        selectors["right"] = nodes["right_child"]
+        selectors["value"] = nodes["threshold"]
 
-        n_node_samples = nodes['n_node_samples']
+        n_node_samples = nodes["n_node_samples"]
 
-        selectors['log_n_node_samples'] = np.log(n_node_samples)
+        selectors["log_n_node_samples"] = np.log(n_node_samples)
 
         def correct_values(i, depth):
-            if selectors[i]['feature'] < 0:
+            if selectors[i]["feature"] < 0:
                 value = depth + average_path_length(n_node_samples[i])
-                selectors[i]['value'] = value if map_value is None else map_value(value)
+                selectors[i]["value"] = value if map_value is None else map_value(value)
             else:
-                correct_values(selectors[i]['left'], depth + 1)
-                correct_values(selectors[i]['right'], depth + 1)
+                correct_values(selectors[i]["left"], depth + 1)
+                correct_values(selectors[i]["right"], depth + 1)
 
         correct_values(0, 0)
 

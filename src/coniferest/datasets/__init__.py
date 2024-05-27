@@ -1,4 +1,5 @@
 import numpy as np
+
 from coniferest.label import Label
 
 from .plasticc_gp import plasticc_gp
@@ -77,15 +78,23 @@ class MalanchevDataset(Dataset):
         rng = np.random.default_rng(rng)
         self.rng = rng
 
-        x = np.concatenate([self._generate_inliers(inliers, rng),
-                            self._generate_outliers(outliers, rng, [1, 1]),
-                            self._generate_outliers(outliers, rng, [0, 1]),
-                            self._generate_outliers(outliers, rng, [1, 0])])
+        x = np.concatenate(
+            [
+                self._generate_inliers(inliers, rng),
+                self._generate_outliers(outliers, rng, [1, 1]),
+                self._generate_outliers(outliers, rng, [0, 1]),
+                self._generate_outliers(outliers, rng, [1, 0]),
+            ]
+        )
 
-        x_labels = np.concatenate([np.ones(inliers),
-                                   self.regions[0] * np.ones(outliers),
-                                   self.regions[1] * np.ones(outliers),
-                                   self.regions[2] * np.ones(outliers)])
+        x_labels = np.concatenate(
+            [
+                np.ones(inliers),
+                self.regions[0] * np.ones(outliers),
+                self.regions[1] * np.ones(outliers),
+                self.regions[2] * np.ones(outliers),
+            ]
+        )
 
         super(MalanchevDataset, self).__init__(data=x, labels=x_labels)
 
@@ -131,14 +140,20 @@ class DevNetDataset(Dataset):
         "campaign": "bank-additional-full_normalised.csv",
         "thyroid": "annthyroid_21feat_normalised.csv",
     }
-    _dataset_urls = {name: f"https://github.com/GuansongPang/deviation-network/raw/master/dataset/{filename}" for name, filename in _dataset_filenames.items()}
+    _dataset_urls = {
+        name: f"https://github.com/GuansongPang/deviation-network/raw/master/dataset/{filename}"
+        for name, filename in _dataset_filenames.items()
+    }
     avialble_datasets = list(_dataset_filenames.keys())
 
     def __init__(self, name: str):
         try:
             import pandas as pd
         except ImportError:
-            raise ImportError("Pandas is required to load DevNet datasets, install it with `pip install pandas` or reinstall the package with `pip install coniferest[datasets]`")
+            raise ImportError(
+                "Pandas is required to load DevNet datasets, install it with `pip install pandas` or "
+                "reinstall the package with `pip install coniferest[datasets]`"
+            )
 
         if name not in self.avialble_datasets:
             raise ValueError(f"Dataset {name} is not available. Available datasets are: {self.avialble_datasets}")

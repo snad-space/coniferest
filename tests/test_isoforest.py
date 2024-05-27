@@ -1,13 +1,10 @@
-import pytest
-
 import numpy as np
-from numpy.testing import assert_allclose, assert_equal
-
-from coniferest.sklearn.isoforest import IsolationForestEvaluator
+import pytest
+from coniferest.datasets import MalanchevDataset
 from coniferest.isoforest import IsolationForest
+from coniferest.sklearn.isoforest import IsolationForestEvaluator
+from numpy.testing import assert_allclose, assert_equal
 from sklearn.ensemble import IsolationForest as SkIsolationForest
-
-from coniferest.datasets import MalanchevDataset, plasticc_gp
 
 
 @pytest.fixture()
@@ -18,10 +15,7 @@ def isoforest_results():
 class IsoforestResults:
     def __init__(self):
         seed = 622341
-        self.dataset = MalanchevDataset(inliers=1000,
-                                        outliers=50,
-                                        regions=[1, 1, -1],
-                                        rng=seed)
+        self.dataset = MalanchevDataset(inliers=1000, outliers=50, regions=[1, 1, -1], rng=seed)
 
         data = self.dataset.data
         trees = 1000
@@ -48,8 +42,13 @@ def test_sklearn_isolation_forest_evaluator(isoforest_results):
     Does evaluator scores coinside with the ones computed by sklearn?
     """
     r = isoforest_results
-    assert_allclose(r.skores1_by_evaluator, r.skores1, atol=1e-10, rtol=0,
-                    err_msg='sklearn and our results nust be the same')
+    assert_allclose(
+        r.skores1_by_evaluator,
+        r.skores1,
+        atol=1e-10,
+        rtol=0,
+        err_msg="sklearn and our results nust be the same",
+    )
 
 
 def test_isolation_forest(isoforest_results):
@@ -81,7 +80,7 @@ def forest_n_features(forest: IsolationForest):
 def assert_forest_scores(forest1: IsolationForest, forest2: IsolationForest, data=None, n_features=None):
     if data is None:
         if n_features is None:
-            raise ValueError('Either data or n_features')
+            raise ValueError("Either data or n_features")
         data = np.random.standard_normal((1024, n_features))
     assert_equal(forest1.score_samples(data), forest2.score_samples(data))
 
@@ -93,8 +92,12 @@ def build_forest(n_features: int, random_seed: int) -> IsolationForest:
     rng = np.random.default_rng(random_seed)
     data = rng.standard_normal((n_trees * n_subsamples, n_features))
 
-    forest = IsolationForest(n_trees=n_trees, n_subsamples=n_subsamples, max_depth=None,
-                             random_seed=random_seed)
+    forest = IsolationForest(
+        n_trees=n_trees,
+        n_subsamples=n_subsamples,
+        max_depth=None,
+        random_seed=random_seed,
+    )
     forest.fit(data)
     return forest
 

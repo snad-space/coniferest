@@ -1,6 +1,9 @@
-from onnxconverter_common.registration import register_shape_calculator
 from onnxconverter_common.data_types import FloatTensorType
-from onnxconverter_common.utils import check_input_and_output_types, check_input_and_output_numbers
+from onnxconverter_common.registration import register_shape_calculator
+from onnxconverter_common.utils import (
+    check_input_and_output_numbers,
+    check_input_and_output_types,
+)
 
 
 def calculate_aadforest_output_shapes(operator):
@@ -10,4 +13,5 @@ def calculate_aadforest_output_shapes(operator):
 
     operator.outputs[0].type = FloatTensorType(shape=[N])
 
-register_shape_calculator('AADForest', calculate_aadforest_output_shapes)
+
+register_shape_calculator("AADForest", calculate_aadforest_output_shapes)

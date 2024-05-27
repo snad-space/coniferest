@@ -11,16 +11,16 @@ class RegressionData:
     def __init__(self, path):
         self.path = path
         try:
-            with open(self.path, 'rb') as fh:
+            with open(self.path, "rb") as fh:
                 self.obj = pickle.load(fh)
         except FileNotFoundError:
             self.obj = None
 
     def check_with(self, assert_func, actual):
         if self.obj is None:
-            with open(self.path, 'wb') as fh:
+            with open(self.path, "wb") as fh:
                 pickle.dump(actual, fh, protocol=PICKLE_PROTOCOL)
-            assert False, f'File {self.path} does not exist, given object saved to this location'
+            assert False, f"File {self.path} does not exist, given object saved to this location"
         assert_func(actual, self.obj)
 
     def assert_allclose(self, actual, **kwargs):
@@ -29,7 +29,7 @@ class RegressionData:
 
 @pytest.fixture
 def regression_data(request):
-    path = request.path.parent.joinpath(request.path.stem, f'{request.function.__name__}.pickle')
+    path = request.path.parent.joinpath(request.path.stem, f"{request.function.__name__}.pickle")
     return RegressionData(path)
 
 

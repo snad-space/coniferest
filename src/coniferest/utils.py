@@ -1,7 +1,6 @@
 import numpy as np
 
-
-__all__ = ['average_path_length']
+__all__ = ["average_path_length"]
 
 
 def _average_path_length(n):
@@ -9,7 +8,7 @@ def _average_path_length(n):
     Average path length formula.
     """
     # Thank you Matwey.
-    return 2.0 * (np.log(n) + np.euler_gamma + 1 / (2 * n) - 1 / (12 * n ** 2) - 1.0)
+    return 2.0 * (np.log(n) + np.euler_gamma + 1 / (2 * n) - 1 / (12 * n**2) - 1.0)
 
 
 def average_path_length(n):

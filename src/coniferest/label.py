@@ -1,7 +1,6 @@
 from enum import IntEnum
 
-
-__all__ = ['Label']
+__all__ = ["Label"]
 
 
 class Label(IntEnum):
@@ -14,6 +13,7 @@ class Label(IntEnum):
       * 0 for unknowns: `Label.UNKNOWN` or `Label.U`,
       * 1 for regular data: `Label.REGULAR` or `Label.R`.
     """
+
     ANOMALY = -1
     A = ANOMALY
     UNKNOWN = 0

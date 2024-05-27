@@ -1,5 +1,6 @@
+from typing import Optional
+
 import numpy as np
-from typing import List, Optional
 
 from coniferest.coniferest import Coniferest
 from coniferest.label import Label
@@ -26,7 +27,15 @@ class OracleSession(Session):
     Also see methods and attributes from the base `Session` class
     """
 
-    def __init__(self, data: np.ndarray, labels: np.ndarray, *, model: Coniferest, max_iterations: int, max_anomalies: int):
+    def __init__(
+        self,
+        data: np.ndarray,
+        labels: np.ndarray,
+        *,
+        model: Coniferest,
+        max_iterations: int,
+        max_anomalies: int,
+    ):
         super().__init__(
             data=data,
             metadata=labels,
@@ -40,7 +49,13 @@ class OracleSession(Session):
         )
 
 
-def create_oracle_session(data: np.ndarray, labels: np.ndarray[int], *, model: Coniferest, max_iterations: Optional[int] = None) -> OracleSession:
+def create_oracle_session(
+    data: np.ndarray,
+    labels: np.ndarray[int],
+    *,
+    model: Coniferest,
+    max_iterations: Optional[int] = None,
+) -> OracleSession:
     """Create an automated session to run experiments with labeled data.
 
     Parameters
@@ -61,4 +76,10 @@ def create_oracle_session(data: np.ndarray, labels: np.ndarray[int], *, model: C
     n_anomalies = np.sum(labels == Label.ANOMALY)
     max_iterations = min(n_anomalies * 5.0, len(labels)) if max_iterations is None else max_iterations
 
-    return OracleSession(data, labels, model=model, max_iterations=max_iterations, max_anomalies=n_anomalies)
+    return OracleSession(
+        data,
+        labels,
+        model=model,
+        max_iterations=max_iterations,
+        max_anomalies=n_anomalies,
+    )

@@ -1,6 +1,4 @@
-
 import numpy as np
-
 
 IMPORT_ERROR_MESSAGE = (
     "`datasets' library is required to load ZTF M31 features dataset, install it with `pip install datasets` "

@@ -1,13 +1,10 @@
-import pickle
-import sys
 from typing import List
 
 import numpy as np
 import pytest
+from coniferest.coniferest import Coniferest
 from numpy.testing import assert_equal
 from sklearn.tree._tree import Tree
-
-from coniferest.coniferest import Coniferest
 
 
 class ConiferestImpl(Coniferest):
@@ -89,5 +86,5 @@ def test_regression_build_trees(regression_data):
     trees = build_trees(0)
     regression_data.check_with(
         lambda actual, desired: [assert_tree_equal(a, b) for a, b in zip(actual, desired)],
-        trees
+        trees,
     )
