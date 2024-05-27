@@ -1,4 +1,5 @@
 import numpy as np
+
 from coniferest.label import Label
 
 from .plasticc_gp import plasticc_gp
@@ -150,13 +151,12 @@ class DevNetDataset(Dataset):
             import pandas as pd
         except ImportError:
             raise ImportError(
-                "Pandas is required to load DevNet datasets, install it with `pip install pandas` or reinstall the package with `pip install coniferest[datasets]`"
+                "Pandas is required to load DevNet datasets, install it with `pip install pandas` or "
+                "reinstall the package with `pip install coniferest[datasets]`"
             )
 
         if name not in self.avialble_datasets:
-            raise ValueError(
-                f"Dataset {name} is not available. Available datasets are: {self.avialble_datasets}"
-            )
+            raise ValueError(f"Dataset {name} is not available. Available datasets are: {self.avialble_datasets}")
 
         df = pd.read_csv(self._dataset_urls[name])
 

@@ -1,13 +1,10 @@
-import pytest
-
 import numpy as np
-from numpy.testing import assert_allclose, assert_equal
-
-from coniferest.sklearn.isoforest import IsolationForestEvaluator
+import pytest
+from coniferest.datasets import MalanchevDataset
 from coniferest.isoforest import IsolationForest
+from coniferest.sklearn.isoforest import IsolationForestEvaluator
+from numpy.testing import assert_allclose, assert_equal
 from sklearn.ensemble import IsolationForest as SkIsolationForest
-
-from coniferest.datasets import MalanchevDataset, plasticc_gp
 
 
 @pytest.fixture()
@@ -18,9 +15,7 @@ def isoforest_results():
 class IsoforestResults:
     def __init__(self):
         seed = 622341
-        self.dataset = MalanchevDataset(
-            inliers=1000, outliers=50, regions=[1, 1, -1], rng=seed
-        )
+        self.dataset = MalanchevDataset(inliers=1000, outliers=50, regions=[1, 1, -1], rng=seed)
 
         data = self.dataset.data
         trees = 1000
@@ -82,9 +77,7 @@ def forest_n_features(forest: IsolationForest):
     return forest.evaluator.selectors[0, 0].n_features
 
 
-def assert_forest_scores(
-    forest1: IsolationForest, forest2: IsolationForest, data=None, n_features=None
-):
+def assert_forest_scores(forest1: IsolationForest, forest2: IsolationForest, data=None, n_features=None):
     if data is None:
         if n_features is None:
             raise ValueError("Either data or n_features")
@@ -200,9 +193,7 @@ def test_benchmark_fit_sklearn(n_trees, n_jobs, benchmark):
     n_features = 16
     rng = np.random.default_rng(random_seed)
     data = rng.standard_normal((n_samples, n_features))
-    forest = SkIsolationForest(
-        n_estimators=n_trees, n_jobs=n_jobs, random_state=random_seed
-    )
+    forest = SkIsolationForest(n_estimators=n_trees, n_jobs=n_jobs, random_state=random_seed)
 
     benchmark(forest.fit, data)
 
@@ -237,9 +228,7 @@ def test_benchmark_score_sklearn(n_samples, n_jobs, benchmark):
     n_features = 16
     rng = np.random.default_rng(random_seed)
     data = rng.standard_normal((n_samples, n_features))
-    forest = SkIsolationForest(
-        n_estimators=128, n_jobs=n_jobs, random_state=random_seed
-    )
+    forest = SkIsolationForest(n_estimators=128, n_jobs=n_jobs, random_state=random_seed)
     forest.fit(data)
 
     benchmark(forest.score_samples, data)
@@ -249,9 +238,7 @@ def test_benchmark_score_sklearn(n_samples, n_jobs, benchmark):
 @pytest.mark.long
 @pytest.mark.parametrize("n_features", [2, 128])
 def test_benchmark_feature_signature(n_features, n_jobs, benchmark):
-    benchmark.group = (
-        f"IsolationForest.feature_signature {n_features = :3d}, {n_jobs = :2d}"
-    )
+    benchmark.group = f"IsolationForest.feature_signature {n_features = :3d}, {n_jobs = :2d}"
     benchmark.name = "coniferest.isoforest.IsolationForest"
 
     random_seed = 0

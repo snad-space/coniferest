@@ -1,11 +1,9 @@
 import numpy as np
-
-from .coniferest import Coniferest, ConiferestEvaluator
-from .utils import average_path_length
-from .label import Label
-
 from sklearn.tree._tree import DTYPE as TreeDTYPE  # noqa
 
+from .coniferest import Coniferest, ConiferestEvaluator
+from .label import Label
+from .utils import average_path_length
 
 __all__ = ["PineForest"]
 
@@ -236,9 +234,7 @@ class PineForest(Coniferest):
             n_samples_leaf = n_samples_leaf.astype(dtype=np.float64)
 
             heights[:, tree_index] = (
-                np.ravel(tree.decision_path(data).sum(axis=1))
-                + average_path_length(n_samples_leaf)
-                - 1
+                np.ravel(tree.decision_path(data).sum(axis=1)) + average_path_length(n_samples_leaf) - 1
             )
 
         weights = labels.copy()

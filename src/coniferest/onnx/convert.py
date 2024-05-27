@@ -2,13 +2,12 @@ from uuid import uuid4
 
 import numpy as np
 import onnx
-from ..coniferest import Coniferest
-from .proto import get_maximum_opset_supported
-from ._parse import parse_coniferest
-from . import operator_converters
-from . import shape_calculators
 from onnxconverter_common.data_types import FloatTensorType
 from onnxconverter_common.topology import convert_topology
+
+from ..coniferest import Coniferest
+from ._parse import parse_coniferest
+from .proto import get_maximum_opset_supported
 
 
 def _guess_initial_types(X, model, initial_types):
@@ -72,8 +71,7 @@ def convert(
 
     if initial_types is None:
         raise ValueError(
-            "Initial types are required. See usage of "
-            "convert(...) in coniferest.onnx.convert for details"
+            "Initial types are required. See usage of " "convert(...) in coniferest.onnx.convert for details"
         )
 
     target_opset = target_opset if target_opset else get_maximum_opset_supported()
@@ -87,9 +85,7 @@ def convert(
     )
     topology.compile()
 
-    onnx_model = convert_topology(
-        topology, name, doc_string, target_opset, targeted_onnx
-    )
+    onnx_model = convert_topology(topology, name, doc_string, target_opset, targeted_onnx)
     return onnx_model
 
 

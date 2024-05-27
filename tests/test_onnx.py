@@ -1,9 +1,6 @@
 import numpy as np
 import onnx
 import onnxruntime as rt
-import pytest
-from onnxconverter_common.data_types import FloatTensorType
-
 from coniferest.aadforest import AADForest
 from coniferest.datasets import single_outlier
 from coniferest.onnx import to_onnx

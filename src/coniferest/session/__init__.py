@@ -5,8 +5,8 @@ import numpy as np
 from coniferest.coniferest import Coniferest
 from coniferest.pineforest import PineForest
 
-from .callback import prompt_decision_callback
 from ..label import Label
+from .callback import prompt_decision_callback
 
 
 class Session:
@@ -154,9 +154,7 @@ class Session:
 
         while not self._terminated:
             known_data = self._data[list(self._known_labels.keys())]
-            known_labels = np.fromiter(
-                self._known_labels.values(), dtype=int, count=len(self._known_labels)
-            )
+            known_labels = np.fromiter(self._known_labels.values(), dtype=int, count=len(self._known_labels))
             self.model.fit_known(self._data, known_data, known_labels)
 
             self._invoke_callbacks(self._on_refit_cb, self)
@@ -173,9 +171,7 @@ class Session:
                 self.terminate()
                 break
 
-            decision = self._decision_cb(
-                self._metadata[self._current], self._data[self._current], self
-            )
+            decision = self._decision_cb(self._metadata[self._current], self._data[self._current], self)
             self._known_labels[self._current] = decision
 
             self._invoke_callbacks(
@@ -208,21 +204,15 @@ class Session:
 
     @property
     def known_anomalies(self) -> np.ndarray:
-        return np.array(
-            [idx for idx, label in self._known_labels.items() if label == Label.ANOMALY]
-        )
+        return np.array([idx for idx, label in self._known_labels.items() if label == Label.ANOMALY])
 
     @property
     def known_regulars(self) -> np.ndarray:
-        return np.array(
-            [idx for idx, label in self._known_labels.items() if label == Label.REGULAR]
-        )
+        return np.array([idx for idx, label in self._known_labels.items() if label == Label.REGULAR])
 
     @property
     def known_unknowns(self) -> np.ndarray:
-        return np.array(
-            [idx for idx, label in self._known_labels.items() if label == Label.UNKNOWN]
-        )
+        return np.array([idx for idx, label in self._known_labels.items() if label == Label.UNKNOWN])
 
     @property
     def model(self) -> Coniferest:

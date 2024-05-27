@@ -1,13 +1,12 @@
-from typing import Callable
 from numbers import Real
+from typing import Callable
 
 import numpy as np
 from scipy.optimize import minimize
 
+from .calc_paths_sum import calc_paths_sum, calc_paths_sum_transpose  # noqa
 from .coniferest import Coniferest, ConiferestEvaluator
 from .label import Label
-from .calc_paths_sum import calc_paths_sum, calc_paths_sum_transpose  # noqa
-
 
 __all__ = ["AADForest"]
 
@@ -15,9 +14,7 @@ __all__ = ["AADForest"]
 class AADEvaluator(ConiferestEvaluator):
     def __init__(self, aad):
         super(AADEvaluator, self).__init__(aad, map_value=lambda x: -np.reciprocal(x))
-        self.weights = np.full(
-            shape=(self.leaf_count,), fill_value=np.reciprocal(np.sqrt(self.leaf_count))
-        )
+        self.weights = np.full(shape=(self.leaf_count,), fill_value=np.reciprocal(np.sqrt(self.leaf_count)))
 
     def score_samples(self, x, weights=None):
         """
@@ -40,9 +37,7 @@ class AADEvaluator(ConiferestEvaluator):
         if weights is None:
             weights = self.weights
 
-        return calc_paths_sum(
-            self.selectors, self.indices, x, weights, num_threads=self.num_threads
-        )
+        return calc_paths_sum(self.selectors, self.indices, x, weights, num_threads=self.num_threads)
 
     def loss(
         self,
@@ -74,24 +69,17 @@ class AADEvaluator(ConiferestEvaluator):
         if prior_weights is None:
             prior_weights = self.weights
 
-        l = 0.0
+        loss = 0.0
         if anomaly_count:
             # For anomalies in "nominal" subsample we add their positive scores.
-            l += (
-                C_a
-                * np.sum(scores[(known_labels == Label.ANOMALY) & (scores >= 0)])
-                / anomaly_count
-            )
+            loss += C_a * np.sum(scores[(known_labels == Label.ANOMALY) & (scores >= 0)]) / anomaly_count
         if nominal_count:
             # Add for nominals in "anomalous" subsample we add their inverse scores (positive number).
-            l -= (
-                np.sum(scores[(known_labels == Label.REGULAR) & (scores <= 0)])
-                / nominal_count
-            )
+            loss -= np.sum(scores[(known_labels == Label.REGULAR) & (scores <= 0)]) / nominal_count
         delta_weights = weights - prior_weights
-        l += 0.5 * prior_influence * np.inner(delta_weights, delta_weights)
+        loss += 0.5 * prior_influence * np.inner(delta_weights, delta_weights)
 
-        return l
+        return loss
 
     def loss_gradient(
         self,
@@ -112,13 +100,9 @@ class AADEvaluator(ConiferestEvaluator):
 
         sample_weights = np.zeros(known_data.shape[0])
         if anomaly_count:
-            sample_weights[(known_labels == Label.ANOMALY) & (scores >= 0)] = (
-                C_a / anomaly_count
-            )
+            sample_weights[(known_labels == Label.ANOMALY) & (scores >= 0)] = C_a / anomaly_count
         if nominal_count:
-            sample_weights[(known_labels == Label.REGULAR) & (scores <= 0)] = (
-                -1.0 / nominal_count
-            )
+            sample_weights[(known_labels == Label.REGULAR) & (scores <= 0)] = -1.0 / nominal_count
 
         grad = calc_paths_sum_transpose(
             self.selectors,

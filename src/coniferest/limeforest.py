@@ -1,6 +1,7 @@
 import numpy as np
-from .utils import average_path_length
+
 from .evaluator import ForestEvaluator
+from .utils import average_path_length
 
 # Not very useful classes at the moment.
 # Implemented purely with the educational purpose.
@@ -130,9 +131,7 @@ class LimeEvaluator(ForestEvaluator):
         if self.trees < 1:
             raise ValueError("a forest without trees?")
 
-        selectors, indices, leaf_count = self.combine_selectors(
-            [self.extract_selectors(pine) for pine in pines]
-        )
+        selectors, indices, leaf_count = self.combine_selectors([self.extract_selectors(pine) for pine in pines])
 
         super(LimeEvaluator, self).__init__(
             samples=pine_forest.subsamples,

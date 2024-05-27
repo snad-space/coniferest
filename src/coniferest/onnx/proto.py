@@ -1,4 +1,3 @@
-from onnx import defs
 from onnxconverter_common import onnx_ex
 
 

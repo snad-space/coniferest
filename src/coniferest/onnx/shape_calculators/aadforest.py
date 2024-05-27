@@ -1,8 +1,8 @@
-from onnxconverter_common.registration import register_shape_calculator
 from onnxconverter_common.data_types import FloatTensorType
+from onnxconverter_common.registration import register_shape_calculator
 from onnxconverter_common.utils import (
-    check_input_and_output_types,
     check_input_and_output_numbers,
+    check_input_and_output_types,
 )
 
 

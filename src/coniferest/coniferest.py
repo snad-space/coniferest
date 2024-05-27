@@ -1,18 +1,15 @@
 from abc import ABC, abstractmethod
+from warnings import warn
 
 import numpy as np
-
-import sklearn
+from sklearn.ensemble._bagging import _generate_indices  # noqa
 from sklearn.tree._criterion import MSE  # noqa
 from sklearn.tree._splitter import RandomSplitter  # noqa
-from sklearn.tree._tree import Tree, DepthFirstTreeBuilder  # noqa
-from sklearn.ensemble._bagging import _generate_indices  # noqa
+from sklearn.tree._tree import DepthFirstTreeBuilder, Tree  # noqa
 from sklearn.utils.validation import check_random_state
 
 from .evaluator import ForestEvaluator
 from .utils import average_path_length
-from warnings import warn
-
 
 __all__ = ["Coniferest", "ConiferestEvaluator"]
 
@@ -47,9 +44,7 @@ class Coniferest(ABC):
         Seed for the reproducibility. If None, then random seed is used.
     """
 
-    def __init__(
-        self, trees=None, n_subsamples=256, max_depth=None, n_jobs=-1, random_seed=None
-    ):
+    def __init__(self, trees=None, n_subsamples=256, max_depth=None, n_jobs=-1, random_seed=None):
         self.trees = trees or []
         self.n_subsamples = n_subsamples
         self.max_depth = max_depth or int(np.log2(n_subsamples))
@@ -161,9 +156,7 @@ class Coniferest(ABC):
 
         # Initialize the tree
         n_samples, n_features = data.shape
-        tree = Tree(
-            n_features, np.array([1] * self.n_outputs, dtype=np.int64), self.n_outputs
-        )
+        tree = Tree(n_features, np.array([1] * self.n_outputs, dtype=np.int64), self.n_outputs)
 
         # Cause of sklearn bugs we cannot do this:
         # y = np.zeros((n_samples, self.n_outputs))
@@ -223,9 +216,7 @@ class ConiferestEvaluator(ForestEvaluator):
     """
 
     def __init__(self, coniferest, map_value=None):
-        selectors_list = [
-            self.extract_selectors(t, map_value) for t in coniferest.trees
-        ]
+        selectors_list = [self.extract_selectors(t, map_value) for t in coniferest.trees]
         selectors, indices, leaf_count = self.combine_selectors(selectors_list)
 
         super().__init__(

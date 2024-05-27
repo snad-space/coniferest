@@ -1,6 +1,5 @@
 from .coniferest import Coniferest, ConiferestEvaluator
 
-
 __all__ = ["IsolationForest"]
 
 

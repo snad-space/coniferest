@@ -1,1 +1,1 @@
-from . import aadforest
+from . import aadforest  # noqa: F401

@@ -1,9 +1,6 @@
-import click
 import webbrowser
 
-from typing import List, Optional
-
-import numpy as np
+import click
 
 from coniferest.datasets import Label
 

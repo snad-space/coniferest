@@ -1,5 +1,6 @@
+from typing import Optional
+
 import numpy as np
-from typing import List, Optional
 
 from coniferest.coniferest import Coniferest
 from coniferest.label import Label
@@ -73,11 +74,7 @@ def create_oracle_session(
     OracleSession
     """
     n_anomalies = np.sum(labels == Label.ANOMALY)
-    max_iterations = (
-        min(n_anomalies * 5.0, len(labels))
-        if max_iterations is None
-        else max_iterations
-    )
+    max_iterations = min(n_anomalies * 5.0, len(labels)) if max_iterations is None else max_iterations
 
     return OracleSession(
         data,

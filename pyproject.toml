@@ -69,6 +69,13 @@ markers = [
 ]
 addopts = "--benchmark-min-time=0.1 --benchmark-max-time=5.0 --benchmark-min-rounds=5 --benchmark-sort=mean --benchmark-disable --doctest-modules"
 
+[tool.ruff]
+line-length = 120
+exclude = ["docs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "A"]
+
 [tool.tox]
 legacy_tox_ini = """
 [tox]

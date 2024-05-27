@@ -1,8 +1,8 @@
-from ._container import ConiferestModelContainer
-from onnxconverter_common.topology import Topology
 from onnxconverter_common.data_types import FloatTensorType
+from onnxconverter_common.topology import Topology
 
 from ..aadforest import AADForest
+from ._container import ConiferestModelContainer
 
 
 def _get_coniferest_operator_name(model):
@@ -13,9 +13,7 @@ def _get_coniferest_operator_name(model):
 
 
 def _parse_coniferest(scope, model, inputs):
-    this_operator = scope.declare_local_operator(
-        _get_coniferest_operator_name(model), model
-    )
+    this_operator = scope.declare_local_operator(_get_coniferest_operator_name(model), model)
     this_operator.inputs = inputs
 
     # FIXME: probably another variable is required for anomality label

@@ -1,8 +1,8 @@
 import joblib
 import numpy as np
-from .utils import average_path_length
-from .calc_paths_sum import calc_paths_sum, calc_feature_delta_sum  # noqa
 
+from .calc_paths_sum import calc_feature_delta_sum, calc_paths_sum  # noqa
+from .utils import average_path_length
 
 __all__ = ["ForestEvaluator"]
 
@@ -113,9 +113,7 @@ class ForestEvaluator:
         return -(
             2
             ** (
-                -calc_paths_sum(
-                    self.selectors, self.indices, x, num_threads=self.num_threads
-                )
+                -calc_paths_sum(self.selectors, self.indices, x, num_threads=self.num_threads)
                 / (self.average_path_length(self.samples) * trees)
             )
         )
@@ -124,9 +122,7 @@ class ForestEvaluator:
         if not x.flags["C_CONTIGUOUS"]:
             x = np.ascontiguousarray(x)
 
-        return calc_feature_delta_sum(
-            self.selectors, self.indices, x, num_threads=self.num_threads
-        )
+        return calc_feature_delta_sum(self.selectors, self.indices, x, num_threads=self.num_threads)
 
     def feature_signature(self, x):
         delta_sum, hit_count = self._feature_delta_sum(x)
@@ -136,11 +132,7 @@ class ForestEvaluator:
     def feature_importance(self, x):
         delta_sum, hit_count = self._feature_delta_sum(x)
 
-        return (
-            np.sum(delta_sum, axis=0)
-            / np.sum(hit_count, axis=0)
-            / self.average_path_length(self.samples)
-        )
+        return np.sum(delta_sum, axis=0) / np.sum(hit_count, axis=0) / self.average_path_length(self.samples)
 
     @classmethod
     def average_path_length(cls, n_nodes):

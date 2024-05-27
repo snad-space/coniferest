@@ -1,6 +1,5 @@
 import numpy as np
 
-
 __all__ = ["average_path_length"]
 
 

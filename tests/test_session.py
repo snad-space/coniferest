@@ -1,8 +1,7 @@
 import numpy as np
 import pytest
-
 from coniferest.aadforest import AADForest
-from coniferest.datasets import ztf_m31, non_anomalous_outliers
+from coniferest.datasets import non_anomalous_outliers, ztf_m31
 from coniferest.label import Label
 from coniferest.pineforest import PineForest
 from coniferest.session import Session

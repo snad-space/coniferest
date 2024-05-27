@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-
 from coniferest.aadforest import AADForest
 from coniferest.datasets import single_outlier
 from coniferest.label import Label
@@ -60,9 +59,7 @@ def test_regression_fit_known(regression_data):
     forest.fit_known(data, known_data=known_data, known_labels=known_labels)
     scores = forest.score_samples(data)
 
-    assert not np.allclose(
-        pre_fit_known_scores, scores, rtol=1e-3
-    ), "Scores must change after fit_known"
+    assert not np.allclose(pre_fit_known_scores, scores, rtol=1e-3), "Scores must change after fit_known"
 
     regression_data.assert_allclose(scores)
 
@@ -94,9 +91,7 @@ def test_benchmark_fit_known(n_jobs, benchmark):
 @pytest.mark.parametrize("n_samples", [1 << 10, 1 << 16])
 @pytest.mark.parametrize("n_trees", [1 << 10, 1 << 14])
 def test_benchmark_loss_gradient(n_samples, n_trees, n_jobs, benchmark):
-    benchmark.group = (
-        f"AADEvaluator.loss_graident {n_samples = :6d} {n_trees = :4d}, {n_jobs = :2d}"
-    )
+    benchmark.group = f"AADEvaluator.loss_graident {n_samples = :6d} {n_trees = :4d}, {n_jobs = :2d}"
     benchmark.name = "coniferest.aadforest.AADEvaluator"
 
     random_seed = 0

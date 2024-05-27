@@ -32,9 +32,7 @@ def get_leaf_weight(tree_id, node_id, parents, model):
     return weight * value
 
 
-def add_node(
-    attr_pairs, tree_id, node_id, feature_id, mode, value, true_child_id, false_child_id
-):
+def add_node(attr_pairs, tree_id, node_id, feature_id, mode, value, true_child_id, false_child_id):
     attr_pairs["nodes_treeids"].append(tree_id)
     attr_pairs["nodes_nodeids"].append(node_id)
     attr_pairs["nodes_featureids"].append(feature_id)

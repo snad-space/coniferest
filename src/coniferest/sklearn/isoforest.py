@@ -1,4 +1,5 @@
 import numpy as np
+
 from ..evaluator import ForestEvaluator
 
 
@@ -39,9 +40,7 @@ class IsolationForestEvaluator(ForestEvaluator):
 
         def correct_values(i, depth):
             if selectors[i]["feature"] < 0:
-                selectors[i]["value"] = depth + cls.average_path_length(
-                    n_node_samples[i]
-                )
+                selectors[i]["value"] = depth + cls.average_path_length(n_node_samples[i])
             else:
                 correct_values(selectors[i]["left"], depth + 1)
                 correct_values(selectors[i]["right"], depth + 1)
