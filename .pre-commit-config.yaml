@@ -1,17 +1,22 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
     hooks:
-    -   id: check-toml
-    -   id: check-yaml
-    -   id: check-added-large-files
-    -   id: mixed-line-ending # replaces or checks mixed line ending
-    -   id: check-symlinks # checks for symlinks which do not point to anything
-    -   id: check-case-conflict # checks for files that would conflict in case-insensitive filesystems
-    # Git
-    -   id: check-merge-conflict # checks for files that contain merge conflict strings
-    # Python
-    -   id: check-docstring-first # checks a common error of defining a docstring after code
-    -   id: debug-statements # checks for debugger imports and py37+ `breakpoint()` calls in python source
+      - id: check-toml
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: mixed-line-ending # replaces or checks mixed line ending
+      - id: check-symlinks # checks for symlinks which do not point to anything
+      - id: check-case-conflict # checks for files that would conflict in case-insensitive filesystems
+      # Git
+      - id: check-merge-conflict # checks for files that contain merge conflict strings
+      # Python
+      - id: check-docstring-first # checks a common error of defining a docstring after code
+      - id: debug-statements # checks for debugger imports and py37+ `breakpoint()` calls in python source
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.4.5
+    hooks:
+      - id: ruff-format
