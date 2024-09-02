@@ -4,6 +4,7 @@ sys.path.append("..")
 
 import numpy as np
 import plotext as plt
+
 from coniferest.datasets import Label, MalanchevDataset
 from coniferest.pineforest import PineForest
 

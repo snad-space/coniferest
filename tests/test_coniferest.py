@@ -2,9 +2,10 @@ from typing import List
 
 import numpy as np
 import pytest
-from coniferest.coniferest import Coniferest
 from numpy.testing import assert_equal
 from sklearn.tree._tree import Tree
+
+from coniferest.coniferest import Coniferest
 
 
 class ConiferestImpl(Coniferest):
