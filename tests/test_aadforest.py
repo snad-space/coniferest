@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+
 from coniferest.aadforest import AADForest
 from coniferest.datasets import single_outlier
 from coniferest.label import Label

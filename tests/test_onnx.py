@@ -1,6 +1,7 @@
 import numpy as np
 import onnx
 import onnxruntime as rt
+
 from coniferest.aadforest import AADForest
 from coniferest.datasets import single_outlier
 from coniferest.onnx import to_onnx

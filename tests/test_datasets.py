@@ -1,6 +1,7 @@
 import numpy as np
-from coniferest.datasets import dev_net_dataset, plasticc_gp, ztf_m31
 from numpy.testing import assert_allclose, assert_array_equal
+
+from coniferest.datasets import dev_net_dataset, plasticc_gp, ztf_m31
 
 
 def test_ztf_m31():
