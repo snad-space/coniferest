@@ -9,7 +9,6 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "coniferest"
-version = "0.0.14"
 description = "Coniferous forests for better machine learning"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -37,6 +36,7 @@ dependencies = [
     "matplotlib",
     "onnxconverter-common",
 ]
+dynamic = ["version"]
 
 [project.optional-dependencies]
 datasets = [
@@ -56,6 +56,9 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.dynamic]
+version = {attr = "coniferest.__version__"}
 
 [tool.pytest.ini_options]
 testpaths = [
