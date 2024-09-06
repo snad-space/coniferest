@@ -49,3 +49,9 @@ cdef void _feature_delta_sum(selector_t [::1] selectors,
                              np.float64_t [:, ::1] delta_sum,
                              np.int64_t [:, ::1] hit_count,
                              int num_threads=*)
+
+cdef void _apply(selector_t [::1] selectors,
+                 np.int64_t [::1] indices,
+                 floating [:, ::1] data,
+                 np.int64_t [:, ::1] leafs,
+                 int num_threads=*)

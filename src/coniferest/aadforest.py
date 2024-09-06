@@ -338,3 +338,20 @@ class AADForest(Coniferest):
 
     def feature_importance(self, x):
         raise NotImplementedError()
+
+    def apply(self, x):
+        """
+        Apply the forest to X, return leaf indices.
+
+        Parameters
+        ----------
+        x : ndarray shape (n_samples, n_features)
+            2-d array with features.
+
+        Returns
+        -------
+        x_leafs : ndarray of shape (n_samples, n_estimators)
+            For each datapoint x in X and for each tree in the forest,
+            return the index of the leaf x ends up in.
+        """
+        return self.evaluator.apply(x)

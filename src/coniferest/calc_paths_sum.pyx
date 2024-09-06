@@ -66,6 +66,19 @@ def calc_feature_delta_sum(selector_t [::1] selectors,
     _feature_delta_sum(selectors, indices, data, delta_sum_view, hit_count_view, num_threads)
     return delta_sum, hit_count
 
+def calc_apply(selector_t [::1] selectors, np.int64_t [::1] indices, floating [:, ::1] data, int num_threads=1):
+    cdef np.ndarray [np.int64_t, ndim=2] leafs = np.zeros([data.shape[0], indices.shape[0] - 1], dtype=np.int64)
+    cdef np.int64_t [:, ::1] leafs_view = leafs
+    cdef Py_ssize_t sellen = selectors.shape[0]
+
+    if np.any(np.diff(indices) < 0):
+        raise ValueError('indices should be an increasing sequence')
+
+    if indices[-1] > sellen:
+        raise ValueError('indices are out of range of the selectors')
+
+    _apply(selectors, indices, data, leafs_view, num_threads)
+    return leafs
 
 
 
@@ -187,3 +200,39 @@ cdef void _feature_delta_sum(selector_t [::1] selectors,
 
                     delta_sum[x_index, feature] += 1.0 + 2.0 * (child_selector.log_n_node_samples - selector.log_n_node_samples)
                     hit_count[x_index, feature] += 1
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef void _apply(selector_t [::1] selectors,
+                 np.int64_t [::1] indices,
+                 floating [:, ::1] data,
+                 np.int64_t [:, ::1] leafs,
+                 int num_threads=1):
+
+    cdef Py_ssize_t trees
+    cdef Py_ssize_t tree_index
+    cdef Py_ssize_t x_index
+    cdef selector_t selector
+    cdef Py_ssize_t tree_offset
+    cdef np.int32_t feature, i
+
+    with nogil, parallel(num_threads=num_threads):
+        trees = indices.shape[0] - 1
+
+        for x_index in prange(data.shape[0], schedule='static'):
+            for tree_index in range(trees):
+                tree_offset = indices[tree_index]
+                i = 0
+                while True:
+                    selector = selectors[tree_offset + i]
+                    feature = selector.feature
+                    if feature < 0:
+                        break
+
+                    if data[x_index, feature] <= selector.value:
+                        i = selector.left
+                    else:
+                        i = selector.right
+
+                leafs[x_index, tree_index] = tree_offset + i

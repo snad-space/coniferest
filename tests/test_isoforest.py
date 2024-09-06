@@ -111,6 +111,29 @@ def test_reproducibility():
     assert_forest_scores(forest1, forest2, n_features=n_features)
 
 
+def test_apply():
+    n_features = 16
+    n_trees = 100
+    n_subsamples = 256
+
+    random_seed = np.random.randint(1 << 16)
+    rng = np.random.default_rng(random_seed)
+    data = rng.standard_normal((n_trees * n_subsamples, n_features))
+
+    forest = IsolationForest(
+        n_trees=n_trees,
+        n_subsamples=n_subsamples,
+        max_depth=None,
+        random_seed=random_seed,
+    )
+
+    forest.fit(data)
+
+    scores = np.sum(forest.evaluator.selectors[forest.apply(data)]["value"], axis=1)
+    scores = -(2 ** (-scores / (forest.evaluator.average_path_length(n_subsamples) * n_trees)))
+    assert_allclose(forest.score_samples(data), scores)
+
+
 @pytest.mark.regression
 def test_regression(regression_data):
     random_seed = 0

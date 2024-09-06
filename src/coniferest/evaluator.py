@@ -1,7 +1,7 @@
 import joblib
 import numpy as np
 
-from .calc_paths_sum import calc_feature_delta_sum, calc_paths_sum  # noqa
+from .calc_paths_sum import calc_apply, calc_feature_delta_sum, calc_paths_sum  # noqa
 from .utils import average_path_length
 
 __all__ = ["ForestEvaluator"]
@@ -133,6 +133,12 @@ class ForestEvaluator:
         delta_sum, hit_count = self._feature_delta_sum(x)
 
         return np.sum(delta_sum, axis=0) / np.sum(hit_count, axis=0) / self.average_path_length(self.samples)
+
+    def apply(self, x):
+        if not x.flags["C_CONTIGUOUS"]:
+            x = np.ascontiguousarray(x)
+
+        return calc_apply(self.selectors, self.indices, x, num_threads=self.num_threads)
 
     @classmethod
     def average_path_length(cls, n_nodes):
