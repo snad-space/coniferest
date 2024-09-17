@@ -129,7 +129,10 @@ def test_apply():
 
     forest.fit(data)
 
-    scores = np.sum(forest.evaluator.selectors[forest.apply(data)]["value"], axis=1)
+    leafs = forest.apply(data)
+    selectors = forest.evaluator.selectors
+    leaf_mask = selectors["feature"] < 0
+    scores = np.sum(selectors[leaf_mask][leafs]["value"], axis=1)
     scores = -(2 ** (-scores / (forest.evaluator.average_path_length(n_subsamples) * n_trees)))
     assert_allclose(forest.score_samples(data), scores)
 

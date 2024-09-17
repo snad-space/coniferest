@@ -235,4 +235,4 @@ cdef void _apply(selector_t [::1] selectors,
                     else:
                         i = selector.right
 
-                leafs[x_index, tree_index] = tree_offset + i
+                leafs[x_index, tree_index] = selector.left
