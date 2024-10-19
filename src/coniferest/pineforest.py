@@ -147,7 +147,7 @@ class PineForest(Coniferest):
         # If no labels were supplied, train with them.
         if labels is None:
             self.fit_known(data)
-            return
+            return self
 
         # Otherwise select known data, and train on it.
         labels = np.asarray(labels)
