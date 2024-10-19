@@ -16,3 +16,11 @@ coniferest.session.callback module
    :members:
    :undoc-members:
    :show-inheritance:
+
+coniferest.session.oracle module
+----------------------------------
+
+.. automodule:: coniferest.session.oracle
+   :members:
+   :undoc-members:
+   :show-inheritance:
