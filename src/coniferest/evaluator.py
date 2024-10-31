@@ -18,7 +18,7 @@ class ForestEvaluator:
         ]
     )
 
-    def __init__(self, samples, selectors, indices, leaf_count, *, num_threads):
+    def __init__(self, samples, selectors, indices, leaf_count, *, num_threads, chunksize):
         """
         Base class for the forest evaluators. Does the trivial job:
         * runs calc_paths_sum written in cython,
@@ -42,6 +42,9 @@ class ForestEvaluator:
 
         num_threads : int or None
             Number of threads to use for calculations. If None then
+
+        chunksize : int or None
+            Size of the chunk to use for multithreading calculations.
         """
         self.samples = samples
 
@@ -56,6 +59,11 @@ class ForestEvaluator:
             self.num_threads = joblib.cpu_count()
         else:
             self.num_threads = num_threads
+
+        if chunksize is not None:
+            self.chunksize = chunksize
+        else:
+            self.chunksize = 0
 
     @classmethod
     def combine_selectors(cls, selectors_list):
@@ -113,7 +121,7 @@ class ForestEvaluator:
         return -(
             2
             ** (
-                -calc_paths_sum(self.selectors, self.indices, x, num_threads=self.num_threads)
+                -calc_paths_sum(self.selectors, self.indices, x, num_threads=self.num_threads, chunksize=self.chunksize)
                 / (self.average_path_length(self.samples) * trees)
             )
         )
@@ -122,7 +130,7 @@ class ForestEvaluator:
         if not x.flags["C_CONTIGUOUS"]:
             x = np.ascontiguousarray(x)
 
-        return calc_feature_delta_sum(self.selectors, self.indices, x, num_threads=self.num_threads)
+        return calc_feature_delta_sum(self.selectors, self.indices, x, num_threads=self.num_threads, chunksize=self.chunksize)
 
     def feature_signature(self, x):
         delta_sum, hit_count = self._feature_delta_sum(x)
@@ -138,7 +146,7 @@ class ForestEvaluator:
         if not x.flags["C_CONTIGUOUS"]:
             x = np.ascontiguousarray(x)
 
-        return calc_apply(self.selectors, self.indices, x, num_threads=self.num_threads)
+        return calc_apply(self.selectors, self.indices, x, num_threads=self.num_threads, chunksize=self.chunksize)
 
     @classmethod
     def average_path_length(cls, n_nodes):

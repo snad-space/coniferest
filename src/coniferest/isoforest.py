@@ -25,6 +25,9 @@ class IsolationForest(Coniferest):
     n_jobs : int or None, optional
         Number of threads to use for evaluation. If None, use all available CPUs.
 
+    chunksize : int, optional
+        Size of the chunk to use for multithreading calculations. If 0, then automatic numer is used.
+
     random_seed : int or None, optional
         Seed for reproducibility. If None, random seed is used.
     """
@@ -35,6 +38,7 @@ class IsolationForest(Coniferest):
         n_subsamples=256,
         max_depth=None,
         n_jobs=None,
+        chunksize=None,
         random_seed=None,
     ):
         super().__init__(
@@ -42,6 +46,7 @@ class IsolationForest(Coniferest):
             n_subsamples=n_subsamples,
             max_depth=max_depth,
             n_jobs=n_jobs,
+            chunksize=chunksize,
             random_seed=random_seed,
         )
         self.n_trees = n_trees

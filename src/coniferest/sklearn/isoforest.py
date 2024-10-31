@@ -22,6 +22,7 @@ class IsolationForestEvaluator(ForestEvaluator):
             indices=indices,
             leaf_count=leaf_count,
             num_threads=isoforest.n_jobs,
+            chunksize=None,
         )
 
     @classmethod

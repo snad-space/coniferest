@@ -49,6 +49,9 @@ class PineForest(Coniferest):
     n_jobs : int, optional
         Number of threads to use for scoring. If None - number of CPUs is used.
 
+    chunksize : int, optional
+        Size of the chunk to use for multithreading calculations. If 0, then automatic numer is used.
+
     random_seed : int or None, optional
         Random seed. If None - random seed is used.
     """
@@ -62,6 +65,7 @@ class PineForest(Coniferest):
         regenerate_trees=False,
         weight_ratio=1.0,
         n_jobs=None,
+        chunksize=None,
         random_seed=None,
     ):
         super().__init__(
@@ -69,6 +73,7 @@ class PineForest(Coniferest):
             n_subsamples=n_subsamples,
             max_depth=max_depth,
             n_jobs=n_jobs,
+            chunksize=chunksize,
             random_seed=random_seed,
         )
         self.n_trees = n_trees

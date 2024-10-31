@@ -37,7 +37,7 @@ class AADEvaluator(ConiferestEvaluator):
         if weights is None:
             weights = self.weights
 
-        return calc_paths_sum(self.selectors, self.indices, x, weights, num_threads=self.num_threads)
+        return calc_paths_sum(self.selectors, self.indices, x, weights, num_threads=self.num_threads, chunksize=self.chunksize)
 
     def loss(
         self,
@@ -111,6 +111,7 @@ class AADEvaluator(ConiferestEvaluator):
             self.leaf_count,
             sample_weights,
             num_threads=self.num_threads,
+            chunksize=self.chunksize,
         )
         delta_weights = weights - prior_weights
         grad += prior_influence * delta_weights
@@ -153,6 +154,9 @@ class AADForest(Coniferest):
     n_jobs : int or None, optional
         Number of threads to use for scoring. If None - all available CPUs are used.
 
+    chunksize : int, optional
+        Size of the chunk to use for multithreading calculations. If 0, then automatic numer is used.
+
     random_seed : int or None, optional
         Random seed to use for reproducibility. If None - random seed is used.
 
@@ -170,6 +174,7 @@ class AADForest(Coniferest):
         C_a=1.0,
         prior_influence=1.0,
         n_jobs=None,
+        chunksize=None,
         random_seed=None,
     ):
         super().__init__(
@@ -177,6 +182,7 @@ class AADForest(Coniferest):
             n_subsamples=n_subsamples,
             max_depth=max_depth,
             n_jobs=n_jobs,
+            chunksize=chunksize,
             random_seed=random_seed,
         )
         self.n_trees = n_trees
