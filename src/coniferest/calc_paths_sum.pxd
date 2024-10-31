@@ -33,25 +33,29 @@ cdef void _paths_sum(selector_t [::1] selectors,
                      np.int64_t [::1] indices,
                      floating [:, ::1] data,
                      np.float64_t [::1] paths,
-                     np.float64_t [::1] weights=*,
-                     int num_threads=*)
+                     np.float64_t [::1] weights,
+                     int num_threads,
+                     int chunksize)
 
 cdef void _paths_sum_transpose(selector_t [::1] selectors,
                                np.int64_t [::1] indices,
                                floating [:, ::1] data,
                                np.float64_t [::1] values,
-                               np.float64_t [::1] weights=*,
-                               int num_threads=*)
+                               np.float64_t [::1] weights,
+                               int num_threads,
+                               int chunksize)
 
 cdef void _feature_delta_sum(selector_t [::1] selectors,
                              np.int64_t [::1] indices,
                              floating [:, ::1] data,
                              np.float64_t [:, ::1] delta_sum,
                              np.int64_t [:, ::1] hit_count,
-                             int num_threads=*)
+                             int num_threads,
+                             int chunksize)
 
 cdef void _apply(selector_t [::1] selectors,
                  np.int64_t [::1] indices,
                  floating [:, ::1] data,
                  np.int64_t [:, ::1] leafs,
-                 int num_threads=*)
+                 int num_threads,
+                 int chunksize)
