@@ -18,6 +18,7 @@ Install the package with `pip install coniferest`.
 
 See the documentation for the [**Tutorial**](https://coniferest.readthedocs.io/en/latest/tutorial.html).
 
+[![asciicast](https://asciinema.org/a/686647.svg)](https://asciinema.org/a/686647?autoplay=1)
 
 ### Installation
 
