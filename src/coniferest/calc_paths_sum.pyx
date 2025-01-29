@@ -1,8 +1,11 @@
+# cython: profile=True
+
 import numpy as np
 from cython.parallel cimport prange, parallel
 
 cimport numpy as np
 cimport cython
+cimport openmp
 
 
 def calc_paths_sum(selector_t [::1] selectors,
@@ -20,6 +23,9 @@ def calc_paths_sum(selector_t [::1] selectors,
 
     if indices[-1] > sellen:
         raise ValueError('indices are out of range of the selectors')
+
+    if num_threads < 0:
+        num_threads = openmp.omp_get_max_threads()
 
     _paths_sum(selectors, indices, data, paths_view, weights, num_threads, chunksize)
     return paths
@@ -101,8 +107,9 @@ cdef void _paths_sum(selector_t [::1] selectors,
     cdef selector_t selector
     cdef Py_ssize_t tree_offset
     cdef np.int32_t feature, i
+    cdef int use_threads_if = (2 * num_threads < data.shape[0])
 
-    with nogil, parallel(num_threads=num_threads):
+    with nogil, parallel(num_threads=num_threads, use_threads_if=use_threads_if):
         trees = indices.shape[0] - 1
 
         for x_index in prange(data.shape[0], schedule='static', chunksize=chunksize):
