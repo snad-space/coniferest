@@ -1,4 +1,4 @@
-# coniferest
+<img align="left" src="https://github.com/mayamolodec/coniferest/blob/logo/images/CF_logo_green_sign_universal.svg" width="260">  <br> <br> <br> <br> <br> <br>
 
 [![PyPI version](https://badge.fury.io/py/coniferest.svg)](https://pypi.org/project/coniferest/)
 [![Documentation Status](https://readthedocs.org/projects/coniferest/badge/?version=latest)](https://coniferest.readthedocs.io/en/latest/?badge=latest)
