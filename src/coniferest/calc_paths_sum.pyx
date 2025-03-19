@@ -101,17 +101,15 @@ cdef void _paths_sum(selector_t [::1] selectors,
                      int num_threads,
                      int chunksize):
 
-    cdef Py_ssize_t trees
+    cdef Py_ssize_t trees = indices.shape[0] - 1
     cdef Py_ssize_t tree_index
     cdef Py_ssize_t x_index
     cdef selector_t selector
     cdef Py_ssize_t tree_offset
     cdef np.int32_t feature, i
-    cdef int use_threads_if = (2 * num_threads < data.shape[0])
+    cdef int use_threads_if = (200 * num_threads < data.shape[0] * trees)
 
     with nogil, parallel(num_threads=num_threads, use_threads_if=use_threads_if):
-        trees = indices.shape[0] - 1
-
         for x_index in prange(data.shape[0], schedule='static', chunksize=chunksize):
             for tree_index in range(trees):
                 tree_offset = indices[tree_index]
