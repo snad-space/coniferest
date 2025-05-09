@@ -45,6 +45,15 @@ trait DataTrait<'py> {
         num_threads: usize,
         batch_size: usize,
     ) -> PyResult<DeltaSumHitCount<'py>>;
+
+    fn calc_apply(
+        &self,
+        py: Python<'py>,
+        selectors: Bound<'py, PyArray1<Selector>>,
+        node_offsets: Bound<'py, PyArray1<usize>>,
+        num_threads: usize,
+        batch_size: usize,
+    ) -> PyResult<Bound<'py, PyArray2<i32>>>;
 }
 
 impl<'py, T> DataTrait<'py> for Bound<'py, PyArray2<T>>
@@ -201,6 +210,47 @@ where
             (delta_sum, hit_count)
         })
     }
+
+    fn calc_apply(
+        &self,
+        py: Python<'py>,
+        selectors: Bound<'py, PyArray1<Selector>>,
+        node_offsets: Bound<'py, PyArray1<usize>>,
+        num_threads: usize,
+        batch_size: usize,
+    ) -> PyResult<Bound<'py, PyArray2<i32>>> {
+        let selectors = selectors.readonly();
+        let selectors_view = selectors.as_array();
+        check_selectors(selectors_view)?;
+
+        let node_offsets = node_offsets.readonly();
+        let node_offsets_view = node_offsets.as_array();
+        check_node_offsets(node_offsets_view, selectors.len()?)?;
+
+        let data = self.readonly();
+        let data_view = data.as_array();
+        check_data(data_view)?;
+
+        let num_threads = get_num_threads(data_view.nrows(), num_threads, batch_size)?;
+
+        Ok({
+            let leafs =
+                PyArray2::zeros_bound(py, (data_view.nrows(), node_offsets_view.len() - 1), false);
+            // SAFETY: this call invalidates other views, but it is the only view we need
+            let leafs_view = unsafe { leafs.as_array_mut() };
+
+            calc_apply_impl(
+                selectors_view,
+                node_offsets_view,
+                data_view,
+                num_threads,
+                batch_size,
+                leafs_view,
+            );
+
+            leafs
+        })
+    }
 }
 
 #[enum_dispatch(DataTrait)]
@@ -260,11 +310,12 @@ fn check_node_offsets(node_offsets: ArrayView1<usize>, selectors_length: usize) 
             }
         }
         if node_offsets[node_offsets.len() - 1] > selectors_length {
-            return Err(PyValueError::new_err(
+            Err(PyValueError::new_err(
                 "node_offsets are out of range of the selectors",
-            ));
+            ))
+        } else {
+            Ok(())
         }
-        Ok(())
     } else {
         Err(PyValueError::new_err(
             "node_offsets must be contiguous and in memory order",
@@ -567,6 +618,65 @@ fn calc_feature_delta_sum_impl<T>(
                         inner_fn(sample, delta_sum_row, hit_count_row)
                     },
                 );
+            });
+    }
+}
+
+#[pyfunction]
+#[pyo3(signature = (selectors, node_offsets, data, *, num_threads, batch_size))]
+pub(crate) fn calc_apply<'py>(
+    py: Python<'py>,
+    selectors: Bound<'py, PyArray1<Selector>>,
+    node_offsets: Bound<'py, PyArray1<usize>>,
+    data: Data<'py>,
+    num_threads: usize,
+    batch_size: usize,
+) -> PyResult<Bound<'py, PyArray2<i32>>> {
+    data.calc_apply(py, selectors, node_offsets, num_threads, batch_size)
+}
+
+fn calc_apply_impl<T>(
+    selectors: ArrayView1<Selector>,
+    node_offsets: ArrayView1<usize>,
+    data: ArrayView2<T>,
+    num_threads: usize,
+    batch_size: usize,
+    mut leafs: ArrayViewMut2<i32>,
+) where
+    T: Copy + Send + Sync + PartialOrd + 'static,
+    f64: AsPrimitive<T>,
+{
+    let node_offsets = node_offsets.as_slice().unwrap();
+    let selectors = selectors.as_slice().unwrap();
+
+    let inner_fn = |sample: ArrayView1<T>, mut sample_leafs: ArrayViewMut1<i32>| {
+        let sample_slice = sample.as_slice().unwrap();
+        let leafs_slice = sample_leafs.as_slice_mut().unwrap();
+        for ((tree_start, tree_end), leaf_id) in node_offsets
+            .iter()
+            .copied()
+            .tuple_windows()
+            .zip(leafs_slice.iter_mut())
+        {
+            let tree_selectors = unsafe { selectors.get_unchecked(tree_start..tree_end) };
+            let leaf = find_leaf(tree_selectors, sample_slice);
+            *leaf_id = leaf.left;
+        }
+    };
+
+    let zip = Zip::from(data.rows()).and(leafs.rows_mut());
+
+    if num_threads == 1 {
+        zip.for_each(inner_fn);
+    } else {
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(num_threads)
+            .build()
+            .expect("Cannot build rayon ThreadPool")
+            .install(|| {
+                zip.into_par_iter()
+                    .with_min_len(batch_size)
+                    .for_each(|(sample, sample_leafs)| inner_fn(sample, sample_leafs));
             });
     }
 }

@@ -2,7 +2,7 @@ import math
 
 import numpy as np
 
-from .calc_paths_sum import calc_feature_delta_sum, calc_paths_sum, selector_dtype  # noqa
+from .calc_paths_sum import calc_apply, calc_feature_delta_sum, calc_paths_sum, selector_dtype  # noqa
 from .utils import average_path_length
 
 __all__ = ["ForestEvaluator"]
@@ -14,7 +14,7 @@ class ForestEvaluator:
     def __init__(self, samples, selectors, node_offsets, leaf_offsets, *, num_threads, sampletrees_per_batch):
         """
         Base class for the forest evaluators. Does the trivial job:
-        * runs calc_paths_sum written in cython,
+        * runs calc_paths_sum written in Rust,
         * helps to combine several trees' representations into two arrays.
 
         Parameters
@@ -103,7 +103,7 @@ class ForestEvaluator:
         node_offsets[1:] = np.add.accumulate(lens)
 
         for i in range(len(selectors_list)):
-            selectors[node_offsets[i]: node_offsets[i + 1]] = selectors_list[i]
+            selectors[node_offsets[i] : node_offsets[i + 1]] = selectors_list[i]
 
         # Assign a unique sequential index to every leaf
         # The index is used for weighted scores
@@ -178,12 +178,16 @@ class ForestEvaluator:
         return np.sum(delta_sum, axis=0) / np.sum(hit_count, axis=0) / self.average_path_length(self.samples)
 
     def apply(self, x):
-        raise NotImplemented("Not implemented in Rust yet")
-
         if not x.flags["C_CONTIGUOUS"]:
             x = np.ascontiguousarray(x)
 
-        return calc_apply(self.selectors, self.indices, x, num_threads=self.num_threads)
+        return calc_apply(
+            self.selectors,
+            self.node_offsets,
+            x,
+            num_threads=self.num_threads,
+            batch_size=self.get_batch_size(self.n_trees),
+        )
 
     @classmethod
     def average_path_length(cls, n_nodes):
