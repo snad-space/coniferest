@@ -88,7 +88,7 @@ where
         let num_threads = get_num_threads(data_view.nrows(), num_threads, batch_size)?;
 
         Ok({
-            let paths = PyArray1::zeros_bound(py, data_view.nrows(), false);
+            let paths = PyArray1::zeros(py, data_view.nrows(), false);
             // SAFETY: this call invalidates other views, but it is the only view we need
             let paths_view_mut = unsafe { paths.as_array_mut() };
 
@@ -138,7 +138,7 @@ where
         let num_threads = get_num_threads(data_view.ncols(), num_threads, batch_size)?;
 
         Ok({
-            let values = PyArray1::zeros_bound(
+            let values = PyArray1::zeros(
                 py,
                 *leaf_offsets_view
                     .last()
@@ -187,10 +187,8 @@ where
         let num_threads = get_num_threads(data_view.nrows(), num_threads, batch_size)?;
 
         Ok({
-            let delta_sum =
-                PyArray2::zeros_bound(py, (data_view.nrows(), data_view.ncols()), false);
-            let hit_count =
-                PyArray2::zeros_bound(py, (data_view.nrows(), data_view.ncols()), false);
+            let delta_sum = PyArray2::zeros(py, (data_view.nrows(), data_view.ncols()), false);
+            let hit_count = PyArray2::zeros(py, (data_view.nrows(), data_view.ncols()), false);
 
             // SAFETY: this call invalidates other views, but it is the only view we need
             let delta_sum_view = unsafe { delta_sum.as_array_mut() };
@@ -235,7 +233,7 @@ where
 
         Ok({
             let leafs =
-                PyArray2::zeros_bound(py, (data_view.nrows(), node_offsets_view.len() - 1), false);
+                PyArray2::zeros(py, (data_view.nrows(), node_offsets_view.len() - 1), false);
             // SAFETY: this call invalidates other views, but it is the only view we need
             let leafs_view = unsafe { leafs.as_array_mut() };
 

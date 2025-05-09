@@ -29,7 +29,7 @@ impl Selector {
     pub(crate) fn dtype(py: Python) -> PyResult<Bound<PyArrayDescr>> {
         let unbind_dtype =
             SELECTOR_DTYPE_CELL.get_or_try_init(py, || -> PyResult<_> {
-                let locals = PyDict::new_bound(py);
+                let locals = PyDict::new(py);
                 py_run!(
                     py,
                     *locals,
@@ -69,11 +69,11 @@ impl Selector {
 unsafe impl Element for Selector {
     const IS_COPY: bool = true;
 
-    fn get_dtype_bound(py: Python) -> Bound<PyArrayDescr> {
+    fn get_dtype(py: Python) -> Bound<PyArrayDescr> {
         Self::dtype(py).unwrap()
     }
 
-    fn clone_ref(&self, py: Python<'_>) -> Self {
+    fn clone_ref(&self, _py: Python<'_>) -> Self {
         self.clone()
     }
 }

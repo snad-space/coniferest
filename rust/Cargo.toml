@@ -22,10 +22,10 @@ default = ["pyo3/abi3-py39"]
 [dependencies]
 enum_dispatch = "0.3"
 itertools = "0.12"
-pyo3 = { version = "0.22", features = ["extension-module"] }
+pyo3 = { version = "0.23", features = ["extension-module"] }
 # Needs to be consistent with ndarray dependecy in numpy
 ndarray = { version = "0.16", features = ["rayon"] }
 num-traits = "0.2"
-numpy = "0.22"
+numpy = "0.23"
 # Needs to be consistent with rayon dependecy in ndarray
 rayon = "1.9"
