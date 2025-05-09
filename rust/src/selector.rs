@@ -72,4 +72,8 @@ unsafe impl Element for Selector {
     fn get_dtype_bound(py: Python) -> Bound<PyArrayDescr> {
         Self::dtype(py).unwrap()
     }
+
+    fn clone_ref(&self, py: Python<'_>) -> Self {
+        self.clone()
+    }
 }
