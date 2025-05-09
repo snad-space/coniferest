@@ -2,7 +2,7 @@ use numpy::{Element, PyArrayDescr};
 use pyo3::prelude::{PyAnyMethods, PyDictMethods};
 use pyo3::sync::GILOnceCell;
 use pyo3::types::PyDict;
-use pyo3::{py_run, Bound, Py, PyResult, Python};
+use pyo3::{Bound, Py, PyResult, Python, py_run};
 
 static SELECTOR_DTYPE_CELL: GILOnceCell<Py<PyArrayDescr>> = GILOnceCell::new();
 
