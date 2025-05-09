@@ -47,7 +47,7 @@ dev = [
 "Source Code" = "https://github.com/snad-space/coniferest"
 
 [tool.maturin]
-module-name = "coniferest.calc_paths_sum"
+module-name = "coniferest.calc_trees"
 # It asks to use Cargo.lock to make the build reproducible
 locked = true
 
