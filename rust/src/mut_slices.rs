@@ -12,7 +12,7 @@ impl<'sl, 'off, T> MutSlices<'sl, 'off, T> {
     }
 }
 
-impl<'sl, 'off, T> Iterator for MutSlices<'sl, 'off, T> {
+impl<'sl, T> Iterator for MutSlices<'sl, '_, T> {
     type Item = &'sl mut [T];
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -37,7 +37,7 @@ impl<'sl, 'off, T> Iterator for MutSlices<'sl, 'off, T> {
     }
 }
 
-impl<'sl, 'off, T> DoubleEndedIterator for MutSlices<'sl, 'off, T> {
+impl<T> DoubleEndedIterator for MutSlices<'_, '_, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         let offsets_len = self.offsets.len();
         if offsets_len <= 1 {
@@ -56,14 +56,14 @@ impl<'sl, 'off, T> DoubleEndedIterator for MutSlices<'sl, 'off, T> {
     }
 }
 
-impl<'sl, 'off, T> ExactSizeIterator for MutSlices<'sl, 'off, T> {
+impl<T> ExactSizeIterator for MutSlices<'_, '_, T> {
     fn len(&self) -> usize {
         self.offsets.len() - 1
     }
 }
 
 // Following rayon's ChunksMut implementation
-impl<'sl, 'off, T> ParallelIterator for MutSlices<'sl, 'off, T>
+impl<'sl, T> ParallelIterator for MutSlices<'sl, '_, T>
 where
     T: Send,
 {
@@ -81,7 +81,7 @@ where
     }
 }
 
-impl<'sl, 'off, T> IndexedParallelIterator for MutSlices<'sl, 'off, T>
+impl<T> IndexedParallelIterator for MutSlices<'_, '_, T>
 where
     T: Send,
 {
