@@ -4,7 +4,7 @@ from typing import Callable
 import numpy as np
 from scipy.optimize import minimize
 
-from .calc_paths_sum import calc_paths_sum, calc_paths_sum_transpose  # noqa
+from .calc_trees import calc_paths_sum, calc_paths_sum_transpose  # noqa
 from .coniferest import Coniferest, ConiferestEvaluator
 from .label import Label
 

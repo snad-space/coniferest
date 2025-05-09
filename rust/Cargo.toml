@@ -4,7 +4,7 @@ version = "0.0.16"
 edition = "2021"
 
 [lib]
-name = "coniferest"
+name = "calc_trees"
 crate-type = ["cdylib"]
 
 # We'd like to build fast code with `pip install -e '.[dev]'`
