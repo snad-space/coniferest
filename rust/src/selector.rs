@@ -74,6 +74,6 @@ unsafe impl Element for Selector {
     }
 
     fn clone_ref(&self, _py: Python<'_>) -> Self {
-        self.clone()
+        *self
     }
 }
