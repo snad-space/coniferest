@@ -8,7 +8,7 @@ use num_traits::AsPrimitive;
 use numpy::{Element, PyArray1, PyArray2, PyArrayMethods};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::PyAnyMethods;
-use pyo3::{Bound, FromPyObject, PyResult, Python, pyfunction};
+use pyo3::{pyfunction, Bound, FromPyObject, PyResult, Python};
 use rayon::prelude::*;
 
 type DeltaSumHitCount<'py> = (Bound<'py, PyArray2<f64>>, Bound<'py, PyArray2<i64>>);
