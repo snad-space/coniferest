@@ -193,7 +193,7 @@ mod tests {
 
         let sum: usize = ParallelIterator::map(slices, |slice| slice.iter().sum::<usize>()).sum();
 
-        assert_eq!(sum, data.iter().sum());
+        assert_eq!(sum, data.iter().sum::<usize>());
     }
 
     #[test]
