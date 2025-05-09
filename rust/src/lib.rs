@@ -8,7 +8,7 @@ use crate::tree_traversal::{
 };
 use pyo3::prelude::*;
 
-#[pymodule]
+#[pymodule(gil_used = false)]
 fn calc_trees(py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add("selector_dtype", Selector::dtype(py)?)?;
     m.add_function(wrap_pyfunction!(calc_paths_sum, m)?)?;
