@@ -20,10 +20,11 @@ impl<'sl, T> Iterator for MutSlices<'sl, '_, T> {
             return None;
         }
 
-        // Split slice, save right. Here we temporarily replace slice with an empty one
-        let (left, right) =
+        // Split slice, save right back.
+        // take() temporarily replaces self.slice with an empty slice
+        let left: &mut [T];
+        (left, self.slice) =
             std::mem::take(&mut self.slice).split_at_mut(self.offsets[1] - self.offsets[0]);
-        self.slice = right;
 
         // Move offsets to the right
         self.offsets = &self.offsets[1..];
@@ -44,10 +45,11 @@ impl<T> DoubleEndedIterator for MutSlices<'_, '_, T> {
             return None;
         }
 
-        // Split slice, save left. Here we temporarily replace slice with an empty one
-        let (left, right) = std::mem::take(&mut self.slice)
+        // Split slice, save left back.
+        // take() temporarily replaces self.slice with an empty slice
+        let right: &mut [T];
+        (self.slice, right) = std::mem::take(&mut self.slice)
             .split_at_mut(self.offsets[offsets_len - 2] - self.offsets[0]);
-        self.slice = left;
 
         // Move offsets to the left
         self.offsets = &self.offsets[..offsets_len - 1];
