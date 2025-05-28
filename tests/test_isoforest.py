@@ -277,3 +277,24 @@ def test_benchmark_feature_signature(n_features, n_jobs, benchmark):
     forest.fit(data)
 
     benchmark(forest.feature_signature, data[:1])
+
+
+@pytest.mark.benchmark
+@pytest.mark.long
+@pytest.mark.parametrize("n_samples", [1, 1 << 5, 1 << 10, 1 << 20])
+@pytest.mark.parametrize("n_trees", [1 << 6, 1 << 7, 1 << 8])
+@pytest.mark.parametrize("n_jobs", [1, 2, 4])
+def test_benchmark_score_samples(n_samples, n_trees, n_jobs, benchmark):
+    benchmark.group = f"IsolationForest.score_samples {n_samples = :7d}, {n_trees = :4d}, {n_jobs = :2d}"
+    benchmark.name = "coniferest.isoforest.IsolationForest"
+
+    random_seed = 0
+    n_features = 374
+    n_samples_build = 1 << 20
+    rng = np.random.default_rng(random_seed)
+    data = rng.standard_normal((n_samples_build, n_features))
+    forest = IsolationForest(n_trees=n_trees, n_jobs=n_jobs, random_seed=random_seed)
+    forest.fit(data)
+
+    test_data = data[:n_samples]
+    benchmark(forest.score_samples, test_data)
