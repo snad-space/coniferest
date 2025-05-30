@@ -143,6 +143,7 @@ class Session:
         self._scores = None
         self._current = None
         self._terminated = False
+        self._sort_size = 1000
 
     def run(self) -> "Session":
         """Evaluate interactive anomaly detection session"""
@@ -160,13 +161,21 @@ class Session:
             self._invoke_callbacks(self._on_refit_cb, self)
 
             self._scores = self.model.score_samples(self._data)
-
+            
+            argtopk = self.argsorttopk()
             self._current = None
-            for ind in np.argsort(self._scores):
+            cand_num = 0
+            while cand_num != self._scores.shape[0]:
+                ind = argtopk[cand_num]
                 if ind not in self._known_labels:
                     self._current = ind
                     break
-
+                    
+                cand_num += 1
+                if cand_num == self._sort_size:
+                    self._sort_size += 1000
+                    argtopk = self.argsorttopk()
+            
             if self._current is None:
                 self.terminate()
                 break
@@ -185,6 +194,11 @@ class Session:
 
     def terminate(self) -> None:
         self._terminated = True
+
+    def argsorttopk(self) -> np.ndarray:
+        argtopk_unsort = np.argpartition(self._scores, self._sort_size)[:self._sort_size]
+        argtopk = argtopk_unsort[np.argsort(self._scores[argtopk_unsort])]
+        return argtopk
 
     @property
     def current(self) -> int:
