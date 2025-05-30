@@ -161,7 +161,7 @@ class Session:
             self._invoke_callbacks(self._on_refit_cb, self)
 
             self._scores = self.model.score_samples(self._data)
-            
+
             argtopk = self.argsorttopk()
             self._current = None
             cand_num = 0
@@ -170,12 +170,12 @@ class Session:
                 if ind not in self._known_labels:
                     self._current = ind
                     break
-                    
+
                 cand_num += 1
                 if cand_num == self._sort_size:
                     self._sort_size += 1000
                     argtopk = self.argsorttopk()
-            
+
             if self._current is None:
                 self.terminate()
                 break
@@ -198,7 +198,7 @@ class Session:
     def argsorttopk(self) -> np.ndarray:
         if self._sort_size >= self._scores.shape[0]:
             return np.argsort(self._scores)
-        argtopk_unsort = np.argpartition(self._scores, self._sort_size)[:self._sort_size]
+        argtopk_unsort = np.argpartition(self._scores, self._sort_size)[: self._sort_size]
         argtopk = argtopk_unsort[np.argsort(self._scores[argtopk_unsort])]
         return argtopk
 
