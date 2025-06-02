@@ -143,7 +143,6 @@ class Session:
         self._scores = None
         self._current = None
         self._terminated = False
-        self._sort_size = 1000
 
     def run(self) -> "Session":
         """Evaluate interactive anomaly detection session"""
@@ -162,7 +161,8 @@ class Session:
 
             self._scores = self.model.score_samples(self._data)
 
-            argtopk = self.argsorttopk()
+            k = 1000
+            argtopk = self.argtopk_scores(k)
             self._current = None
             cand_num = 0
             while cand_num < self._scores.shape[0]:
@@ -172,9 +172,9 @@ class Session:
                     break
 
                 cand_num += 1
-                if cand_num == self._sort_size:
-                    self._sort_size += 1000
-                    argtopk = self.argsorttopk()
+                if cand_num == k:
+                    k += 1000
+                    argtopk = self.argtopk_scores(k)
 
             if self._current is None:
                 self.terminate()
@@ -195,10 +195,10 @@ class Session:
     def terminate(self) -> None:
         self._terminated = True
 
-    def argsorttopk(self) -> np.ndarray:
-        if self._sort_size >= self._scores.shape[0]:
+    def argtopk_scores(self, k: int) -> np.ndarray:
+        if k >= self._scores.shape[0]:
             return np.argsort(self._scores)
-        argtopk_unsort = np.argpartition(self._scores, self._sort_size)[: self._sort_size]
+        argtopk_unsort = np.argpartition(self._scores, k)[: k]
         argtopk = argtopk_unsort[np.argsort(self._scores[argtopk_unsort])]
         return argtopk
 
