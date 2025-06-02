@@ -161,7 +161,7 @@ class Session:
 
             self._scores = self.model.score_samples(self._data)
 
-            k = 1000
+            k = len(self._known_labels) + 1
             argtopk = self.argtopk_scores(k)
             self._current = None
             cand_num = 0
