@@ -164,17 +164,10 @@ class Session:
             k = len(self._known_labels) + 1
             argtopk = self.argtopk_scores(k)
             self._current = None
-            cand_num = 0
-            while cand_num < self._scores.shape[0]:
-                ind = argtopk[cand_num]
+            for ind in argtopk:
                 if ind not in self._known_labels:
                     self._current = ind
                     break
-
-                cand_num += 1
-                if cand_num == k:
-                    k += 1000
-                    argtopk = self.argtopk_scores(k)
 
             if self._current is None:
                 self.terminate()
