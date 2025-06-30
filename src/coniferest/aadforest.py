@@ -13,7 +13,7 @@ __all__ = ["AADForest"]
 
 class AADEvaluator(ConiferestEvaluator):
     def __init__(self, aad):
-        super(AADEvaluator, self).__init__(aad, map_value=lambda x: -np.reciprocal(x))
+        super(AADEvaluator, self).__init__(aad, map_value=aad.map_value)
         self.weights = np.full(shape=(self.leaf_count,), fill_value=np.reciprocal(np.sqrt(self.leaf_count)))
 
     def score_samples(self, x, weights=None):
@@ -159,6 +159,10 @@ class AADForest(Coniferest):
     prior_influence : float or callable, optional
         An regularization coefficient value in the loss functioin. Default is 1.0.
         Signature: '(anomaly_count, nominal_count) -> float'
+
+    map_value : ["const", "exponential", "linear", "reciprocal"] or callable, optional
+        An function applied to the leaf depth before weighting. Possible
+        meaning variants are: 1, 1-exp(-x), x, -1/x.
     """
 
     def __init__(
@@ -171,6 +175,7 @@ class AADForest(Coniferest):
         prior_influence=1.0,
         n_jobs=None,
         random_seed=None,
+        map_value=None,
     ):
         super().__init__(
             trees=[],
@@ -189,6 +194,23 @@ class AADForest(Coniferest):
             self.prior_influence = lambda anomaly_count, nominal_count: prior_influence
         else:
             raise ValueError("prior_influence is neither a callable nor a constant")
+
+        MAP_VALUES = {
+            "const": np.ones_like,
+            "exponential": lambda x: -np.expm1(-x),
+            "linear": lambda x: x,
+            "reciprocal": lambda x: -np.reciprocal(x),
+        }
+
+        if map_value is None:
+            map_value = "reciprocal"
+
+        if isinstance(map_value, Callable):
+            self.map_value = map_value
+        elif map_value in MAP_VALUES:
+            self.map_value = MAP_VALUES[map_value]
+        else:
+            raise ValueError(f"map_value is neither a callable nor one of {', '.join(MAP_VALUES.keys())}.")
 
         self.evaluator = None
 
