@@ -1,5 +1,6 @@
 from numbers import Real
 from typing import Callable
+from warnings import warn
 
 import numpy as np
 from scipy.optimize import minimize
@@ -313,6 +314,10 @@ class AADForest(Coniferest):
             hessp=hessp,
             tol=1e-4,
         )
+
+        if not res.success:
+            warn(f"Optimization failed to converge: {res.message}")
+
         weights_norm = np.sqrt(np.inner(res.x, res.x))
         self.evaluator.weights = res.x / weights_norm
 
