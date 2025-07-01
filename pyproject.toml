@@ -27,7 +27,7 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
-    "click",
+    "click>=8.2", # click.Choice to accept enums
     # We need it for cpu_count() only, but we have it anyway as a dependency of scikit-learn
     "joblib",
     "numpy",

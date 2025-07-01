@@ -5,6 +5,25 @@ import click
 from coniferest.datasets import Label
 
 
+class _LabelChoice(click.Choice):
+    _variants = [variant.name for variant in Label]
+    variants_text = ", ".join(f"[{v[0]}]{v[1:].lower()}" for v in _variants)
+
+    def __init__(self):
+        super().__init__(Label)
+
+    def normalize_choice(self, choice, ctx):
+        del ctx
+        try:
+            return int(choice)
+        except ValueError:
+            pass
+        try:
+            return getattr(Label, choice.upper())
+        except AttributeError:
+            pass
+
+
 def prompt_decision_callback(metadata, data, session) -> Label:
     """
     Prompt user to label the object as anomaly or regular.
@@ -12,9 +31,11 @@ def prompt_decision_callback(metadata, data, session) -> Label:
     If user sends keyboard interrupt, terminate the session.
     """
     try:
-        result = click.confirm(f"Is {metadata} anomaly?")
-        return Label.ANOMALY if result else Label.REGULAR
-
+        return click.prompt(
+            text=f"Is {metadata} an anomaly? ({_LabelChoice.variants_text})",
+            type=_LabelChoice(),
+            show_choices=False,
+        )
     except click.Abort:
         session.terminate()
         return Label.UNKNOWN
