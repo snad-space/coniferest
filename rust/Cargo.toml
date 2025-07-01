@@ -17,7 +17,7 @@ lto = true
 codegen-units = 1
 
 [features]
-default = ["pyo3/abi3-py39"]
+default = ["pyo3/abi3-py310"]
 
 [dependencies]
 enum_dispatch = "0.3"
