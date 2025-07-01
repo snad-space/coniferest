@@ -150,6 +150,11 @@ class AADForest(Coniferest):
     max_depth : int or None, optional
         Maximum depth of every tree. If None, `log2(n_subsamples)` is used.
 
+    budget : int or float, optional
+        Budget of anomalies. If the type is floating point it is considered as
+        fraction of full data. If the type is integer it is considered as the
+        number of items. Default is 0.03.
+
     n_jobs : int or None, optional
         Number of threads to use for scoring. If None - all available CPUs are used.
 
@@ -166,7 +171,7 @@ class AADForest(Coniferest):
         n_trees=100,
         n_subsamples=256,
         max_depth=None,
-        tau=0.97,
+        budget=0.03,
         C_a=1.0,
         prior_influence=1.0,
         n_jobs=None,
@@ -180,7 +185,11 @@ class AADForest(Coniferest):
             random_seed=random_seed,
         )
         self.n_trees = n_trees
-        self.tau = tau
+
+        if not isinstance(budget, (int, float)):
+            raise ValueError("budget must be an int or float")
+
+        self.budget = budget
         self.C_a = C_a
 
         if isinstance(prior_influence, Callable):
@@ -196,6 +205,17 @@ class AADForest(Coniferest):
         if len(self.trees) == 0:
             self.trees = self.build_trees(data, self.n_trees)
             self.evaluator = AADEvaluator(self)
+
+    def _q_tau(self, scores):
+        if isinstance(self.budget, int):
+            if self.budget >= len(scores):
+                return np.max(scores)
+
+            return np.partition(scores, self.budget)[self.budget]
+        elif isinstance(self.budget, float):
+            return np.quantile(scores, self.budget)
+
+        raise ValueError("self.budget must be an int or float")
 
     def fit(self, data, labels=None):
         """
@@ -261,8 +281,7 @@ class AADForest(Coniferest):
             return self
 
         scores = self.score_samples(data)
-        # Our scores are negative, so we need to "invert" the quantile.
-        q_tau = np.quantile(scores, 1.0 - self.tau)
+        q_tau = self._q_tau(scores)
 
         anomaly_count = np.count_nonzero(known_labels == Label.ANOMALY)
         nominal_count = np.count_nonzero(known_labels == Label.REGULAR)
