@@ -5,6 +5,36 @@ import click
 from coniferest.datasets import Label
 
 
+class _LabelChoice(click.Choice):
+    """Label choice class for click
+
+    Accepts (case-insensitive):
+        * -1 / a / anomaly / yes
+        * 1 / r / regular / no
+        * 0 / u / unknown
+    """
+
+    def __init__(self):
+        super().__init__(Label)
+
+    def normalize_choice(self, choice, ctx):
+        del ctx
+        if isinstance(choice, Label):
+            return choice
+        if choice.lower() == "y" or choice.lower() == "yes":
+            return Label.ANOMALY
+        if choice.lower() == "n" or choice.lower() == "no":
+            return Label.REGULAR
+        try:
+            return int(choice)
+        except ValueError:
+            pass
+        try:
+            return getattr(Label, choice.upper())
+        except AttributeError:
+            pass
+
+
 def prompt_decision_callback(metadata, data, session) -> Label:
     """
     Prompt user to label the object as anomaly or regular.
@@ -12,9 +42,11 @@ def prompt_decision_callback(metadata, data, session) -> Label:
     If user sends keyboard interrupt, terminate the session.
     """
     try:
-        result = click.confirm(f"Is {metadata} anomaly?")
-        return Label.ANOMALY if result else Label.REGULAR
-
+        return click.prompt(
+            text=f"Is {metadata} an anomaly? ([A]nomaly / yes, [R]egular / no, [U]nknown)",
+            type=_LabelChoice(),
+            show_choices=False,
+        )
     except click.Abort:
         session.terminate()
         return Label.UNKNOWN
