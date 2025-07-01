@@ -172,6 +172,21 @@ class Coniferest(ABC):
 
         return tree
 
+    @staticmethod
+    def _validate_known_data(known_data=None, known_labels=None):
+        known_data = np.asarray(known_data) if known_data is not None else None
+        known_labels = np.asarray(known_labels) if known_labels is not None else None
+
+        if (known_data is None) != (known_labels is None):
+            raise ValueError("known_data and known_labels must be provided together or both be None")
+
+        if (known_data is not None) and len(known_data) != len(known_labels):
+            raise ValueError(
+                f"known_data and known_labels must have the same length: {len(known_data)} != {len(known_labels)}"
+            )
+
+        return known_data, known_labels
+
     @abstractmethod
     def fit(self, data, labels=None):
         """
