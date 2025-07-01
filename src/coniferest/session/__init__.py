@@ -155,7 +155,9 @@ class Session:
         while not self._terminated:
             known_data = self._data[list(self._known_labels.keys())]
             known_labels = np.fromiter(self._known_labels.values(), dtype=int, count=len(self._known_labels))
-            self.model.fit_known(self._data, known_data, known_labels)
+            # Do not retrain, if the most recent label was "UNKNOWN"
+            if self._current is None or self._known_labels[self._current] != Label.UNKNOWN:
+                self.model.fit_known(self._data, known_data, known_labels)
 
             self._invoke_callbacks(self._on_refit_cb, self)
 
