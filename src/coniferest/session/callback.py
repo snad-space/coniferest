@@ -19,6 +19,8 @@ class _LabelChoice(click.Choice):
 
     def normalize_choice(self, choice, ctx):
         del ctx
+        if isinstance(choice, Label):
+            return choice
         if choice.lower() == "y" or choice.lower() == "yes":
             return Label.ANOMALY
         if choice.lower() == "n" or choice.lower() == "no":
