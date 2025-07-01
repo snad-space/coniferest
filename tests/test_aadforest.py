@@ -109,7 +109,7 @@ def test_benchmark_loss_gradient(n_samples, n_trees, n_jobs, benchmark):
     anomaly_count = np.count_nonzero(known_labels == Label.ANOMALY)
     nominal_count = np.count_nonzero(known_labels == Label.REGULAR)
     scores = forest.score_samples(data)
-    q_tau = np.quantile(scores, 1.0 - forest.tau)
+    q_tau = forest._q_tau(scores)
 
     benchmark(
         forest.evaluator.loss_gradient,
