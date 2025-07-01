@@ -177,8 +177,7 @@ class PineForest(Coniferest):
         self
         """
 
-        known_data = np.asarray(known_data) if known_data is not None else None
-        known_labels = np.asarray(known_labels) if known_labels is not None else None
+        known_data, known_labels = self._validate_known_data(known_data, known_labels)
 
         if self.regenerate_trees:
             self.trees = []
