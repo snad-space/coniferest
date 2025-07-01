@@ -6,14 +6,23 @@ from coniferest.datasets import Label
 
 
 class _LabelChoice(click.Choice):
-    _variants = [variant.name for variant in Label]
-    variants_text = ", ".join(f"[{v[0]}]{v[1:].lower()}" for v in _variants)
+    """Label choice class for click
+
+    Accepts (case-insensitive):
+        * -1 / a / anomaly / yes
+        * 1 / r / regular / no
+        * 0 / u / unknown
+    """
 
     def __init__(self):
         super().__init__(Label)
 
     def normalize_choice(self, choice, ctx):
         del ctx
+        if choice.lower() == "y" or choice.lower() == "yes":
+            return Label.ANOMALY
+        if choice.lower() == "n" or choice.lower() == "no":
+            return Label.REGULAR
         try:
             return int(choice)
         except ValueError:
@@ -32,7 +41,7 @@ def prompt_decision_callback(metadata, data, session) -> Label:
     """
     try:
         return click.prompt(
-            text=f"Is {metadata} an anomaly? ({_LabelChoice.variants_text})",
+            text=f"Is {metadata} an anomaly? ([A]nomaly / yes, [R]egular / no, [U]nknown)",
             type=_LabelChoice(),
             show_choices=False,
         )
