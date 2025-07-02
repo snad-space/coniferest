@@ -62,3 +62,21 @@ You can adjust the minimum number of iterations with `--benchmark-min-rounds` an
 See `pyproject.toml` for the default benchmarking options.
 You can make a snapshot the current benchmark result with `--benchmark-save=NAME` or with `--benchmark-autosave`, and compare benchmarks with `pytest-benchmark compare` command.
 
+## Citation
+
+If you found this project useful for your research please
+cite [Kornilov, Korolev, Malanchev, et al., 2025](https://doi.org/10.1016/j.ascom.2025.100960)
+
+```bibtex
+@article{Kornilov2025,
+	title = {Coniferest: A complete active anomaly detection framework},
+	journal = {Astronomy and Computing},
+	volume = {52},
+	pages = {100960},
+	year = {2025},
+	issn = {2213-1337},
+	doi = {10.1016/j.ascom.2025.100960},
+	url = {https://www.sciencedirect.com/science/article/pii/S2213133725000332},
+	author = {M.V. Kornilov and V.S. Korolev and K.L. Malanchev and A.D. Lavrukhina and E. Russeil and T.A. Semenikhin and E. Gangler and E.E.O. Ishida and M.V. Pruzhinskaya and A.A. Volnova and S. Sreejith},
+}
+```
