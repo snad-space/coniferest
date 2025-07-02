@@ -64,7 +64,7 @@ You can make a snapshot the current benchmark result with `--benchmark-save=NAME
 
 ## Citation
 
-If you found this project useful for your research please
+If you found this project useful for your research, please
 cite [Kornilov, Korolev, Malanchev, et al., 2025](https://doi.org/10.1016/j.ascom.2025.100960)
 
 ```bibtex
