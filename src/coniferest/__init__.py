@@ -1,1 +1,1 @@
-__version__ = "0.1.0"
+from .calc_trees import __version__  # noqa: F401
