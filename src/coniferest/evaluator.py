@@ -108,10 +108,11 @@ class ForestEvaluator:
         # Assign a unique sequential index to every leaf
         # The index is used for weighted scores
         leaf_mask = selectors["feature"] < 0
-        leaf_count = np.count_nonzero(leaf_mask)
 
-        leaf_offsets = np.full_like(node_offsets, leaf_count)
-        leaf_offsets[:-1] = np.cumsum(leaf_mask)[node_offsets[:-1]]
+        # Each offset tells how many leafs are in all previous trees
+        leaf_offsets = np.zeros_like(node_offsets)
+        leaf_offsets[1:] = np.cumsum(leaf_mask)[node_offsets[1:] - 1]
+        leaf_count = leaf_offsets[-1]
 
         selectors["left"][leaf_mask] = np.arange(0, leaf_count)
 

@@ -89,8 +89,8 @@ where
 
         Ok({
             let paths = PyArray1::zeros(py, data_view.nrows(), false);
-            // SAFETY: this call invalidates other views, but it is the only view we need
-            let paths_view_mut = unsafe { paths.as_array_mut() };
+            let mut paths_rw = paths.readwrite();
+            let paths_view_mut = paths_rw.as_array_mut();
 
             // Here we need to dispatch `data` and run the template function
             calc_paths_sum_impl(
@@ -146,8 +146,8 @@ where
                 false,
             );
 
-            // SAFETY: this call invalidates other views, but it is the only view we need
-            let values_view = unsafe { values.as_array_mut() };
+            let mut values_rw = values.readwrite();
+            let values_view = values_rw.as_array_mut();
 
             // Here we need to dispatch `data` and run the template function
             calc_paths_sum_transpose_impl(
@@ -190,10 +190,10 @@ where
             let delta_sum = PyArray2::zeros(py, (data_view.nrows(), data_view.ncols()), false);
             let hit_count = PyArray2::zeros(py, (data_view.nrows(), data_view.ncols()), false);
 
-            // SAFETY: this call invalidates other views, but it is the only view we need
-            let delta_sum_view = unsafe { delta_sum.as_array_mut() };
-            // SAFETY: this call invalidates other views, but it is the only view we need
-            let hit_count_view = unsafe { hit_count.as_array_mut() };
+            let mut delta_sum_rw = delta_sum.readwrite();
+            let delta_sum_view = delta_sum_rw.as_array_mut();
+            let mut hit_count_rw = hit_count.readwrite();
+            let hit_count_view = hit_count_rw.as_array_mut();
 
             calc_feature_delta_sum_impl(
                 selectors_view,
@@ -234,8 +234,8 @@ where
         Ok({
             let leafs =
                 PyArray2::zeros(py, (data_view.nrows(), node_offsets_view.len() - 1), false);
-            // SAFETY: this call invalidates other views, but it is the only view we need
-            let leafs_view = unsafe { leafs.as_array_mut() };
+            let mut leafs_rw = leafs.readwrite();
+            let leafs_view = leafs_rw.as_array_mut();
 
             calc_apply_impl(
                 selectors_view,

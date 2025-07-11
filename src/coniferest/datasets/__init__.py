@@ -158,6 +158,8 @@ class DevNetDataset(Dataset):
         if name not in self.avialble_datasets:
             raise ValueError(f"Dataset {name} is not available. Available datasets are: {self.avialble_datasets}")
 
+        self.name = name
+
         df = pd.read_csv(self._dataset_urls[name])
 
         # Last column is for class, the rest are features
