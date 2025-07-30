@@ -14,7 +14,21 @@ __all__ = ["AADForest"]
 class AADEvaluator(ConiferestEvaluator):
     def __init__(self, aad):
         super(AADEvaluator, self).__init__(aad, map_value=aad.map_value)
+        self.C_a = aad.C_a
+        self.budget = aad.budget
+        self.prior_influence = aad.prior_influence
         self.weights = np.full(shape=(self.n_leaves,), fill_value=np.reciprocal(np.sqrt(self.n_leaves)))
+
+    def _q_tau(self, scores):
+        if isinstance(self.budget, int):
+            if self.budget >= len(scores):
+                return np.max(scores)
+
+            return np.partition(scores, self.budget)[self.budget]
+        elif isinstance(self.budget, float):
+            return np.quantile(scores, self.budget)
+
+        raise ValueError("self.budget must be an int or float")
 
     def score_samples(self, x, weights=None):
         """
@@ -140,6 +154,26 @@ class AADEvaluator(ConiferestEvaluator):
     ):
         return vector * prior_influence
 
+    def fit_known(self, data, known_data, known_labels):
+        scores = self.score_samples(data)
+        q_tau = self._q_tau(scores)
+
+        anomaly_count = np.count_nonzero(known_labels == Label.ANOMALY)
+        nominal_count = np.count_nonzero(known_labels == Label.REGULAR)
+        prior_influence = self.prior_influence(anomaly_count, nominal_count)
+
+        res = minimize(
+            self.loss,
+            self.weights,
+            args=(known_data, known_labels, anomaly_count, nominal_count, q_tau, self.C_a, prior_influence),
+            method="trust-krylov",
+            jac=self.loss_gradient,
+            hessp=self.loss_hessian,
+            tol=1e-4,
+        )
+        weights_norm = np.sqrt(np.inner(res.x, res.x))
+        self.weights = res.x / weights_norm
+
 
 class AADForest(Coniferest):
     """
@@ -238,17 +272,6 @@ class AADForest(Coniferest):
             self.trees = self.build_trees(data, self.n_trees)
             self.evaluator = AADEvaluator(self)
 
-    def _q_tau(self, scores):
-        if isinstance(self.budget, int):
-            if self.budget >= len(scores):
-                return np.max(scores)
-
-            return np.partition(scores, self.budget)[self.budget]
-        elif isinstance(self.budget, float):
-            return np.quantile(scores, self.budget)
-
-        raise ValueError("self.budget must be an int or float")
-
     def fit(self, data, labels=None):
         """
         Build the trees with the data `data`.
@@ -311,39 +334,7 @@ class AADForest(Coniferest):
         ):
             return self
 
-        scores = self.score_samples(data)
-        q_tau = self._q_tau(scores)
-
-        anomaly_count = np.count_nonzero(known_labels == Label.ANOMALY)
-        nominal_count = np.count_nonzero(known_labels == Label.REGULAR)
-        prior_influence = self.prior_influence(anomaly_count, nominal_count)
-
-        def fun(weights):
-            return self.evaluator.loss(
-                weights, known_data, known_labels, anomaly_count, nominal_count, q_tau, self.C_a, prior_influence
-            )
-
-        def jac(weights):
-            return self.evaluator.loss_gradient(
-                weights, known_data, known_labels, anomaly_count, nominal_count, q_tau, self.C_a, prior_influence
-            )
-
-        def hessp(weights, vector):
-            return self.evaluator.loss_hessian(
-                weights,
-                vector,
-                known_data,
-                known_labels,
-                anomaly_count,
-                nominal_count,
-                q_tau,
-                self.C_a,
-                prior_influence,
-            )
-
-        res = minimize(fun, self.evaluator.weights, method="trust-krylov", jac=jac, hessp=hessp, tol=1e-4)
-        weights_norm = np.sqrt(np.inner(res.x, res.x))
-        self.evaluator.weights = res.x / weights_norm
+        self.evaluator.fit_known(data, known_data, known_labels)
 
         return self
 
