@@ -246,6 +246,10 @@ class AADForest(Coniferest):
         A function applied to the leaf depth before weighting. Possible
         meaning variants are: 1, 1-exp(-x), x, -1/x.
 
+    loss : ["hinge"], optional (default="hinge")
+        Loss function used to optimize the leaf weights. The default is the hinge loss,
+        as in the original paper.
+
     Attributes
     ----------
     n_features_in_ : int
@@ -266,6 +270,7 @@ class AADForest(Coniferest):
         random_seed=None,
         sampletrees_per_batch=1 << 14,
         map_value=None,
+        loss="hinge",
     ):
         super().__init__(
             n_subsamples=n_subsamples,
@@ -306,6 +311,13 @@ class AADForest(Coniferest):
             self.map_value = MAP_VALUES[map_value]
         else:
             raise ValueError(f"map_value is neither a callable nor one of {', '.join(MAP_VALUES.keys())}.")
+
+        LOSSES = ["hinge"]
+
+        if loss not in LOSSES:
+            raise ValueError(f"loss is not one of {', '.join(LOSSES)}.")
+
+        self.loss = loss
 
         self.evaluator = None
 
