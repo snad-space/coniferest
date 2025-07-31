@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from numbers import Real
 from typing import Callable
 
@@ -14,6 +15,25 @@ __all__ = ["AADForest"]
 class AADEvaluator(ConiferestEvaluator):
     def __init__(self, aad):
         super(AADEvaluator, self).__init__(aad)
+
+    @abstractmethod
+    def score_samples(self, samples, weights=None):
+        """
+        Evaluate scores for samples.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def fit_known(self, data, known_data, known_labels):
+        """
+        Evaluate scores for samples.
+        """
+        raise NotImplementedError()
+
+
+class AADHingeEvaluator(AADEvaluator):
+    def __init__(self, aad):
+        super(AADHingeEvaluator, self).__init__(aad)
         self.C_a = aad.C_a
         self.C_n = aad.C_n
         self.budget = aad.budget
@@ -324,7 +344,7 @@ class AADForest(Coniferest):
     def _build_forest(self, data):
         if self.core_forest is None:
             self.core_forest = self.build_forest(data, self.n_trees)
-            self.evaluator = AADEvaluator(self)
+            self.evaluator = AADHingeEvaluator(self)
 
     def fit(self, data, labels=None):
         """
