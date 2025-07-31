@@ -5,6 +5,7 @@ from typing import Callable
 import clarabel
 import numpy as np
 from scipy import sparse
+from scipy.special import expit, log_expit
 
 from .coniferest import Coniferest, ConiferestEvaluator
 from .label import Label
@@ -29,6 +30,81 @@ class AADEvaluator(ConiferestEvaluator):
         Evaluate scores for samples.
         """
         raise NotImplementedError()
+
+
+class AADCrossEntropyEvaluator(AADEvaluator):
+    def __init__(self, aad):
+        super(AADCrossEntropyEvaluator, self).__init__(aad)
+        self.weights = np.ones(shape=(self.n_leaves,))
+        self.bias = 0.0  # Not sure about 0.0
+
+    def score_samples(self, x, weights=None):
+        # Anomaly score is a probability of being REGULAR data.
+
+        if not x.flags["C_CONTIGUOUS"]:
+            x = np.ascontiguousarray(x)
+
+        if weights is None:
+            weights = self.weights
+
+        return expit(
+            calc_paths_sum(
+                self.selectors,
+                self.node_offsets,
+                x,
+                weights,
+                num_threads=self.num_threads,
+                batch_size=self.get_batch_size(self.n_trees),
+            )
+            + self.bias
+        )
+
+    def loss(self, weights, known_data, known_labels):
+
+        v = (
+            calc_paths_sum(
+                self.selectors,
+                self.node_offsets,
+                known_data,
+                weights[1:],
+                num_threads=self.num_threads,
+                batch_size=self.get_batch_size(self.n_trees),
+            )
+            + weights[0]
+        )
+
+        return -np.sum(log_expit(known_labels * v))
+
+    def loss_gradient(self, weights, known_data, known_labels):
+
+        v = (
+            calc_paths_sum(
+                self.selectors,
+                self.node_offsets,
+                known_data,
+                weights[1:],
+                num_threads=self.num_threads,
+                batch_size=self.get_batch_size(self.n_trees),
+            )
+            + weights[0]
+        )
+
+        dloss_dv = -known_labels * expit(-known_labels * v)
+        dloss_dbias = np.sum(dloss_dv)
+        dloss_dweights = calc_paths_sum_transpose(
+            self.selectors,
+            self.node_offsets,
+            self.leaf_offsets,
+            known_data,
+            dloss_dv,
+            num_threads=self.num_threads,
+            batch_size=self.get_batch_size(len(known_data)),
+        )
+
+        return np.concatenate([[dloss_dbias], dloss_dweights])
+
+    def loss_hessian(self, weights, vector, known_data, known_labels):
+        pass
 
 
 class AADHingeEvaluator(AADEvaluator):
