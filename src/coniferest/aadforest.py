@@ -4,7 +4,7 @@ from typing import Callable
 
 import numpy as np
 from scipy.optimize import minimize
-from scipy.special import log_expit, expit
+from scipy.special import expit, log_expit
 
 from .calc_trees import calc_paths_sum, calc_paths_sum_transpose  # noqa
 from .coniferest import Coniferest, ConiferestEvaluator
@@ -36,7 +36,7 @@ class AADCrossEntropyEvaluator(AADEvaluator):
     def __init__(self, aad):
         super(AADCrossEntropyEvaluator, self).__init__(aad)
         self.weights = np.ones(shape=(self.n_leaves,))
-        self.bias = 0.0 # Not sure about 0.0
+        self.bias = 0.0  # Not sure about 0.0
 
     def score_samples(self, x, weights=None):
         # Anomaly score is a probability of being REGULAR data.
@@ -47,46 +47,45 @@ class AADCrossEntropyEvaluator(AADEvaluator):
         if weights is None:
             weights = self.weights
 
-        return expit(calc_paths_sum(
-            self.selectors,
-            self.node_offsets,
-            x,
-            weights,
-            num_threads=self.num_threads,
-            batch_size=self.get_batch_size(self.n_trees),
-        ) + self.bias)
+        return expit(
+            calc_paths_sum(
+                self.selectors,
+                self.node_offsets,
+                x,
+                weights,
+                num_threads=self.num_threads,
+                batch_size=self.get_batch_size(self.n_trees),
+            )
+            + self.bias
+        )
 
-    def loss(
-        self,
-        weights,
-        known_data,
-        known_labels):
-
-        v = calc_paths_sum(
-            self.selectors,
-            self.node_offsets,
-            known_data,
-            weights[1:],
-            num_threads=self.num_threads,
-            batch_size=self.get_batch_size(self.n_trees),
-        ) + weights[0]
+    def loss(self, weights, known_data, known_labels):
+        v = (
+            calc_paths_sum(
+                self.selectors,
+                self.node_offsets,
+                known_data,
+                weights[1:],
+                num_threads=self.num_threads,
+                batch_size=self.get_batch_size(self.n_trees),
+            )
+            + weights[0]
+        )
 
         return -np.sum(log_expit(known_labels * v))
 
-    def loss_gradient(
-        self,
-        weights,
-        known_data,
-        known_labels):
-
-        v = calc_paths_sum(
-            self.selectors,
-            self.node_offsets,
-            known_data,
-            weights[1:],
-            num_threads=self.num_threads,
-            batch_size=self.get_batch_size(self.n_trees),
-        ) + weights[0]
+    def loss_gradient(self, weights, known_data, known_labels):
+        v = (
+            calc_paths_sum(
+                self.selectors,
+                self.node_offsets,
+                known_data,
+                weights[1:],
+                num_threads=self.num_threads,
+                batch_size=self.get_batch_size(self.n_trees),
+            )
+            + weights[0]
+        )
 
         dloss_dv = -known_labels * expit(-known_labels * v)
         dloss_dbias = np.sum(dloss_dv)
@@ -102,14 +101,9 @@ class AADCrossEntropyEvaluator(AADEvaluator):
 
         return np.concatenate([[dloss_dbias], dloss_dweights])
 
-    def loss_hessian(
-        self,
-        weights,
-        vector,
-        known_data,
-        known_labels):
+    def loss_hessian(self, weights, vector, known_data, known_labels):
         pass
-        
+
 
 class AADHingeEvaluator(AADEvaluator):
     def __init__(self, aad):
