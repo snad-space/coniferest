@@ -1,5 +1,6 @@
 <img src="./images/CF_logo_green_sign_universal.svg" width=256>
 
+<a href="https://ascl.net/2507.009"><img src="https://img.shields.io/badge/ascl-2507.009-blue.svg?colorB=262255" alt="ascl:2507.009" /></a>
 [![PyPI version](https://badge.fury.io/py/coniferest.svg)](https://pypi.org/project/coniferest/)
 [![Documentation Status](https://readthedocs.org/projects/coniferest/badge/?version=latest)](https://coniferest.readthedocs.io/en/latest/?badge=latest)
 ![Test Workflow](https://github.com/snad-space/coniferest/actions/workflows/test.yml/badge.svg)
@@ -77,5 +78,19 @@ cite [Kornilov, Korolev, Malanchev, et al., 2025](https://doi.org/10.1016/j.asco
 	doi = {10.1016/j.ascom.2025.100960},
 	url = {https://www.sciencedirect.com/science/article/pii/S2213133725000332},
 	author = {M.V. Kornilov and V.S. Korolev and K.L. Malanchev and A.D. Lavrukhina and E. Russeil and T.A. Semenikhin and E. Gangler and E.E.O. Ishida and M.V. Pruzhinskaya and A.A. Volnova and S. Sreejith},
+}
+```
+
+Additionally, you may also cite [the ASCL record](https://ascl.net/2507.009) for the package
+```bibtex
+@software{2025ascl.soft07009K,
+       author = {{Korolev}, Vladimir and {Kornolov}, Matwey and {Malanchev}, Konstantin and {SNAD Team}},
+        title = "{Coniferest: Python package for active anomaly detection}",
+ howpublished = {Astrophysics Source Code Library, record ascl:2507.009},
+         year = 2025,
+        month = jul,
+          eid = {ascl:2507.009},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2025ascl.soft07009K},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
 ```
