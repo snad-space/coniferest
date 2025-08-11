@@ -1,8 +1,10 @@
+from abc import abstractmethod
 from numbers import Real
 from typing import Callable
 
 import numpy as np
 from scipy.optimize import minimize
+from scipy.special import expit, log_expit
 
 from .calc_trees import calc_paths_sum, calc_paths_sum_transpose  # noqa
 from .coniferest import Coniferest, ConiferestEvaluator
@@ -14,7 +16,113 @@ __all__ = ["AADForest"]
 class AADEvaluator(ConiferestEvaluator):
     def __init__(self, aad):
         super(AADEvaluator, self).__init__(aad, map_value=aad.map_value)
+
+    @abstractmethod
+    def score_samples(self, samples, weights=None):
+        """
+        Evaluate scores for samples.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def fit_known(self, data, known_data, known_labels):
+        """
+        Evaluate scores for samples.
+        """
+        raise NotImplementedError()
+
+
+class AADCrossEntropyEvaluator(AADEvaluator):
+    def __init__(self, aad):
+        super(AADCrossEntropyEvaluator, self).__init__(aad)
+        self.weights = np.ones(shape=(self.n_leaves,))
+        self.bias = 0.0  # Not sure about 0.0
+
+    def score_samples(self, x, weights=None):
+        # Anomaly score is a probability of being REGULAR data.
+
+        if not x.flags["C_CONTIGUOUS"]:
+            x = np.ascontiguousarray(x)
+
+        if weights is None:
+            weights = self.weights
+
+        return expit(
+            calc_paths_sum(
+                self.selectors,
+                self.node_offsets,
+                x,
+                weights,
+                num_threads=self.num_threads,
+                batch_size=self.get_batch_size(self.n_trees),
+            )
+            + self.bias
+        )
+
+    def loss(self, weights, known_data, known_labels):
+        v = (
+            calc_paths_sum(
+                self.selectors,
+                self.node_offsets,
+                known_data,
+                weights[1:],
+                num_threads=self.num_threads,
+                batch_size=self.get_batch_size(self.n_trees),
+            )
+            + weights[0]
+        )
+
+        return -np.sum(log_expit(known_labels * v))
+
+    def loss_gradient(self, weights, known_data, known_labels):
+        v = (
+            calc_paths_sum(
+                self.selectors,
+                self.node_offsets,
+                known_data,
+                weights[1:],
+                num_threads=self.num_threads,
+                batch_size=self.get_batch_size(self.n_trees),
+            )
+            + weights[0]
+        )
+
+        dloss_dv = -known_labels * expit(-known_labels * v)
+        dloss_dbias = np.sum(dloss_dv)
+        dloss_dweights = calc_paths_sum_transpose(
+            self.selectors,
+            self.node_offsets,
+            self.leaf_offsets,
+            known_data,
+            dloss_dv,
+            num_threads=self.num_threads,
+            batch_size=self.get_batch_size(len(known_data)),
+        )
+
+        return np.concatenate([[dloss_dbias], dloss_dweights])
+
+    def loss_hessian(self, weights, vector, known_data, known_labels):
+        pass
+
+
+class AADHingeEvaluator(AADEvaluator):
+    def __init__(self, aad):
+        super(AADHingeEvaluator, self).__init__(aad)
+        self.C_a = aad.C_a
+        self.budget = aad.budget
+        self.prior_influence = aad.prior_influence
         self.weights = np.full(shape=(self.n_leaves,), fill_value=np.reciprocal(np.sqrt(self.n_leaves)))
+
+    def _q_tau(self, scores):
+        if isinstance(self.budget, int):
+            if self.budget >= len(scores):
+                return np.max(scores)
+
+            return np.partition(scores, self.budget)[self.budget]
+        elif isinstance(self.budget, float):
+            return np.quantile(scores, self.budget)
+
+        raise ValueError("self.budget must be an int or float")
 
     def score_samples(self, x, weights=None):
         """
@@ -140,6 +248,26 @@ class AADEvaluator(ConiferestEvaluator):
     ):
         return vector * prior_influence
 
+    def fit_known(self, data, known_data, known_labels):
+        scores = self.score_samples(data)
+        q_tau = self._q_tau(scores)
+
+        anomaly_count = np.count_nonzero(known_labels == Label.ANOMALY)
+        nominal_count = np.count_nonzero(known_labels == Label.REGULAR)
+        prior_influence = self.prior_influence(anomaly_count, nominal_count)
+
+        res = minimize(
+            self.loss,
+            self.weights,
+            args=(known_data, known_labels, anomaly_count, nominal_count, q_tau, self.C_a, prior_influence),
+            method="trust-krylov",
+            jac=self.loss_gradient,
+            hessp=self.loss_hessian,
+            tol=1e-4,
+        )
+        weights_norm = np.sqrt(np.inner(res.x, res.x))
+        self.weights = res.x / weights_norm
+
 
 class AADForest(Coniferest):
     """
@@ -176,6 +304,10 @@ class AADForest(Coniferest):
     map_value : ["const", "exponential", "linear", "reciprocal"] or callable, optional
         An function applied to the leaf depth before weighting. Possible
         meaning variants are: 1, 1-exp(-x), x, -1/x.
+
+    loss : ["hinge"], optional (default="hinge")
+        Loss function used to optimize the leaf weights. The default is the hinge loss,
+        as in the original paper.
     """
 
     def __init__(
@@ -190,6 +322,7 @@ class AADForest(Coniferest):
         random_seed=None,
         sampletrees_per_batch=1 << 20,
         map_value=None,
+        loss="hinge",
     ):
         super().__init__(
             trees=[],
@@ -231,23 +364,19 @@ class AADForest(Coniferest):
         else:
             raise ValueError(f"map_value is neither a callable nor one of {', '.join(MAP_VALUES.keys())}.")
 
+        LOSSES = ["hinge"]
+
+        if loss not in LOSSES:
+            raise ValueError(f"loss is not one of {', '.join(LOSSES)}.")
+
+        self.loss = loss
+
         self.evaluator = None
 
     def _build_trees(self, data):
         if len(self.trees) == 0:
             self.trees = self.build_trees(data, self.n_trees)
-            self.evaluator = AADEvaluator(self)
-
-    def _q_tau(self, scores):
-        if isinstance(self.budget, int):
-            if self.budget >= len(scores):
-                return np.max(scores)
-
-            return np.partition(scores, self.budget)[self.budget]
-        elif isinstance(self.budget, float):
-            return np.quantile(scores, self.budget)
-
-        raise ValueError("self.budget must be an int or float")
+            self.evaluator = AADHingeEvaluator(self)
 
     def fit(self, data, labels=None):
         """
@@ -311,39 +440,7 @@ class AADForest(Coniferest):
         ):
             return self
 
-        scores = self.score_samples(data)
-        q_tau = self._q_tau(scores)
-
-        anomaly_count = np.count_nonzero(known_labels == Label.ANOMALY)
-        nominal_count = np.count_nonzero(known_labels == Label.REGULAR)
-        prior_influence = self.prior_influence(anomaly_count, nominal_count)
-
-        def fun(weights):
-            return self.evaluator.loss(
-                weights, known_data, known_labels, anomaly_count, nominal_count, q_tau, self.C_a, prior_influence
-            )
-
-        def jac(weights):
-            return self.evaluator.loss_gradient(
-                weights, known_data, known_labels, anomaly_count, nominal_count, q_tau, self.C_a, prior_influence
-            )
-
-        def hessp(weights, vector):
-            return self.evaluator.loss_hessian(
-                weights,
-                vector,
-                known_data,
-                known_labels,
-                anomaly_count,
-                nominal_count,
-                q_tau,
-                self.C_a,
-                prior_influence,
-            )
-
-        res = minimize(fun, self.evaluator.weights, method="trust-krylov", jac=jac, hessp=hessp, tol=1e-4)
-        weights_norm = np.sqrt(np.inner(res.x, res.x))
-        self.evaluator.weights = res.x / weights_norm
+        self.evaluator.fit_known(data, known_data, known_labels)
 
         return self
 
