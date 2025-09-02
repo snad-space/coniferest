@@ -27,7 +27,7 @@ jobs:
             name: "Windows x86_64"
             flags: ""
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -62,7 +62,7 @@ jobs:
     name: Make SDist
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Build SDist
         run: pipx run build --sdist
       - uses: actions/upload-artifact@v4
