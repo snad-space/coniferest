@@ -28,4 +28,4 @@ ndarray = { version = "0.16", features = ["rayon"] }
 num-traits = "0.2"
 numpy = "0.25"
 # Needs to be consistent with rayon dependecy in ndarray
-rayon = "1.10"
+rayon = "1.11"
