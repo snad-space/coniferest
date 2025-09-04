@@ -50,29 +50,9 @@ class ForestEvaluator:
 
         self.sampletrees_per_batch = sampletrees_per_batch
 
-    def get_batch_size(self, n_inner_iter):
-        """
-        Get the batch size for the given number of iterations.
-
-        Different `calc_` functions have different order of iterations:
-        some have top-level iteration over samples, some have top-level
-        iteration over trees. This method should be used to get the
-        batch size for the top-level iteration, so we need to know the
-        number of inner iterations.
-
-        For `calc_paths_sum` and `calc_feature_delta_sum` n_inner_iter
-        must be equal to the number of trees, while for
-        `calc_paths_sum_transpose` it must be equal to the number of samples.
-
-        Parameters
-        ----------
-        n_inner_iter : int
-            Number of inner iterations.
-
-        Returns
-        int
-        """
-        return math.ceil(self.sampletrees_per_batch / n_inner_iter)
+    @property
+    def batch_size(self):
+        return math.ceil(self.sampletrees_per_batch / self.n_trees)
 
     @classmethod
     def combine_selectors(cls, selectors_list):
@@ -150,7 +130,7 @@ class ForestEvaluator:
                     self.node_offsets,
                     x,
                     num_threads=self.num_threads,
-                    batch_size=self.get_batch_size(self.n_trees),
+                    batch_size=self.batch_size,
                 )
                 / (self.average_path_length(self.samples) * self.n_trees)
             )
@@ -165,7 +145,7 @@ class ForestEvaluator:
             self.node_offsets,
             x,
             num_threads=self.num_threads,
-            batch_size=self.get_batch_size(self.n_trees),
+            batch_size=self.batch_size,
         )
 
     def feature_signature(self, x):
@@ -187,7 +167,7 @@ class ForestEvaluator:
             self.node_offsets,
             x,
             num_threads=self.num_threads,
-            batch_size=self.get_batch_size(self.n_trees),
+            batch_size=self.batch_size,
         )
 
     @classmethod
