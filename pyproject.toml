@@ -27,6 +27,7 @@ dependencies = [
     # sklearn.tree._splitter.RandomSplitter changed signature in 1.4.0
     "scikit-learn>=1.4,<2",
     "onnxconverter-common",
+    "clarabel",
 ]
 dynamic = ["version"]
 
