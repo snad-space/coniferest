@@ -70,6 +70,48 @@ class AADEvaluator(ConiferestEvaluator):
             batch_size=self.batch_size,
         )
 
+    def loss(
+        self,
+        weights,
+        known_data,
+        known_labels,
+        anomaly_count,
+        nominal_count,
+        q_tau,
+        C_a=1.0,
+        prior_influence=1.0,
+        prior_weights=None,
+    ):
+        """Loss for the known data.
+
+        Adopted from Eq3 of Das et al. 2019 https://arxiv.org/abs/1901.08930
+        with the respect to
+        1) different anomaly labels - they use +1 for anomalies, -1 for
+              nomalies, we use `Label` enum, which is opposite and includes
+              `UNKNOWN` label;
+        2) different direction of the score axis - they use higher scores
+              for anomalies, we use lower scores for anomalies.
+        """
+
+        # This new score is negative for the "anomalous" subsample and
+        # positive for the "nominal" subsample.
+        scores = self.score_samples(known_data, weights) - q_tau
+
+        if prior_weights is None:
+            prior_weights = self.weights
+
+        loss = 0.0
+        if anomaly_count:
+            # For anomalies in "nominal" subsample we add their positive scores.
+            loss += C_a * np.sum(scores[(known_labels == Label.ANOMALY) & (scores >= 0)]) / anomaly_count
+        if nominal_count:
+            # Add for nominals in "anomalous" subsample we add their inverse scores (positive number).
+            loss -= np.sum(scores[(known_labels == Label.REGULAR) & (scores <= 0)]) / nominal_count
+        delta_weights = weights - prior_weights
+        loss += 0.5 * prior_influence * np.inner(delta_weights, delta_weights)
+
+        return loss
+
     def fit_known(self, data, known_data, known_labels, prior_weights=None):
         scores = self.score_samples(data)
         q_tau = self._q_tau(scores)
