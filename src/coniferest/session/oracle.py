@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Callable, Optional
 
 import numpy as np
 
@@ -23,6 +23,8 @@ class OracleSession(Session):
         Maximum number of asked decisions
     max_anomalies : int
         Maximum number of anomalies to search for
+    on_decision_callbacks : list of callable, or callable, or None, optional
+        Functions to be called when expert decision is made, default is empty list.
 
     Also see methods and attributes from the base `Session` class
     """
@@ -35,7 +37,15 @@ class OracleSession(Session):
         model: Coniferest,
         max_iterations: int,
         max_anomalies: int,
+        on_decision_callbacks=None,
     ):
+        if on_decision_callbacks is None:
+            on_decision_callbacks = []
+        elif isinstance(on_decision_callbacks, Callable):
+            on_decision_callbacks = [
+                on_decision_callbacks,
+            ]
+
         super().__init__(
             data=data,
             metadata=labels,
@@ -45,7 +55,8 @@ class OracleSession(Session):
             on_decision_callbacks=[
                 TerminateAfter(max_iterations),
                 TerminateAfterNAnomalies(max_anomalies),
-            ],
+            ]
+            + on_decision_callbacks,
         )
 
 
@@ -55,6 +66,7 @@ def create_oracle_session(
     *,
     model: Coniferest,
     max_iterations: Optional[int] = None,
+    on_decision_callbacks=None,
 ) -> OracleSession:
     """Create an automated session to run experiments with labeled data.
 
@@ -68,6 +80,8 @@ def create_oracle_session(
         Anomaly detection model to use
     max_iterations : int or None, optional
         Maximum number of asked decisions. Default is 5 times the number of anomalies.
+    on_decision_callbacks : list of callable, or callable, or None, optional
+        Functions to be called when expert decision is made, default is empty list.
 
     Returns
     -------
@@ -82,4 +96,5 @@ def create_oracle_session(
         model=model,
         max_iterations=max_iterations,
         max_anomalies=n_anomalies,
+        on_decision_callbacks=on_decision_callbacks,
     )
