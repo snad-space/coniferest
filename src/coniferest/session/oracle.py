@@ -23,6 +23,8 @@ class OracleSession(Session):
         Maximum number of asked decisions
     max_anomalies : int
         Maximum number of anomalies to search for
+    on_refit_callbacks : list of callable, or callable, or None, optional
+        Functions to be called when model is refitted, default is empty list.
     on_decision_callbacks : list of callable, or callable, or None, optional
         Functions to be called when expert decision is made, default is empty list.
 
@@ -37,6 +39,7 @@ class OracleSession(Session):
         model: Coniferest,
         max_iterations: int,
         max_anomalies: int,
+        on_refit_callbacks=None,
         on_decision_callbacks=None,
     ):
         if on_decision_callbacks is None:
@@ -52,6 +55,7 @@ class OracleSession(Session):
             model=model,
             # Session.metadata is labels, so we just use this candidate metadata is the true label
             decision_callback=lambda label, _features, _self: label,
+            on_refit_callbacks=on_refit_callbacks,
             on_decision_callbacks=[
                 TerminateAfter(max_iterations),
                 TerminateAfterNAnomalies(max_anomalies),
@@ -66,6 +70,7 @@ def create_oracle_session(
     *,
     model: Coniferest,
     max_iterations: Optional[int] = None,
+    on_refit_callbacks=None,
     on_decision_callbacks=None,
 ) -> OracleSession:
     """Create an automated session to run experiments with labeled data.
@@ -80,6 +85,8 @@ def create_oracle_session(
         Anomaly detection model to use
     max_iterations : int or None, optional
         Maximum number of asked decisions. Default is 5 times the number of anomalies.
+    on_refit_callbacks : list of callable, or callable, or None, optional
+        Functions to be called when model is refitted, default is empty list.
     on_decision_callbacks : list of callable, or callable, or None, optional
         Functions to be called when expert decision is made, default is empty list.
 
@@ -96,5 +103,6 @@ def create_oracle_session(
         model=model,
         max_iterations=max_iterations,
         max_anomalies=n_anomalies,
+        on_refit_callbacks=on_refit_callbacks,
         on_decision_callbacks=on_decision_callbacks,
     )
