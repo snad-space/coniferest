@@ -195,7 +195,7 @@ class AADEvaluator(ConiferestEvaluator):
 
         res = solver.solve()
 
-#        loss = res.obj_val + 0.5 * np.inner(prior_weights, prior_weights) * prior_influence
+        #        loss = res.obj_val + 0.5 * np.inner(prior_weights, prior_weights) * prior_influence
 
         self.weights = np.asarray(res.x[:n_weights])
         weights_norm = np.linalg.norm(self.weights)
