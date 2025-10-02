@@ -61,8 +61,7 @@ class ForestEvaluator:
         number of inner iterations.
 
         For `calc_paths_sum` and `calc_feature_delta_sum` n_inner_iter
-        must be equal to the number of trees, while for
-        `calc_paths_sum_transpose` it must be equal to the number of samples.
+        must be equal to the number of trees.
 
         Parameters
         ----------
