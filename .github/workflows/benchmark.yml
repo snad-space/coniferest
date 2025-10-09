@@ -21,7 +21,7 @@ jobs:
         uses: CodSpeedHQ/action@v4
         with:
           token: ${{ secrets.CODSPEED_TOKEN }}
-          mode: walltime
+          mode: instrumentation
           run: |
             pip install -e '.[dev,datasets]'
             pip install pytest-codspeed
