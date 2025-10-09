@@ -6,6 +6,7 @@ from coniferest.datasets import non_anomalous_outliers, ztf_m31
 from coniferest.label import Label
 from coniferest.pineforest import PineForest
 from coniferest.session import Session
+from coniferest.session.callback import TerminateAfterNAnomalies
 
 
 @pytest.mark.e2e
@@ -64,7 +65,7 @@ def test_e2e_ztf_m31():
 @pytest.mark.parametrize(
     "model,n_iter,last_idx",
     [
-        (AADForest(n_trees=128, random_seed=0), 48, 1117),
+        (AADForest(n_trees=128, random_seed=0), 59, 1093),
         (PineForest(n_trees=128, n_spare_trees=512, random_seed=0), 34, 1109),
     ],
 )
@@ -75,16 +76,12 @@ def test_non_anomalous_outliers(model, n_iter, last_idx):
     n_anomalies = 1 << 5
     data, metadata = non_anomalous_outliers(inliers=n_regular, outliers=n_anomalies)
 
-    def terminate_after_all_detected(_metadata, _data, session):
-        if session.known_anomalies.size == n_anomalies:
-            session.terminate()
-
     session = Session(
         data=data,
         metadata=metadata,
         model=model,
         decision_callback=lambda metadata, _data, _session: metadata,
-        on_decision_callbacks=[terminate_after_all_detected],
+        on_decision_callbacks=[TerminateAfterNAnomalies(n_anomalies)],
     )
     session.run()
 
