@@ -10,7 +10,7 @@
 Package for active anomaly detection with isolation forests, made by [SNAD collaboration](https://snad.space/).
 
 It includes:
-* `IsolationForest` - reimplementation of scikit-learn's isolation forest with much better scoring performance due to the use of Cython and multi-threading (the latter is not currently available on macOS).
+* `IsolationForest` - reimplementation of scikit-learn's isolation forest with much better scoring performance due to the use of Rust programming language and multi-threading.
 * `AADForest` - reimplementation of Active Anomaly detection algorithm with isolation forests from Shubhomoy Das' [`ad_examples` package](https://github.com/shubhomoydas/ad_examples) with better performance, much less code and more flexible dependencies.
 * `PineForest` - our own active learning model based on the idea of tree filtering.
 
@@ -22,18 +22,14 @@ See the documentation for the [**Tutorial**](https://coniferest.readthedocs.io/e
 
 ### Installation
 
-The project is using [Cython](https://cython.org/) for performance and requires compilation.
-However, binary wheels are available for Linux, macOS and Windows, so you can install the package with `pip install coniferest` on these platforms with no build-time dependencies.
-Currently multithreading is not available in macOS ARM wheels, but you can install the package from the source to enable it, see instructions below.
+```shell
+pip install coniferest
+```
+
+Binary wheels are available for Linux, macOS and Windows, so you can install the package from PyPI on these platforms with no build-time dependencies.
 
 If your specific platform is not supported, or you need a development version, you can install the package from the source.
 To do so, clone the repository and run `pip install .` in the root directory.
-
-Note, that we are using OpenMP for multi-threading, which is not available on macOS with the Apple LLVM Clang compiler.
-You still can install the package with Apple LLVM, but it will be single-threaded.
-Alternatively, you can install the package with Clang from Homebrew (`brew install llvm libomp`) or GCC (`brew install gcc`), which will enable multi-threading.
-In this case you will need to set environment variables `CC=gcc-12` (or whatever version you have installed) or `CC=$(brew --preifx llvm)/bin/clang` and `CONIFEREST_FORCE_OPENMP_ON_MACOS=1`.
-
 
 ### Development
 
@@ -61,6 +57,8 @@ Most of the benchmarks have `n_jobs` fixture set to 1 by default, you can change
 You can adjust the minimum number of iterations with `--benchmark-min-rounds` and maximum execution time per benchmark with `--benchmark-max-time` (note that the latter can be exceeded if the minimum number of rounds is not reached).
 See `pyproject.toml` for the default benchmarking options.
 You can make a snapshot the current benchmark result with `--benchmark-save=NAME` or with `--benchmark-autosave`, and compare benchmarks with `pytest-benchmark compare` command.
+
+We also run these benchmarks with GitHub Actions using [codspeed](https://codspeed.io).
 
 ## Citation
 
