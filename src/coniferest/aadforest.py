@@ -1,10 +1,11 @@
 from numbers import Real
 from typing import Callable
 
+import clarabel
 import numpy as np
-from scipy.optimize import minimize
+from scipy import sparse
 
-from .calc_trees import calc_paths_sum, calc_paths_sum_transpose  # noqa
+from .calc_trees import calc_paths_sum  # noqa
 from .coniferest import Coniferest, ConiferestEvaluator
 from .label import Label
 
@@ -18,6 +19,9 @@ class AADEvaluator(ConiferestEvaluator):
         self.budget = aad.budget
         self.prior_influence = aad.prior_influence
         self.weights = np.full(shape=(self.n_leaves,), fill_value=np.reciprocal(np.sqrt(self.n_leaves)))
+
+        leaf_mask = self.selectors["feature"] < 0
+        self.leaf_values = self.selectors["value"][leaf_mask]
 
     def _q_tau(self, scores):
         if isinstance(self.budget, int):
@@ -57,129 +61,133 @@ class AADEvaluator(ConiferestEvaluator):
             x,
             weights,
             num_threads=self.num_threads,
-            batch_size=self.get_batch_size(self.n_trees),
+            batch_size=self.batch_size,
         )
 
-    def loss(
-        self,
-        weights,
-        known_data,
-        known_labels,
-        anomaly_count,
-        nominal_count,
-        q_tau,
-        C_a=1.0,
-        prior_influence=1.0,
-        prior_weights=None,
-    ):
-        """Loss for the known data.
-
-        Adopted from Eq3 of Das et al. 2019 https://arxiv.org/abs/1901.08930
-        with the respect to
-        1) different anomaly labels - they use +1 for anomalies, -1 for
-              nomalies, we use `Label` enum, which is opposite and includes
-              `UNKNOWN` label;
-        2) different direction of the score axis - they use higher scores
-              for anomalies, we use lower scores for anomalies.
-        """
-
-        # This new score is negative for the "anomalous" subsample and
-        # positive for the "nominal" subsample.
-        scores = self.score_samples(known_data, weights) - q_tau
-
-        if prior_weights is None:
-            prior_weights = self.weights
-
-        loss = 0.0
-        if anomaly_count:
-            # For anomalies in "nominal" subsample we add their positive scores.
-            loss += C_a * np.sum(scores[(known_labels == Label.ANOMALY) & (scores >= 0)]) / anomaly_count
-        if nominal_count:
-            # Add for nominals in "anomalous" subsample we add their inverse scores (positive number).
-            loss -= np.sum(scores[(known_labels == Label.REGULAR) & (scores <= 0)]) / nominal_count
-        delta_weights = weights - prior_weights
-        loss += 0.5 * prior_influence * np.inner(delta_weights, delta_weights)
-
-        return loss
-
-    def loss_gradient(
-        self,
-        weights,
-        known_data,
-        known_labels,
-        anomaly_count,
-        nominal_count,
-        q_tau,
-        C_a=1.0,
-        prior_influence=1.0,
-        prior_weights=None,
-    ):
-        scores = self.score_samples(known_data, weights) - q_tau
-
-        if prior_weights is None:
-            prior_weights = self.weights
-
-        sample_weights = np.zeros(known_data.shape[0])
-        if anomaly_count:
-            sample_weights[(known_labels == Label.ANOMALY) & (scores >= 0)] = C_a / anomaly_count
-        if nominal_count:
-            sample_weights[(known_labels == Label.REGULAR) & (scores <= 0)] = -1.0 / nominal_count
-
-        grad = calc_paths_sum_transpose(
-            self.selectors,
-            self.node_offsets,
-            self.leaf_offsets,
-            known_data,
-            sample_weights,
-            num_threads=self.num_threads,
-            batch_size=self.get_batch_size(len(known_data)),
-        )
-        delta_weights = weights - prior_weights
-        grad += prior_influence * delta_weights
-
-        return grad
-
-    def loss_hessian(
-        self,
-        weights,
-        vector,
-        known_data,
-        known_labels,
-        q_tau,
-        anomaly_count,
-        nominal_count,
-        C_a=1.0,
-        prior_influence=1.0,
-        prior_weights=None,
-    ):
-        return vector * prior_influence
-
-    def fit_known(self, data, known_data, known_labels):
+    def fit_known(self, data, known_data, known_labels, prior_weights=None):
         scores = self.score_samples(data)
         q_tau = self._q_tau(scores)
+        known_leafs = self.apply(known_data)
 
-        anomaly_count = np.count_nonzero(known_labels == Label.ANOMALY)
-        nominal_count = np.count_nonzero(known_labels == Label.REGULAR)
-        prior_influence = self.prior_influence(anomaly_count, nominal_count)
+        n_anomalies = np.count_nonzero(known_labels == Label.ANOMALY)
+        n_nominals = np.count_nonzero(known_labels == Label.REGULAR)
+        prior_influence = self.prior_influence(n_anomalies, n_nominals)
 
-        res = minimize(
-            self.loss,
-            self.weights,
-            args=(known_data, known_labels, anomaly_count, nominal_count, q_tau, self.C_a, prior_influence),
-            method="trust-krylov",
-            jac=self.loss_gradient,
-            hessp=self.loss_hessian,
-            tol=1e-4,
+        if prior_weights is None:
+            prior_weights = self.weights
+
+        n_weights = self.weights.shape[0]
+        n_knowns = n_anomalies + n_nominals
+        n_variables = n_weights + n_knowns
+        n_constraints = 2 * n_knowns
+
+        # Problem matrix P
+        data = np.full_like(self.weights, prior_influence)
+        ind = np.arange(n_weights)
+        P = sparse.csc_matrix((data, (ind, ind)), shape=(n_variables, n_variables))
+
+        # Problem vector q
+        q_known = np.zeros_like(known_labels, dtype=self.weights.dtype)
+        if n_anomalies > 0:
+            q_known[known_labels == Label.ANOMALY] = self.C_a * np.reciprocal(float(n_anomalies))
+        if n_nominals > 0:
+            q_known[known_labels == Label.REGULAR] = np.reciprocal(float(n_nominals))
+
+        q = np.concatenate([-prior_influence * prior_weights, q_known])
+
+        # Constraints matrix A
+        ## Weight variables
+        col_ind = known_leafs.flatten()
+        row_ind = np.repeat(np.arange(n_knowns), self.n_trees)
+        data = (-self.leaf_values[known_leafs] * known_labels.reshape(-1, 1)).flatten()
+
+        ## Cost variables
+        col_ind = np.concatenate(
+            [
+                col_ind,
+                np.tile(n_weights + np.arange(n_knowns), 2),
+            ]
         )
-        weights_norm = np.sqrt(np.inner(res.x, res.x))
-        self.weights = res.x / weights_norm
+        row_ind = np.concatenate(
+            [
+                row_ind,
+                np.arange(n_constraints),
+            ]
+        )
+        data = np.concatenate(
+            [
+                data,
+                np.full((n_constraints,), -1),
+            ]
+        )
+        A = sparse.csc_matrix((data, (row_ind, col_ind)), shape=(n_constraints, n_variables))
+
+        # Constraints vector b
+        b = np.concatenate(
+            [
+                -q_tau * known_labels,
+                np.zeros((n_knowns,)),
+            ]
+        )
+
+        # Constraints type: all \ge 0
+        cones = [
+            clarabel.NonnegativeConeT(n_constraints),
+        ]
+
+        settings = clarabel.DefaultSettings()
+        settings.verbose = False
+
+        solver = clarabel.DefaultSolver(P, q, A, b, cones, settings)
+
+        res = solver.solve()
+
+        self.weights = np.asarray(res.x[:n_weights])
+        weights_norm = np.linalg.norm(self.weights)
+        self.weights /= weights_norm
 
 
 class AADForest(Coniferest):
-    """
+    r"""
     Active Anomaly Detection with Isolation Forest.
 
     See Das et al., 2017 https://arxiv.org/abs/1708.09441
+
+    The method solves the optimization problem:
+
+    .. math::
+
+       \mathbf{w} = \arg\min_{\mathbf{w}} \left(
+        \frac{C_a}{\left|\mathcal{A}\right|}
+            \sum_{i \in \mathcal{A}} \mathrm{ReLU}\left(s(\mathbf{x_i} | \mathbf{w}) - q_{\tau}\right) +
+        \frac{1}{\left|\mathcal{N}\right|}
+            \sum_{i \in \mathcal{N}} \mathrm{ReLU}\left(q_{\tau} - s(\mathbf{x_i} | \mathbf{w})\right) +
+        \frac{1}{2} \lVert \mathbf{w} - \mathbf{w_0}\rVert^2\right),
+
+    where :math:`C_a` is `C_a`, :math:`\mathcal{A}` is a set of known anomalies,
+    :math:`\mathcal{N}` is a set of known nominals, :math:`s(\mathbf{x_i} | \mathbf{w})`
+    is the anomaly score of instance with features :math:`\mathbf{x_i}`
+    given weights  :math:`\mathbf{w}`.
+
+    This problem is reformulated as an equivalent quadratic programming problem:
+
+    .. math::
+
+       \begin{bmatrix}
+       \mathbf{w}\\
+       \mathbf{u}
+       \end{bmatrix} = \arg\min_{\mathbf{w}, \mathbf{u}} \left(
+        \frac{C_a}{\left|\mathcal{A}\right|} \sum_{i \in \mathcal{A}} u_i +
+        \frac{1}{\left|\mathcal{N}\right|} \sum_{i \in \mathcal{N}} u_i +
+        \frac{1}{2} \lVert \mathbf{w} - \mathbf{w_0} \rVert^2\right),
+
+    with the following convex constraints:
+
+    .. math::
+
+       u_i &\ge 0 \quad & i \in \mathcal{A} \cup \mathcal{N},\\
+       u_i - s(\mathbf{x_i} | \mathbf{w}) &\ge - q_{\tau}\quad & i \in \mathcal{A},\\
+       u_i + s(\mathbf{x_i} | \mathbf{w}) &\ge q_{\tau}\quad & i \in \mathcal{N}.\\
 
     Parameters
     ----------
@@ -333,6 +341,9 @@ class AADForest(Coniferest):
             or np.all(known_labels == Label.UNKNOWN)
         ):
             return self
+
+        index = known_labels != Label.UNKNOWN
+        known_data, known_labels = known_data[index], known_labels[index]
 
         self.evaluator.fit_known(data, known_data, known_labels)
 
