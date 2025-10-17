@@ -52,3 +52,19 @@ jobs:
           components: clippy
       - name: Run cargo clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
+
+  build-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: 3.12
+      - name: Install the package
+        run: |
+          pip install '.[dev]'
+          pip install -r docs/requirements.txt
+      - name: Build Sphinx Docs
+        run: sphinx-build -M html ./docs ./_readthedocs -T -E
