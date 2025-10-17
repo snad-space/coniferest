@@ -53,11 +53,13 @@ jobs:
       - name: Run cargo clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
-  build-docs:
+  run-notebooks:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v5
+      - name: Install Graphviz
+        run: sudo apt-get install -y graphviz
       - name: Setup Python 3.12
         uses: actions/setup-python@v6
         with:
@@ -66,5 +68,9 @@ jobs:
         run: |
           pip install '.[dev]'
           pip install -r docs/requirements.txt
-      - name: Build Sphinx Docs
-        run: sphinx-build -M html ./docs ./_readthedocs -T -E
+      - name: Run Notebooks
+        run: |
+          for nb in docs/notebooks/*.ipynb; do
+            echo "Running $nb"
+            jupyter nbconvert --to notebook --execute --inplace "$nb" || exit 1
+          done
