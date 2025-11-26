@@ -40,6 +40,14 @@ def test_prior_influence_callable():
     assert np.argmin(scores) == data.shape[0] - 1
 
 
+@pytest.mark.regression
+def test_budget_auto(regression_data):
+    data, _metadata = single_outlier()
+    forest = AADForest(budget="auto", random_seed=0).fit(data)
+    scores = forest.score_samples(data)
+    regression_data.assert_allclose(scores)
+
+
 # Single-thread and parallel implementations are a bit different, so here we check both.
 # We use n_thread parameter instead of n_jobs, which is a fixture in conftest.py
 @pytest.mark.parametrize("n_thread", [1, 2])
