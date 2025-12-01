@@ -14,7 +14,7 @@ version = "0.1.1"
 dependencies = [
  "enum_dispatch",
  "itertools",
- "ndarray",
+ "ndarray 0.17.1",
  "num-traits",
  "numpy",
  "pyo3",
@@ -123,6 +123,21 @@ dependencies = [
  "portable-atomic",
  "portable-atomic-util",
  "rawpointer",
+]
+
+[[package]]
+name = "ndarray"
+version = "0.17.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c7c9125e8f6f10c9da3aad044cc918cf8784fa34de857b1aa68038eb05a50a9"
+dependencies = [
+ "matrixmultiply",
+ "num-complex",
+ "num-integer",
+ "num-traits",
+ "portable-atomic",
+ "portable-atomic-util",
+ "rawpointer",
  "rayon",
 ]
 
@@ -160,7 +175,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29f1dee9aa8d3f6f8e8b9af3803006101bb3653866ef056d530d53ae68587191"
 dependencies = [
  "libc",
- "ndarray",
+ "ndarray 0.16.1",
  "num-complex",
  "num-integer",
  "num-traits",
