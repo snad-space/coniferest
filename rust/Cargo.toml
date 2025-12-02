@@ -24,7 +24,7 @@ enum_dispatch = "0.3"
 itertools = "0.14"
 pyo3 = { version = "0.27", features = ["extension-module"] }
 # Needs to be consistent with ndarray dependency in numpy
-ndarray = { version = "0.16", features = ["rayon"] }
+ndarray = { version = "0.17", features = ["rayon"] }
 num-traits = "0.2"
 numpy = "0.27"
 # Needs to be consistent with rayon dependency in ndarray
