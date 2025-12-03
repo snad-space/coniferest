@@ -1,10 +1,10 @@
 use numpy::{Element, PyArrayDescr};
-use pyo3::prelude::{PyAnyMethods, PyDictMethods};
-use pyo3::sync::GILOnceCell;
+use pyo3::prelude::PyDictMethods;
+use pyo3::sync::PyOnceLock;
 use pyo3::types::PyDict;
-use pyo3::{py_run, Bound, Py, PyResult, Python};
+use pyo3::{Bound, Py, PyResult, Python, py_run};
 
-static SELECTOR_DTYPE_CELL: GILOnceCell<Py<PyArrayDescr>> = GILOnceCell::new();
+static SELECTOR_DTYPE_CELL: PyOnceLock<Py<PyArrayDescr>> = PyOnceLock::new();
 
 /// Selector is the representation of decision tree nodes: either branches or leafs.
 ///
@@ -50,7 +50,7 @@ impl Selector {
             .get_item("dtype")
             .expect("Error in built-in Python code for dtype initialization")
             .expect("Error in built-in Python code for dtype initialization: dtype cannot be None")
-            .downcast::<PyArrayDescr>()?.clone()
+            .cast::<PyArrayDescr>()?.clone()
             .unbind())
             })?;
         Ok(unbind_dtype.bind(py).clone())
