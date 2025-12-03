@@ -21,8 +21,8 @@ pub(crate) struct Selector {
     pub(crate) value: f64,
     /// Index of right subtree, -1 if leaf
     pub(crate) right: i32,
-    /// Natural logarithm of the number of samples in the node
-    pub(crate) log_n_node_samples: f32,
+    /// Average path length for the number of samples in the node
+    pub(crate) node_average_path_length: f32,
 }
 
 impl Selector {
@@ -40,7 +40,7 @@ impl Selector {
                             ('left', 'i4'),
                             ('value', 'f8'),
                             ('right', 'i4'),
-                            ('log_n_node_samples', 'f4')
+                            ('node_average_path_length', 'f4')
                         ],
                         align=True,
                     )
