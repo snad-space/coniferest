@@ -1,15 +1,13 @@
-use crate::mut_slices::MutSlices;
 use crate::selector::Selector;
 use enum_dispatch::enum_dispatch;
 use itertools::Itertools;
 use ndarray::parallel::prelude::*;
-use ndarray::{ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2, Axis, Zip};
+use ndarray::{ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2, Zip};
 use num_traits::AsPrimitive;
 use numpy::{Element, PyArray1, PyArray2, PyArrayMethods};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::PyAnyMethods;
-use pyo3::{pyfunction, Bound, FromPyObject, PyResult, Python};
-use rayon::prelude::*;
+use pyo3::{Bound, FromPyObject, PyResult, Python, pyfunction};
 
 type DeltaSumHitCount<'py> = (Bound<'py, PyArray2<f64>>, Bound<'py, PyArray2<i64>>);
 
@@ -20,18 +18,6 @@ trait DataTrait<'py> {
         py: Python<'py>,
         selectors: Bound<'py, PyArray1<Selector>>,
         node_offsets: Bound<'py, PyArray1<usize>>,
-        weights: Option<Bound<'py, PyArray1<f64>>>,
-        num_threads: usize,
-        batch_size: usize,
-    ) -> PyResult<Bound<'py, PyArray1<f64>>>;
-
-    #[allow(clippy::too_many_arguments)]
-    fn calc_paths_sum_transpose(
-        &self,
-        py: Python<'py>,
-        selectors: Bound<'py, PyArray1<Selector>>,
-        node_offsets: Bound<'py, PyArray1<usize>>,
-        leaf_offsets: Bound<'py, PyArray1<usize>>,
         weights: Option<Bound<'py, PyArray1<f64>>>,
         num_threads: usize,
         batch_size: usize,
@@ -103,64 +89,6 @@ where
                 paths_view_mut,
             );
             paths
-        })
-    }
-
-    fn calc_paths_sum_transpose(
-        &self,
-        py: Python<'py>,
-        selectors: Bound<'py, PyArray1<Selector>>,
-        node_offsets: Bound<'py, PyArray1<usize>>,
-        leaf_offsets: Bound<'py, PyArray1<usize>>,
-        weights: Option<Bound<'py, PyArray1<f64>>>,
-        num_threads: usize,
-        batch_size: usize,
-    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
-        let selectors = selectors.readonly();
-        let selectors_view = selectors.as_array();
-        check_selectors(selectors_view)?;
-
-        let node_offsets = node_offsets.readonly();
-        let node_offsets_view = node_offsets.as_array();
-        check_node_offsets(node_offsets_view, selectors_view.len())?;
-
-        let leaf_offsets = leaf_offsets.readonly();
-        let leaf_offsets_view = leaf_offsets.as_array();
-        check_leaf_offsets(leaf_offsets_view, node_offsets_view.len())?;
-
-        let data = self.readonly();
-        let data_view = data.as_array();
-        check_data(data_view)?;
-
-        let weights = weights.map(|weights| weights.readonly());
-        let weights_view = weights.as_ref().map(|weights| weights.as_array());
-
-        let num_threads = get_num_threads(data_view.ncols(), num_threads, batch_size)?;
-
-        Ok({
-            let values = PyArray1::zeros(
-                py,
-                *leaf_offsets_view
-                    .last()
-                    .expect("leaf_offsets array must not be empty"),
-                false,
-            );
-
-            // SAFETY: this call invalidates other views, but it is the only view we need
-            let values_view = unsafe { values.as_array_mut() };
-
-            // Here we need to dispatch `data` and run the template function
-            calc_paths_sum_transpose_impl(
-                selectors_view,
-                node_offsets_view,
-                leaf_offsets_view,
-                data_view,
-                weights_view,
-                num_threads,
-                batch_size,
-                values_view,
-            );
-            values
         })
     }
 
@@ -322,34 +250,6 @@ fn check_node_offsets(node_offsets: ArrayView1<usize>, selectors_length: usize) 
 }
 
 #[inline]
-fn check_leaf_offsets(leaf_offsets: ArrayView1<usize>, node_offset_len: usize) -> PyResult<()> {
-    if leaf_offsets.len() <= 1 {
-        return Err(PyValueError::new_err(
-            "leaf_offsets must have at least two elements",
-        ));
-    }
-    if leaf_offsets.len() != node_offset_len {
-        return Err(PyValueError::new_err(
-            "leaf_offsets must have the same length as node_offsets",
-        ));
-    }
-    if let Some(leaf_offsets) = leaf_offsets.as_slice() {
-        for (x, y) in leaf_offsets.iter().copied().tuple_windows() {
-            if x > y {
-                return Err(PyValueError::new_err(
-                    "leaf_offsets must be sorted in ascending order",
-                ));
-            }
-        }
-        Ok(())
-    } else {
-        Err(PyValueError::new_err(
-            "leaf_offsets must be contiguous and in memory order",
-        ))
-    }
-}
-
-#[inline]
 fn check_data<T>(data: ArrayView2<T>) -> PyResult<()> {
     if !data.is_standard_layout() {
         return Err(PyValueError::new_err(
@@ -433,106 +333,6 @@ fn calc_paths_sum_impl<T>(
                 zip.into_par_iter()
                     .with_min_len(batch_size)
                     .for_each(|(path, sample)| inner_fn(path, sample));
-            });
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-#[pyfunction]
-#[pyo3(signature = (selectors, node_offsets, leaf_offsets, data, weights = None, *, num_threads, batch_size))]
-pub(crate) fn calc_paths_sum_transpose<'py>(
-    py: Python<'py>,
-    selectors: Bound<'py, PyArray1<Selector>>,
-    node_offsets: Bound<'py, PyArray1<usize>>,
-    leaf_offsets: Bound<'py, PyArray1<usize>>,
-    data: Data<'py>,
-    weights: Option<Bound<'py, PyArray1<f64>>>,
-    num_threads: usize,
-    batch_size: usize,
-) -> PyResult<Bound<'py, PyArray1<f64>>> {
-    data.calc_paths_sum_transpose(
-        py,
-        selectors,
-        node_offsets,
-        leaf_offsets,
-        weights,
-        num_threads,
-        batch_size,
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-fn calc_paths_sum_transpose_impl<T>(
-    selectors: ArrayView1<Selector>,
-    node_offsets: ArrayView1<usize>,
-    leaf_offsets: ArrayView1<usize>,
-    data: ArrayView2<T>,
-    weights: Option<ArrayView1<f64>>,
-    num_threads: usize,
-    batch_size: usize,
-    mut values: ArrayViewMut1<f64>,
-) where
-    T: Copy + Send + Sync + PartialOrd + 'static,
-    f64: AsPrimitive<T>,
-{
-    let selectors = selectors
-        .as_slice()
-        .expect("selectors must be contiguous and in memory order");
-    let node_offsets = node_offsets
-        .as_slice()
-        .expect("node_offsets must be contiguous and in memory order");
-    let leaf_offsets = leaf_offsets
-        .as_slice()
-        .expect("leaf_offsets must be contiguous and in memory order");
-
-    let values_iter = MutSlices::new(
-        values
-            .as_slice_mut()
-            .expect("values must be contiguous and in memory order"),
-        leaf_offsets,
-    );
-
-    let inner_fn =
-        |(((tree_start, tree_end), values), &leaf_first): (((usize, usize), &mut [f64]), _)| {
-            for (x_index, sample) in data.axis_iter(Axis(0)).enumerate() {
-                let tree_selectors = unsafe { selectors.get_unchecked(tree_start..tree_end) };
-
-                let leaf = find_leaf(tree_selectors, sample.as_slice().unwrap());
-
-                let value = unsafe { values.get_unchecked_mut(leaf.left as usize - leaf_first) };
-                if let Some(weights) = weights {
-                    *value += weights[x_index] * leaf.value;
-                } else {
-                    *value += leaf.value;
-                }
-            }
-        };
-
-    let leaf_firsts = &leaf_offsets[..leaf_offsets.len() - 1];
-
-    if num_threads == 1 {
-        // Here we use itertools methods
-        node_offsets
-            .iter()
-            .copied()
-            .tuple_windows()
-            .zip_eq(values_iter)
-            .zip_eq(leaf_firsts)
-            .for_each(inner_fn);
-    } else {
-        rayon::ThreadPoolBuilder::new()
-            .num_threads(num_threads)
-            .build()
-            .expect("Cannot build rayon ThreadPool")
-            .install(|| {
-                // Here we use rayon methods
-                node_offsets
-                    .par_windows(2)
-                    .map(|window| (window[0], window[1]))
-                    .zip_eq(values_iter)
-                    .zip_eq(leaf_firsts)
-                    .with_min_len(batch_size)
-                    .for_each(inner_fn);
             });
     }
 }

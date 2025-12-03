@@ -1,5 +1,5 @@
 [build-system]
-requires = ["maturin>=1.1,<2.0"]
+requires = ["maturin>=1.9.3,<2.0"]
 build-backend = "maturin"
 
 [project]
@@ -11,9 +11,9 @@ authors = [
     { name = "Vladimir Korolev", email = "balodja@gmail.com" },
     { name = "SNAD team" },
 ]
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 classifiers = [
-    "License :: OSI Approved :: MIT License",
     "Intended Audience :: Science/Research",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
@@ -27,6 +27,7 @@ dependencies = [
     # sklearn.tree._splitter.RandomSplitter changed signature in 1.4.0
     "scikit-learn>=1.4,<2",
     "onnxconverter-common",
+    "clarabel",
 ]
 dynamic = ["version"]
 

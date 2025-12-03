@@ -1,7 +1,7 @@
 [package]
 name = "coniferest"
-version = "0.1.1"
-edition = "2021"
+version = "0.1.2"
+edition = "2024"
 
 [lib]
 name = "calc_trees"
@@ -22,10 +22,10 @@ default = ["pyo3/abi3-py310"]
 [dependencies]
 enum_dispatch = "0.3"
 itertools = "0.14"
-pyo3 = { version = "0.25", features = ["extension-module"] }
-# Needs to be consistent with ndarray dependecy in numpy
-ndarray = { version = "0.16", features = ["rayon"] }
+pyo3 = { version = "0.27", features = ["extension-module"] }
+# Needs to be consistent with ndarray dependency in numpy
+ndarray = { version = "0.17", features = ["rayon"] }
 num-traits = "0.2"
-numpy = "0.25"
-# Needs to be consistent with rayon dependecy in ndarray
+numpy = "0.27.1"
+# Needs to be consistent with rayon dependency in ndarray
 rayon = "1.11"
