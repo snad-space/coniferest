@@ -391,8 +391,8 @@ fn calc_feature_delta_sum_impl<T>(
                 // Here we cast to f64 following the original Cython implementation, but
                 // it is a subject to change.
                 *unsafe { delta_sum_row.uget_mut(parent_selector.feature as usize) } += 1.0
-			+ (child_selector.node_average_path_length - parent_selector.node_average_path_length)
-                            as f64;
+                    + (child_selector.node_average_path_length
+                        - parent_selector.node_average_path_length) as f64;
                 *unsafe { hit_count_row.uget_mut(parent_selector.feature as usize) } += 1;
             }
         }

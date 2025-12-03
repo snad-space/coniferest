@@ -275,7 +275,7 @@ class ConiferestEvaluator(ForestEvaluator):
 
         n_node_samples = nodes["n_node_samples"]
 
-        selectors["node_average_path_length"] = average_path_length(n_node_samples.astype('float32'))
+        selectors["node_average_path_length"] = average_path_length(n_node_samples.astype("float32"))
 
         def correct_values(i, depth):
             if selectors[i]["feature"] < 0:
