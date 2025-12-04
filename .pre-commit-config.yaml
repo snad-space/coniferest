@@ -30,3 +30,9 @@ repos:
         entry: cargo fmt --manifest-path=rust/Cargo.toml
         files: \.rs
         pass_filenames: false
+      - id: pre-executed-nb
+        name: Check pre-executed notebooks
+        language: python
+        entry: python .ci/pre_executed_nb.py
+        files: ^docs/pre_executed/.*\.ipynb$
+        pass_filenames: true
