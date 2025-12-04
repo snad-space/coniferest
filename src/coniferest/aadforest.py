@@ -162,12 +162,13 @@ class AADForest(Coniferest):
             \sum_{i \in \mathcal{A}} \mathrm{ReLU}\left(s(\mathbf{x_i} | \mathbf{w}) - q_{\tau}\right) +
         \frac{1}{\left|\mathcal{N}\right|}
             \sum_{i \in \mathcal{N}} \mathrm{ReLU}\left(q_{\tau} - s(\mathbf{x_i} | \mathbf{w})\right) +
-        \frac{1}{2} \lVert \mathbf{w} - \mathbf{w_0}\rVert^2\right),
+        \frac{\alpha}{2} \lVert \mathbf{w} - \mathbf{w_0}\rVert^2\right),
 
-    where :math:`C_a` is `C_a`, :math:`\mathcal{A}` is a set of known anomalies,
-    :math:`\mathcal{N}` is a set of known nominals, :math:`s(\mathbf{x_i} | \mathbf{w})`
-    is the anomaly score of instance with features :math:`\mathbf{x_i}`
-    given weights  :math:`\mathbf{w}`.
+    where :math:`C_a` is `C_a`, regularization parameter :math:`\alpha` is
+    `prior_influence`, :math:`\mathcal{A}` is a set of known anomalies,
+    :math:`\mathcal{N}` is a set of known nominals, :math:`s(\mathbf{x_i} |
+    \mathbf{w})` is the anomaly score of instance with features
+    :math:`\mathbf{x_i}` given weights :math:`\mathbf{w}`.
 
     This problem is reformulated as an equivalent quadratic programming problem:
 
@@ -179,7 +180,7 @@ class AADForest(Coniferest):
        \end{bmatrix} = \arg\min_{\mathbf{w}, \mathbf{u}} \left(
         \frac{C_a}{\left|\mathcal{A}\right|} \sum_{i \in \mathcal{A}} u_i +
         \frac{1}{\left|\mathcal{N}\right|} \sum_{i \in \mathcal{N}} u_i +
-        \frac{1}{2} \lVert \mathbf{w} - \mathbf{w_0} \rVert^2\right),
+        \frac{\alpha}{2} \lVert \mathbf{w} - \mathbf{w_0} \rVert^2\right),
 
     with the following convex constraints:
 
