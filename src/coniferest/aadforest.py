@@ -14,11 +14,12 @@ __all__ = ["AADForest"]
 
 class AADEvaluator(ConiferestEvaluator):
     def __init__(self, aad):
-        super(AADEvaluator, self).__init__(aad, map_value=aad.map_value)
+        super(AADEvaluator, self).__init__(aad, n_jobs=None, map_value=aad.map_value)
         self.C_a = aad.C_a
         self.budget = aad.budget
         self.prior_influence = aad.prior_influence
         self.weights = np.full(shape=(self.n_leaves,), fill_value=np.reciprocal(np.sqrt(self.n_leaves)))
+        self.n_jobs = int(n_jobs)
 
         leaf_mask = self.selectors["feature"] < 0
         self.leaf_values = self.selectors["value"][leaf_mask]
@@ -137,6 +138,7 @@ class AADEvaluator(ConiferestEvaluator):
 
         settings = clarabel.DefaultSettings()
         settings.verbose = False
+        settings.max_threads = self.aad.model.solver_threads
 
         solver = clarabel.DefaultSolver(P, q, A, b, cones, settings)
 
@@ -233,6 +235,7 @@ class AADForest(Coniferest):
         random_seed=None,
         sampletrees_per_batch=1 << 20,
         map_value=None,
+        solver_threads = None
     ):
         super().__init__(
             trees=[],
@@ -241,8 +244,10 @@ class AADForest(Coniferest):
             n_jobs=n_jobs,
             random_seed=random_seed,
             sampletrees_per_batch=sampletrees_per_batch,
+            solver_threads = solver_threads
         )
         self.n_trees = n_trees
+        self.solver_threads = int(solver_threads)
 
         if not isinstance(budget, (int, float)):
             raise ValueError("budget must be an int or float")
@@ -279,7 +284,7 @@ class AADForest(Coniferest):
     def _build_trees(self, data):
         if len(self.trees) == 0:
             self.trees = self.build_trees(data, self.n_trees)
-            self.evaluator = AADEvaluator(self)
+            self.evaluator = AADEvaluator(self, n_jobs=self.n_jobs)
 
     def fit(self, data, labels=None):
         """
