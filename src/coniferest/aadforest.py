@@ -243,7 +243,6 @@ class AADForest(Coniferest):
             n_jobs=n_jobs,
             random_seed=random_seed,
             sampletrees_per_batch=sampletrees_per_batch,
-            solver_threads=solver_threads,
         )
         self.n_trees = n_trees
         self.solver_threads = int(solver_threads)
