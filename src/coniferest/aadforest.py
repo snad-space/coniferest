@@ -14,7 +14,7 @@ __all__ = ["AADForest"]
 
 class AADEvaluator(ConiferestEvaluator):
     def __init__(self, aad):
-        super(AADEvaluator, self).__init__(aad, n_jobs=None, map_value=aad.map_value)
+        super(AADEvaluator, self).__init__(aad, map_value=aad.map_value)
         self.C_a = aad.C_a
         self.budget = aad.budget
         self.prior_influence = aad.prior_influence
