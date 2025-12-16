@@ -245,7 +245,7 @@ class AADForest(Coniferest):
             sampletrees_per_batch=sampletrees_per_batch,
         )
         self.n_trees = n_trees
-        self.solver_threads = int(solver_threads)
+        self.solver_threads = solver_threads
 
         if not isinstance(budget, (int, float)):
             raise ValueError("budget must be an int or float")
