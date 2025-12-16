@@ -235,7 +235,7 @@ class AADForest(Coniferest):
         random_seed=None,
         sampletrees_per_batch=1 << 20,
         map_value=None,
-        solver_threads = None
+        solver_threads=None,
     ):
         super().__init__(
             trees=[],
@@ -244,7 +244,7 @@ class AADForest(Coniferest):
             n_jobs=n_jobs,
             random_seed=random_seed,
             sampletrees_per_batch=sampletrees_per_batch,
-            solver_threads = solver_threads
+            solver_threads=solver_threads,
         )
         self.n_trees = n_trees
         self.solver_threads = int(solver_threads)
