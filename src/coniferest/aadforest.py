@@ -19,7 +19,6 @@ class AADEvaluator(ConiferestEvaluator):
         self.budget = aad.budget
         self.prior_influence = aad.prior_influence
         self.weights = np.full(shape=(self.n_leaves,), fill_value=np.reciprocal(np.sqrt(self.n_leaves)))
-        self.n_jobs = int(n_jobs)
 
         leaf_mask = self.selectors["feature"] < 0
         self.leaf_values = self.selectors["value"][leaf_mask]
