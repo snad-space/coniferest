@@ -137,7 +137,10 @@ class AADEvaluator(ConiferestEvaluator):
 
         settings = clarabel.DefaultSettings()
         settings.verbose = False
-        settings.max_threads = self.aad.model.solver_threads
+
+        t = getattr(self, "num_threads", None)
+        if t is not None and int(t) > 0:
+            settings.max_threads = int(t)
 
         solver = clarabel.DefaultSolver(P, q, A, b, cones, settings)
 
@@ -234,7 +237,6 @@ class AADForest(Coniferest):
         random_seed=None,
         sampletrees_per_batch=1 << 20,
         map_value=None,
-        solver_threads=None,
     ):
         super().__init__(
             trees=[],
@@ -245,7 +247,6 @@ class AADForest(Coniferest):
             sampletrees_per_batch=sampletrees_per_batch,
         )
         self.n_trees = n_trees
-        self.solver_threads = solver_threads
 
         if not isinstance(budget, (int, float)):
             raise ValueError("budget must be an int or float")
@@ -282,7 +283,7 @@ class AADForest(Coniferest):
     def _build_trees(self, data):
         if len(self.trees) == 0:
             self.trees = self.build_trees(data, self.n_trees)
-            self.evaluator = AADEvaluator(self, n_jobs=self.n_jobs)
+            self.evaluator = AADEvaluator(self)
 
     def fit(self, data, labels=None):
         """
