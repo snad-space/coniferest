@@ -24,7 +24,13 @@ class AADEvaluator(ConiferestEvaluator):
         self.leaf_values = self.selectors["value"][leaf_mask]
 
     def _q_tau(self, scores):
-        if isinstance(self.budget, int):
+        if self.budget == "auto":
+            # When the regularization is disabled then the problem is degenerate
+            if self.prior_influence == 0:
+                return 1.0
+
+            return None
+        elif isinstance(self.budget, int):
             if self.budget >= len(scores):
                 return np.max(scores)
 
@@ -32,7 +38,7 @@ class AADEvaluator(ConiferestEvaluator):
         elif isinstance(self.budget, float):
             return np.quantile(scores, self.budget)
 
-        raise ValueError("self.budget must be an int or float")
+        raise ValueError('self.budget must be an int or float or "auto"')
 
     def score_samples(self, x, weights=None):
         """
@@ -78,7 +84,10 @@ class AADEvaluator(ConiferestEvaluator):
 
         n_weights = self.weights.shape[0]
         n_knowns = n_anomalies + n_nominals
-        n_variables = n_weights + n_knowns
+        offset_knowns = n_weights
+        n_q_tau = int(q_tau is None)
+        offset_q_tau = n_weights + n_knowns
+        n_variables = n_weights + n_knowns + n_q_tau
         n_constraints = 2 * n_knowns
 
         # Problem matrix P
@@ -93,39 +102,46 @@ class AADEvaluator(ConiferestEvaluator):
         if n_nominals > 0:
             q_known[known_labels == Label.REGULAR] = np.reciprocal(float(n_nominals))
 
-        q = np.concatenate([-prior_influence * prior_weights, q_known])
+        q = np.concatenate(
+            [
+                -prior_influence * prior_weights,
+                q_known,
+                np.zeros(shape=(n_q_tau,), dtype=self.weights.dtype),
+            ]
+        )
 
-        # Constraints matrix A
-        ## Weight variables
-        col_ind = known_leafs.flatten()
-        row_ind = np.repeat(np.arange(n_knowns), self.n_trees)
-        data = (-self.leaf_values[known_leafs] * known_labels.reshape(-1, 1)).flatten()
-
-        ## Cost variables
+        # Constraints matrix A:
+        ## - Weight variables
+        ## - Cost variables
+        ## - q_tau variable
         col_ind = np.concatenate(
             [
-                col_ind,
-                np.tile(n_weights + np.arange(n_knowns), 2),
+                known_leafs.flatten(),
+                np.tile(np.arange(offset_knowns, offset_q_tau), 2),
+                np.full((n_knowns,), offset_q_tau) if n_q_tau else [],
             ]
         )
         row_ind = np.concatenate(
             [
-                row_ind,
+                np.repeat(np.arange(n_knowns), self.n_trees),
                 np.arange(n_constraints),
+                np.arange(n_knowns) if n_q_tau else [],
             ]
         )
         data = np.concatenate(
             [
-                data,
+                (-self.leaf_values[known_leafs] * known_labels.reshape(-1, 1)).flatten(),
                 np.full((n_constraints,), -1),
+                known_labels if n_q_tau else [],
             ]
         )
+
         A = sparse.csc_matrix((data, (row_ind, col_ind)), shape=(n_constraints, n_variables))
 
         # Constraints vector b
         b = np.concatenate(
             [
-                -q_tau * known_labels,
+                np.zeros((n_knowns,)) if n_q_tau else -q_tau * known_labels,
                 np.zeros((n_knowns,)),
             ]
         )
@@ -201,10 +217,11 @@ class AADForest(Coniferest):
     max_depth : int or None, optional
         Maximum depth of every tree. If None, `log2(n_subsamples)` is used.
 
-    budget : int or float, optional
+    budget : int or float or "auto", optional
         Budget of anomalies. If the type is floating point it is considered as
         fraction of full data. If the type is integer it is considered as the
-        number of items. Default is 0.03.
+        number of items. If string "auto" is set then the exact parameter is
+        found during the train. Default is 0.03.
 
     n_jobs : int or None, optional
         Number of threads to use for scoring. If None - all available CPUs are used.
@@ -244,8 +261,8 @@ class AADForest(Coniferest):
         )
         self.n_trees = n_trees
 
-        if not isinstance(budget, (int, float)):
-            raise ValueError("budget must be an int or float")
+        if not (isinstance(budget, (int, float)) or budget == "auto"):
+            raise ValueError('budget must be an int or float or "auto"')
 
         self.budget = budget
         self.C_a = C_a
