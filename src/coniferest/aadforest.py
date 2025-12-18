@@ -154,6 +154,10 @@ class AADEvaluator(ConiferestEvaluator):
         settings = clarabel.DefaultSettings()
         settings.verbose = False
 
+        t = getattr(self, "num_threads", None)
+        if t is not None and int(t) > 0:
+            settings.max_threads = int(t)
+
         solver = clarabel.DefaultSolver(P, q, A, b, cones, settings)
 
         res = solver.solve()
