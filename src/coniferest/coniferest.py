@@ -36,7 +36,7 @@ class Coniferest(ABC):
         Subsamples to use for the training.
 
     max_depth : int or None, optional
-        Maximum depth of the trees in use. If None, then `log2(n_subsamples)`
+        Maximum depth of the trees in use. If None, then `log2(n_subsamples)` is used.
 
     n_jobs : int, default=-1
         Number of threads to use for scoring. If -1, use all available CPUs.
