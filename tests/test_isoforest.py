@@ -183,7 +183,7 @@ def test_n_jobs():
     reference_forest = IsolationForest(n_trees=5, random_seed=random_seed)
     reference_forest.fit(data)
 
-    for n_jobs in [1, 2, -1, None]:
+    for n_jobs in [1, 2, -1]:
         forest = IsolationForest(n_trees=5, n_jobs=n_jobs, random_seed=random_seed)
         forest.fit(data)
         assert_forest_scores(reference_forest, forest, data=data)

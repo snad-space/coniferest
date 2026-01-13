@@ -223,8 +223,8 @@ class AADForest(Coniferest):
         number of items. If string "auto" is set then the exact parameter is
         found during the train. Default is 0.03.
 
-    n_jobs : int or None, optional
-        Number of threads to use for scoring. If None - all available CPUs are used.
+    n_jobs : int, optional
+        Number of threads to use for scoring. If -1, use all available CPUs.
 
     random_seed : int or None, optional
         Random seed to use for reproducibility. If None - random seed is used.
@@ -246,7 +246,7 @@ class AADForest(Coniferest):
         budget=0.03,
         C_a=1.0,
         prior_influence=1.0,
-        n_jobs=None,
+        n_jobs=-1,
         random_seed=None,
         sampletrees_per_batch=1 << 20,
         map_value=None,
