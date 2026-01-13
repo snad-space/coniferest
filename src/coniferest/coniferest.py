@@ -38,9 +38,8 @@ class Coniferest(ABC):
     max_depth : int or None, optional
         Maximum depth of the trees in use. If None, then `log2(n_subsamples)`
 
-    n_jobs : int, optional
+    n_jobs : int, default=-1
         Number of threads to use for scoring. If -1, use all available CPUs.
-        Default is -1.
 
     random_seed : int or None, optional
         Seed for the reproducibility. If None, then random seed is used.

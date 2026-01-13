@@ -22,9 +22,8 @@ class IsolationForest(Coniferest):
     max_depth : int or None, optional
         Maximal tree depth. If None, `log2(n_subsamples)` is used.
 
-    n_jobs : int, optional
+    n_jobs : int, default=-1
         Number of threads to use for evaluation. If -1, use all available CPUs.
-        Default is -1.
 
     random_seed : int or None, optional
         Seed for reproducibility. If None, random seed is used.
