@@ -24,6 +24,7 @@ class IsolationForest(Coniferest):
 
     n_jobs : int, optional
         Number of threads to use for evaluation. If -1, use all available CPUs.
+        Default is -1.
 
     random_seed : int or None, optional
         Seed for reproducibility. If None, random seed is used.

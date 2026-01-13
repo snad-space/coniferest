@@ -225,6 +225,7 @@ class AADForest(Coniferest):
 
     n_jobs : int, optional
         Number of threads to use for scoring. If -1, use all available CPUs.
+        Default is -1.
 
     random_seed : int or None, optional
         Random seed to use for reproducibility. If None - random seed is used.
