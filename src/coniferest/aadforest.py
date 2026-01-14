@@ -17,6 +17,7 @@ class AADEvaluator(ConiferestEvaluator):
         super(AADEvaluator, self).__init__(aad, map_value=aad.map_value)
         self.C_a = aad.C_a
         self.budget = aad.budget
+        self.n_jobs = aad.n_jobs
         self.prior_influence = aad.prior_influence
         self.weights = np.full(shape=(self.n_leaves,), fill_value=np.reciprocal(np.sqrt(self.n_leaves)))
 
@@ -153,6 +154,8 @@ class AADEvaluator(ConiferestEvaluator):
 
         settings = clarabel.DefaultSettings()
         settings.verbose = False
+        # max_threads = 0 means automatic
+        settings.max_threads = self.n_jobs if self.n_jobs > 0 else 0
 
         solver = clarabel.DefaultSolver(P, q, A, b, cones, settings)
 
