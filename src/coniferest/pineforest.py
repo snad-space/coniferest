@@ -46,8 +46,8 @@ class PineForest(Coniferest):
         detection, right?). The weight is used during the filtering
         process.
 
-    n_jobs : int, optional
-        Number of threads to use for scoring. If None - number of CPUs is used.
+    n_jobs : int, default=-1
+        Number of threads to use for scoring. If -1, use all available CPUs.
 
     random_seed : int or None, optional
         Random seed. If None - random seed is used.
@@ -61,7 +61,7 @@ class PineForest(Coniferest):
         n_spare_trees=400,
         regenerate_trees=False,
         weight_ratio=1.0,
-        n_jobs=None,
+        n_jobs=-1,
         random_seed=None,
         sampletrees_per_batch=1 << 20,
     ):
