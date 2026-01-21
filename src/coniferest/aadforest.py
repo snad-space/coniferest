@@ -224,7 +224,7 @@ class AADForest(Coniferest):
         Budget of anomalies. If the type is floating point it is considered as
         fraction of full data. If the type is integer it is considered as the
         number of items. If string "auto" is set then the exact parameter is
-        found during the train. Default is 0.03.
+        found during the train. Default is "auto".
 
     n_jobs : int, default=-1
         Number of threads to use for scoring. If -1, use all available CPUs.
@@ -246,7 +246,7 @@ class AADForest(Coniferest):
         n_trees=100,
         n_subsamples=256,
         max_depth=None,
-        budget=0.03,
+        budget="auto",
         C_a=1.0,
         prior_influence=1.0,
         n_jobs=-1,

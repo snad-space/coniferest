@@ -64,7 +64,7 @@ def test_regression_fit_known(n_thread, regression_data):
     known_labels = rng.choice([-1, 1], n_known, replace=True)
 
     # This small sampletrees_per_batch is inefficient, but it's good for testing to guarantee parallel execution.
-    forest = AADForest(n_trees=n_trees, random_seed=random_seed, n_jobs=n_thread, sampletrees_per_batch=2048)
+    forest = AADForest(n_trees=n_trees, random_seed=random_seed, n_jobs=n_thread, sampletrees_per_batch=2048, budget=0.03)
     forest.fit(data)
     pre_fit_known_scores = forest.score_samples(data)
 
