@@ -51,7 +51,7 @@ def test_e2e_ztf_m31():
 
     assert len(session.known_labels) == callback.n_iter
 
-    oid = 695211200075348
+    oid = 695211400053697
     idx = np.where(metadata == oid)[0][0]
     assert idx in session.known_labels
     assert session.known_labels[idx] == Label.ANOMALY
@@ -65,7 +65,7 @@ def test_e2e_ztf_m31():
 @pytest.mark.parametrize(
     "model,n_iter,last_idx",
     [
-        (AADForest(n_trees=128, random_seed=0), 59, 1093),
+        (AADForest(n_trees=128, random_seed=0), 63, 1111),
         (PineForest(n_trees=128, n_spare_trees=512, random_seed=0), 34, 1109),
     ],
 )
