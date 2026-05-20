@@ -1,6 +1,7 @@
 import math
 
 import numpy as np
+from scipy.sparse import csr_array
 
 from .calc_trees import calc_apply, calc_feature_delta_sum, calc_paths_sum, selector_dtype  # noqa
 from .utils import average_path_length
@@ -158,7 +159,7 @@ class ForestEvaluator:
 
         return np.sum(delta_sum, axis=0) / np.sum(hit_count, axis=0) / self.average_path_length(self.samples)
 
-    def apply(self, x):
+    def _dense_apply(self, x):
         if not x.flags["C_CONTIGUOUS"]:
             x = np.ascontiguousarray(x)
 
@@ -169,6 +170,51 @@ class ForestEvaluator:
             num_threads=self.num_threads,
             batch_size=self.batch_size,
         )
+
+    def _sparse_apply(self, x):
+        dense = self._dense_apply(x)
+
+        n_samples, n_estimators = dense.shape
+        n_leaves = self.n_leaves
+
+        data = np.ones(n_samples * n_estimators, dtype=np.float32)
+        indices = dense.ravel()
+        indptr = np.arange(0, n_samples * n_estimators + 1, n_estimators)
+
+        return csr_array((data, indices, indptr), shape=(n_samples, n_leaves))
+
+    def apply(self, x, output=None):
+        """
+        Apply the forest to X, return leaf indices.
+
+        Parameters
+        ----------
+        x : ndarray shape (n_samples, n_features)
+            2-d array with features.
+        output : {"dense", "sparse"}, default="dense"
+            If "dense", returns a dense array of leaf indices per tree.
+            If "sparse", returns a sparse CSR matrix of shape (n_samples, n_leaves)
+            where each row has non-zero entries for leaves reached by the sample.
+
+        Returns
+        -------
+        x_leafs : ndarray of shape (n_samples, n_estimators) or csr_matrix of shape (n_samples, n_leaves)
+            For each datapoint x in X and for each tree in the forest,
+            return the index of the leaf x ends up in (dense format).
+            If output="sparse", returns a sparse matrix with 1.0 in entries where
+            sample reaches the leaf.
+        """
+
+        if output is None:
+            output = "dense"
+
+        if output not in ["dense", "sparse"]:
+            raise ValueError("output is neither dense nor sparse")
+
+        if output == "dense":
+            return self._dense_apply(x)
+        elif output == "sparse":
+            return self._sparse_apply(x)
 
     @classmethod
     def average_path_length(cls, n_nodes):

@@ -391,7 +391,7 @@ class AADForest(Coniferest):
     def feature_importance(self, x):
         raise NotImplementedError()
 
-    def apply(self, x):
+    def apply(self, x, output=None):
         """
         Apply the forest to X, return leaf indices.
 
@@ -399,11 +399,17 @@ class AADForest(Coniferest):
         ----------
         x : ndarray shape (n_samples, n_features)
             2-d array with features.
+        output : {"dense", "sparse"}, default="dense"
+            If "dense", returns a dense array of leaf indices per tree.
+            If "sparse", returns a sparse CSR matrix of shape (n_samples, n_leaves)
+            where each row has non-zero entries for leaves reached by the sample.
 
         Returns
         -------
-        x_leafs : ndarray of shape (n_samples, n_estimators)
+        x_leafs : ndarray of shape (n_samples, n_estimators) or csr_matrix of shape (n_samples, n_leaves)
             For each datapoint x in X and for each tree in the forest,
-            return the index of the leaf x ends up in.
+            return the index of the leaf x ends up in (dense format).
+            If output="sparse", returns a sparse matrix with 1.0 in entries where
+            sample reaches the leaf.
         """
-        return self.evaluator.apply(x)
+        return self.evaluator.apply(x, output)
