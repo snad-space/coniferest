@@ -21,7 +21,8 @@ jobs:
       - name: Setup uv
         uses: astral-sh/setup-uv@v6
       - name: Run tox
-        run: uvx tox -e py${{ replace(matrix.python-version, '.', '') }}
+        run: uvx tox -e py$(echo "${{ matrix.python-version }}" | tr -d '.')
+        shell: bash
 
   rust-test:
     runs-on: ubuntu-latest
