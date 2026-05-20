@@ -413,3 +413,37 @@ class AADForest(Coniferest):
             sample reaches the leaf.
         """
         return self.evaluator.apply(x, output)
+
+    def distance(self, x, y=None, *, method=None):
+        """
+        Compute distance matrix between samples based on leaf co-occurrence.
+
+        The distance is defined as 1 minus the fraction of trees where two samples
+        land in the same leaf. This gives a measure of dissimilarity between
+        samples based on their paths through the forest.
+
+        Parameters
+        ----------
+        x : ndarray shape (n_samples_x, n_features) or (n_features,)
+            Input samples. If 1-D, treated as a single sample.
+        y : ndarray shape (n_samples_y, n_features) or (n_features,), optional
+            Second set of samples for pairwise distance. If None (default),
+            computes distances between all pairs in x.
+        method : {"common_leaf_ratio"}, default="common_leaf_ratio"
+            Distance computation method. Currently only "common_leaf_ratio"
+            is supported.
+
+        Returns
+        -------
+        distances : ndarray shape (n_samples_x, n_samples_y)
+            Distance matrix where distances[i, j] is the distance between
+            the i-th sample in x and j-th sample in y.
+            If y is None, returns a square symmetric matrix of shape
+            (n_samples_x, n_samples_x).
+
+        Raises
+        ------
+        ValueError
+            If method is not one of the known methods.
+        """
+        return self.evaluator.distance(x, y, method=method)

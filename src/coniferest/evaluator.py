@@ -216,6 +216,62 @@ class ForestEvaluator:
         elif output == "sparse":
             return self._sparse_apply(x)
 
+    def _common_leaf_ratio_distance(self, x, y):
+        n_trees = self.n_trees
+
+        x = np.atleast_2d(x)
+        x_leaves = self._sparse_apply(x)
+
+        if y is not None:
+            y = np.atleast_2d(y)
+            y_leaves = self._sparse_apply(y)
+        else:
+            y_leaves = x_leaves
+
+        return 1 - (x_leaves @ y_leaves.T).toarray() / n_trees
+
+    def distance(self, x, y, *, method=None):
+        """
+        Compute distance matrix between samples based on leaf co-occurrence.
+
+        The distance is defined as 1 minus the fraction of trees where two samples
+        land in the same leaf. This gives a measure of dissimilarity between
+        samples based on their paths through the forest.
+
+        Parameters
+        ----------
+        x : ndarray shape (n_samples_x, n_features) or (n_features,)
+            Input samples. If 1-D, treated as a single sample.
+        y : ndarray shape (n_samples_y, n_features) or (n_features,), optional
+            Second set of samples for pairwise distance. If None (default),
+            computes distances between all pairs in x.
+        method : {"common_leaf_ratio"}, default="common_leaf_ratio"
+            Distance computation method. Currently only "common_leaf_ratio"
+            is supported.
+
+        Returns
+        -------
+        distances : ndarray shape (n_samples_x, n_samples_y)
+            Distance matrix where distances[i, j] is the distance between
+            the i-th sample in x and j-th sample in y.
+            If y is None, returns a square symmetric matrix of shape
+            (n_samples_x, n_samples_x).
+
+        Raises
+        ------
+        ValueError
+            If method is not one of the known methods.
+        """
+        KNOWN_METHODS = ["common_leaf_ratio"]
+
+        if method is None:
+            method = "common_leaf_ratio"
+
+        if method not in KNOWN_METHODS:
+            raise ValueError(f"method is not one of {', '.join(KNOWN_METHODS)}.")
+
+        return self._common_leaf_ratio_distance(x, y)
+
     @classmethod
     def average_path_length(cls, n_nodes):
         """
