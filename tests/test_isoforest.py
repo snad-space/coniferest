@@ -111,7 +111,7 @@ def test_reproducibility():
     assert_forest_scores(forest1, forest2, n_features=n_features)
 
 
-def test_apply():
+def test_apply_dense():
     n_features = 16
     n_trees = 100
     n_subsamples = 256
@@ -133,6 +133,32 @@ def test_apply():
     selectors = forest.evaluator.selectors
     leaf_mask = selectors["feature"] < 0
     scores = np.sum(selectors[leaf_mask][leafs]["value"], axis=1)
+    scores = -(2 ** (-scores / (forest.evaluator.average_path_length(n_subsamples) * n_trees)))
+    assert_allclose(forest.score_samples(data), scores)
+
+
+def test_apply_sparse():
+    n_features = 16
+    n_trees = 100
+    n_subsamples = 256
+
+    random_seed = np.random.randint(1 << 16)
+    rng = np.random.default_rng(random_seed)
+    data = rng.standard_normal((n_trees * n_subsamples, n_features))
+
+    forest = IsolationForest(
+        n_trees=n_trees,
+        n_subsamples=n_subsamples,
+        max_depth=None,
+        random_seed=random_seed,
+    )
+
+    forest.fit(data)
+
+    leafs = forest.apply(data, "sparse")
+    selectors = forest.evaluator.selectors
+    leaf_mask = selectors["feature"] < 0
+    scores = leafs @ selectors[leaf_mask]["value"]
     scores = -(2 ** (-scores / (forest.evaluator.average_path_length(n_subsamples) * n_trees)))
     assert_allclose(forest.score_samples(data), scores)
 

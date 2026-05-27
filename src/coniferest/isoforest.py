@@ -93,7 +93,7 @@ class IsolationForest(Coniferest):
     def feature_importance(self, x):
         return self.evaluator.feature_importance(x)
 
-    def apply(self, x):
+    def apply(self, x, output=None):
         """
         Apply the forest to X, return leaf indices.
 
@@ -101,11 +101,51 @@ class IsolationForest(Coniferest):
         ----------
         x : ndarray shape (n_samples, n_features)
             2-d array with features.
+        output : {"dense", "sparse"}, default="dense"
+            If "dense", returns a dense array of leaf indices per tree.
+            If "sparse", returns a sparse CSR matrix of shape (n_samples, n_leaves)
+            where each row has non-zero entries for leaves reached by the sample.
 
         Returns
         -------
-        x_leafs : ndarray of shape (n_samples, n_estimators)
+        x_leafs : ndarray of shape (n_samples, n_estimators) or csr_matrix of shape (n_samples, n_leaves)
             For each datapoint x in X and for each tree in the forest,
-            return the index of the leaf x ends up in.
+            return the index of the leaf x ends up in (dense format).
+            If output="sparse", returns a sparse matrix with 1.0 in entries where
+            sample reaches the leaf.
         """
-        return self.evaluator.apply(x)
+        return self.evaluator.apply(x, output)
+
+    def distance(self, x, y=None, *, method=None):
+        """
+        Compute distance matrix between samples based on leaf co-occurrence.
+
+        The distance is defined as 1 minus the fraction of trees where two samples
+        land in the same leaf. This gives a measure of dissimilarity between
+        samples based on their paths through the forest.
+
+        Parameters
+        ----------
+        x : ndarray shape (n_samples_x, n_features) or (n_features,)
+            Input samples. If 1-D, treated as a single sample.
+        y : ndarray shape (n_samples_y, n_features) or (n_features,), optional
+            Second set of samples for pairwise distance. If None (default),
+            computes distances between all pairs in x.
+        method : {"common_leaf_ratio"}, default="common_leaf_ratio"
+            Distance computation method. Currently only "common_leaf_ratio"
+            is supported.
+
+        Returns
+        -------
+        distances : ndarray shape (n_samples_x, n_samples_y)
+            Distance matrix where distances[i, j] is the distance between
+            the i-th sample in x and j-th sample in y.
+            If y is None, returns a square symmetric matrix of shape
+            (n_samples_x, n_samples_x).
+
+        Raises
+        ------
+        ValueError
+            If method is not one of the known methods.
+        """
+        return self.evaluator.distance(x, y, method=method)
