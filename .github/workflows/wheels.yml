@@ -74,6 +74,9 @@ jobs:
   publish:
     needs: [ build_wheels, make_sdist ]
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      id-token: write
     steps:
       - uses: actions/download-artifact@v8
         with:
