@@ -25,7 +25,8 @@ dependencies = [
     "click>=8.2", # click.Choice to accept enums
     "numpy",
     # sklearn.tree._splitter.RandomSplitter changed signature in 1.4.0
-    "scikit-learn>=1.4,<2",
+    # sklearn.tree._tree.DTYPE is missed from 1.9.0 https://github.com/snad-space/coniferest/issues/333
+    "scikit-learn>=1.4,<1.9",
     "onnxconverter-common",
     "clarabel",
 ]
