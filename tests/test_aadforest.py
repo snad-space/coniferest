@@ -3,6 +3,7 @@ import pytest
 
 from coniferest.aadforest import AADForest
 from coniferest.datasets import single_outlier
+from coniferest.label import Label
 
 
 def test_scores_negative():
@@ -43,7 +44,21 @@ def test_prior_influence_callable():
 @pytest.mark.regression
 def test_budget_auto(regression_data):
     data, _metadata = single_outlier()
-    forest = AADForest(budget="auto", random_seed=0).fit(data)
+    known_data = data[[0, -1]]
+    known_labels = np.asarray([Label.REGULAR, Label.ANOMALY])
+    forest = AADForest(budget="auto", random_seed=0).fit_known(data, known_data=known_data, known_labels=known_labels)
+    scores = forest.score_samples(data)
+    regression_data.assert_allclose(scores)
+
+
+@pytest.mark.regression
+def test_budget_auto_prior_influence_one(regression_data):
+    data, _metadata = single_outlier()
+    known_data = data[[0, -1]]
+    known_labels = np.asarray([Label.REGULAR, Label.ANOMALY])
+    forest = AADForest(budget="auto", prior_influence=1.0, random_seed=0).fit_known(
+        data, known_data=known_data, known_labels=known_labels
+    )
     scores = forest.score_samples(data)
     regression_data.assert_allclose(scores)
 

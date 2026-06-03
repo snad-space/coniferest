@@ -21,15 +21,16 @@ def test_e2e_ztf_m31():
 
         def __init__(self, n_iter):
             self.n_iter = n_iter
+            self.history = []
 
-        def decision(self, _metadata, _data, _session) -> Label:
-            self.counter += 1
-            if self.counter < self.n_iter:
+        def decision(self, metadata, _data, _session) -> Label:
+            self.history.append(metadata)
+            if len(self.history) < self.n_iter:
                 return Label.REGULAR
             return Label.ANOMALY
 
         def on_decision(self, _metadata, _data, session) -> None:
-            if self.counter >= self.n_iter:
+            if len(self.history) >= self.n_iter:
                 session.terminate()
 
     callback = Callback(2)
@@ -40,6 +41,7 @@ def test_e2e_ztf_m31():
         n_subsamples=256,
         random_seed=0,
     )
+
     session = Session(
         data=data,
         metadata=metadata,
@@ -49,9 +51,10 @@ def test_e2e_ztf_m31():
     )
     session.run()
 
+    assert callback.history == [695211400034403, 695211200002201]
     assert len(session.known_labels) == callback.n_iter
 
-    oid = 695211400053697
+    oid = callback.history[-1]
     idx = np.where(metadata == oid)[0][0]
     assert idx in session.known_labels
     assert session.known_labels[idx] == Label.ANOMALY
@@ -65,7 +68,7 @@ def test_e2e_ztf_m31():
 @pytest.mark.parametrize(
     "model,n_iter,last_idx",
     [
-        (AADForest(n_trees=128, random_seed=0), 63, 1111),
+        (AADForest(n_trees=128, random_seed=0), 35, 1097),
         (PineForest(n_trees=128, n_spare_trees=512, random_seed=0), 34, 1109),
     ],
 )
