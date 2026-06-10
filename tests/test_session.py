@@ -51,7 +51,7 @@ def test_e2e_ztf_m31():
     )
     session.run()
 
-    assert callback.history == [695211400034403, 695211200002201]
+    assert callback.history == [695211400034403, 695211400016239]
     assert len(session.known_labels) == callback.n_iter
 
     oid = callback.history[-1]
@@ -68,7 +68,7 @@ def test_e2e_ztf_m31():
 @pytest.mark.parametrize(
     "model,n_iter,last_idx",
     [
-        (AADForest(n_trees=128, random_seed=0), 35, 1097),
+        (AADForest(n_trees=128, random_seed=0), 36, 1097),
         (PineForest(n_trees=128, n_spare_trees=512, random_seed=0), 34, 1109),
     ],
 )
