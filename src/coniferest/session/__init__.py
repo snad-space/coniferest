@@ -189,11 +189,7 @@ class Session:
         self._terminated = True
 
     def argtopk_scores(self, k: int) -> np.ndarray:
-        if k >= self._scores.shape[0]:
-            return np.argsort(self._scores)
-        argtopk_unsort = np.argpartition(self._scores, k)[:k]
-        argtopk = argtopk_unsort[np.argsort(self._scores[argtopk_unsort])]
-        return argtopk
+        return np.argsort(self._scores, stable=True)
 
     @property
     def current(self) -> int:
