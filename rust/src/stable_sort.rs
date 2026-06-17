@@ -1,5 +1,5 @@
-use numpy::{PyArray, PyArrayMethods, PyArray1, PyReadonlyArray1};
 use numpy::PyUntypedArrayMethods;
+use numpy::{PyArray, PyArray1, PyArrayMethods, PyReadonlyArray1};
 use pyo3::{Bound, PyResult, Python, pyfunction};
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
@@ -22,7 +22,7 @@ impl Ord for OrderedF64 {
 pub(crate) fn argpartial_sort<'py>(
     py: Python<'py>,
     arr: PyReadonlyArray1<f64>,
-    pos: usize
+    pos: usize,
 ) -> PyResult<Bound<'py, PyArray1<usize>>> {
     let mut heap = BinaryHeap::new();
     heap.reserve(pos);
@@ -39,4 +39,3 @@ pub(crate) fn argpartial_sort<'py>(
     let vec = heap.into_sorted_vec();
     Ok(PyArray1::from_iter(py, vec.into_iter().map(|(_, i)| i)))
 }
-

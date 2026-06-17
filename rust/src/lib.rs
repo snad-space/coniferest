@@ -3,8 +3,8 @@ mod stable_sort;
 mod tree_traversal;
 
 use crate::selector::Selector;
+use crate::stable_sort::argpartial_sort;
 use crate::tree_traversal::{calc_apply, calc_feature_delta_sum, calc_paths_sum};
-use crate::stable_sort::{argpartial_sort};
 use pyo3::prelude::*;
 
 #[pymodule(gil_used = false)]
