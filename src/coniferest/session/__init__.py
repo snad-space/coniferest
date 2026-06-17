@@ -5,6 +5,7 @@ import numpy as np
 from coniferest.coniferest import Coniferest
 from coniferest.pineforest import PineForest
 
+from ..calc_trees import argpartial_sort
 from ..label import Label
 from .callback import prompt_decision_callback
 
@@ -189,11 +190,7 @@ class Session:
         self._terminated = True
 
     def argtopk_scores(self, k: int) -> np.ndarray:
-        if k >= self._scores.shape[0]:
-            return np.argsort(self._scores)
-        argtopk_unsort = np.argpartition(self._scores, k)[:k]
-        argtopk = argtopk_unsort[np.argsort(self._scores[argtopk_unsort])]
-        return argtopk
+        return argpartial_sort(self._scores, k)
 
     @property
     def current(self) -> int:
