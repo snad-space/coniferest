@@ -5,9 +5,9 @@ import numpy as np
 from coniferest.coniferest import Coniferest
 from coniferest.pineforest import PineForest
 
+from ..calc_trees import argpartial_sort
 from ..label import Label
 from .callback import prompt_decision_callback
-from ..calc_trees import argpartial_sort
 
 
 class Session:
