@@ -1,9 +1,7 @@
-use numpy::PyUntypedArrayMethods;
-use numpy::{PyArray, PyArray1, PyArrayMethods, PyReadonlyArray1};
-use pyo3::{Bound, PyResult, Python, pyfunction};
-use std::cmp::Ordering;
-use std::collections::BinaryHeap;
+use numpy::{PyArray1, PyReadonlyArray1};
 use ordered_float::OrderedFloat;
+use pyo3::{Bound, PyResult, Python, pyfunction};
+use std::collections::BinaryHeap;
 
 #[pyfunction]
 #[pyo3(signature = (arr, pos))]
