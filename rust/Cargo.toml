@@ -29,3 +29,4 @@ num-traits = "0.2"
 numpy = "0.27.1"
 # Needs to be consistent with rayon dependency in ndarray
 rayon = "1.12"
+ordered-float = "5.3.0"
