@@ -3,6 +3,7 @@ import pytest
 
 from coniferest.aadforest import AADForest
 from coniferest.datasets import single_outlier
+from coniferest.label import Label
 
 
 def test_scores_negative():
@@ -38,6 +39,49 @@ def test_prior_influence_callable():
     scores = forest.score_samples(data)
     # Outlier goes last and must have the lowest score
     assert np.argmin(scores) == data.shape[0] - 1
+
+
+def test_infinite_c_a_produces_finite_scores():
+    rng = np.random.default_rng(0)
+    data = rng.standard_normal((64, 4))
+    known_data = data[[0, 1, 2]]
+    known_labels = np.array([Label.ANOMALY, Label.REGULAR, Label.REGULAR])
+
+    forest = AADForest(n_trees=10, n_subsamples=32, random_seed=0, C_a=np.inf, budget=0.1, n_jobs=1)
+    forest.fit_known(data, known_data=known_data, known_labels=known_labels)
+
+    assert np.all(np.isfinite(forest.evaluator.weights))
+    assert np.all(np.isfinite(forest.score_samples(data)))
+
+
+def test_infinite_c_a_ignores_nominal_loss():
+    rng = np.random.default_rng(0)
+    data = rng.standard_normal((64, 4))
+    known_data = data[[0, 1, 2]]
+    known_labels = np.array([Label.ANOMALY, Label.REGULAR, Label.REGULAR])
+    anomaly_only_labels = np.array([Label.ANOMALY, Label.UNKNOWN, Label.UNKNOWN])
+    forest_params = {
+        "n_trees": 10,
+        "n_subsamples": 32,
+        "random_seed": 0,
+        "C_a": np.inf,
+        "budget": 0.1,
+        "n_jobs": 1,
+    }
+
+    forest = AADForest(**forest_params).fit_known(data, known_data=known_data, known_labels=known_labels)
+    anomaly_only_forest = AADForest(**forest_params).fit_known(
+        data,
+        known_data=known_data,
+        known_labels=anomaly_only_labels,
+    )
+
+    np.testing.assert_allclose(
+        forest.score_samples(data),
+        anomaly_only_forest.score_samples(data),
+        rtol=1e-5,
+        atol=1e-7,
+    )
 
 
 @pytest.mark.regression
