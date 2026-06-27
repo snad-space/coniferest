@@ -99,8 +99,9 @@ class AADEvaluator(ConiferestEvaluator):
         # Problem vector q
         q_known = np.zeros_like(known_labels, dtype=self.weights.dtype)
         if n_anomalies > 0:
-            q_known[known_labels == Label.ANOMALY] = self.C_a * np.reciprocal(float(n_anomalies))
-        if n_nominals > 0:
+            anomaly_loss = 1.0 if np.isposinf(self.C_a) else self.C_a
+            q_known[known_labels == Label.ANOMALY] = anomaly_loss * np.reciprocal(float(n_anomalies))
+        if n_nominals > 0 and not np.isposinf(self.C_a):
             q_known[known_labels == Label.REGULAR] = np.reciprocal(float(n_nominals))
 
         q = np.concatenate(
