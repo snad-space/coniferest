@@ -12,10 +12,55 @@ from .label import Label
 __all__ = ["AADForest"]
 
 
+def _validate_coefficient(value, name):
+    if not isinstance(value, Real):
+        raise ValueError(f"{name} is not a real number")
+
+    value = float(value)
+
+    if np.isnan(value) or np.isneginf(value):
+        raise ValueError(f"{name} must be finite or positive infinity")
+
+    return value
+
+
+def _normalize_label_loss_coefficients(C_a, C_n):
+    C_a = _validate_coefficient(C_a, "C_a")
+    C_n = _validate_coefficient(C_n, "C_n")
+
+    infinite_C_a = np.isposinf(C_a)
+    infinite_C_n = np.isposinf(C_n)
+
+    if infinite_C_a and infinite_C_n:
+        raise ValueError("At most one of C_a, C_n and prior_influence can be infinite")
+    if infinite_C_a:
+        return 1.0, 0.0, True
+    if infinite_C_n:
+        return 0.0, 1.0, True
+
+    return C_a, C_n, False
+
+
+def _normalize_loss_coefficients(C_a, C_n, prior_influence):
+    C_a = _validate_coefficient(C_a, "C_a")
+    C_n = _validate_coefficient(C_n, "C_n")
+    prior_influence = _validate_coefficient(prior_influence, "prior_influence")
+
+    infinite = (np.isposinf(C_a), np.isposinf(C_n), np.isposinf(prior_influence))
+
+    if sum(infinite) > 1:
+        raise ValueError("At most one of C_a, C_n and prior_influence can be infinite")
+    if any(infinite):
+        return tuple(1.0 if is_infinite else 0.0 for is_infinite in infinite)
+
+    return C_a, C_n, prior_influence
+
+
 class AADEvaluator(ConiferestEvaluator):
     def __init__(self, aad):
         super(AADEvaluator, self).__init__(aad, map_value=aad.map_value)
         self.C_a = aad.C_a
+        self.C_n = aad.C_n
         self.budget = aad.budget
         self.n_jobs = aad.n_jobs
         self.prior_influence = aad.prior_influence
@@ -24,10 +69,10 @@ class AADEvaluator(ConiferestEvaluator):
         leaf_mask = self.selectors["feature"] < 0
         self.leaf_values = self.selectors["value"][leaf_mask]
 
-    def _q_tau(self, scores):
+    def _q_tau(self, scores, prior_influence):
         if self.budget == "auto":
             # When the regularization is disabled then the problem is degenerate
-            if self.prior_influence == 0:
+            if prior_influence == 0:
                 return 1.0
 
             return None
@@ -73,12 +118,14 @@ class AADEvaluator(ConiferestEvaluator):
 
     def fit_known(self, data, known_data, known_labels, prior_weights=None):
         scores = self.score_samples(data)
-        q_tau = self._q_tau(scores)
-        known_leafs = self.apply(known_data)
 
         n_anomalies = np.count_nonzero(known_labels == Label.ANOMALY)
         n_nominals = np.count_nonzero(known_labels == Label.REGULAR)
         prior_influence = self.prior_influence(n_anomalies, n_nominals)
+        C_a, C_n, prior_influence = _normalize_loss_coefficients(self.C_a, self.C_n, prior_influence)
+
+        q_tau = self._q_tau(scores, prior_influence)
+        known_leafs = self.apply(known_data)
 
         if prior_weights is None:
             prior_weights = self.weights
@@ -99,10 +146,9 @@ class AADEvaluator(ConiferestEvaluator):
         # Problem vector q
         q_known = np.zeros_like(known_labels, dtype=self.weights.dtype)
         if n_anomalies > 0:
-            anomaly_loss = 1.0 if np.isposinf(self.C_a) else self.C_a
-            q_known[known_labels == Label.ANOMALY] = anomaly_loss * np.reciprocal(float(n_anomalies))
-        if n_nominals > 0 and not np.isposinf(self.C_a):
-            q_known[known_labels == Label.REGULAR] = np.reciprocal(float(n_nominals))
+            q_known[known_labels == Label.ANOMALY] = C_a * np.reciprocal(float(n_anomalies))
+        if n_nominals > 0:
+            q_known[known_labels == Label.REGULAR] = C_n * np.reciprocal(float(n_nominals))
 
         q = np.concatenate(
             [
@@ -180,14 +226,14 @@ class AADForest(Coniferest):
        \mathbf{w} = \arg\min_{\mathbf{w}} \left(
         \frac{C_a}{\left|\mathcal{A}\right|}
             \sum_{i \in \mathcal{A}} \mathrm{ReLU}\left(s(\mathbf{x_i} | \mathbf{w}) - q_{\tau}\right) +
-        \frac{1}{\left|\mathcal{N}\right|}
+        \frac{C_n}{\left|\mathcal{N}\right|}
             \sum_{i \in \mathcal{N}} \mathrm{ReLU}\left(q_{\tau} - s(\mathbf{x_i} | \mathbf{w})\right) +
         \frac{\alpha}{2} \lVert \mathbf{w} - \mathbf{w_0}\rVert^2\right),
 
-    where :math:`C_a` is `C_a`, regularization parameter :math:`\alpha` is
-    `prior_influence`, :math:`\mathcal{A}` is a set of known anomalies,
-    :math:`\mathcal{N}` is a set of known nominals, :math:`s(\mathbf{x_i} |
-    \mathbf{w})` is the anomaly score of instance with features
+    where :math:`C_a` is `C_a`, :math:`C_n` is `C_n`, regularization parameter
+    :math:`\alpha` is `prior_influence`, :math:`\mathcal{A}` is a set of known
+    anomalies, :math:`\mathcal{N}` is a set of known nominals,
+    :math:`s(\mathbf{x_i} | \mathbf{w})` is the anomaly score of instance with features
     :math:`\mathbf{x_i}` given weights :math:`\mathbf{w}`.
 
     This problem is reformulated as an equivalent quadratic programming problem:
@@ -199,7 +245,7 @@ class AADForest(Coniferest):
        \mathbf{u}
        \end{bmatrix} = \arg\min_{\mathbf{w}, \mathbf{u}} \left(
         \frac{C_a}{\left|\mathcal{A}\right|} \sum_{i \in \mathcal{A}} u_i +
-        \frac{1}{\left|\mathcal{N}\right|} \sum_{i \in \mathcal{N}} u_i +
+        \frac{C_n}{\left|\mathcal{N}\right|} \sum_{i \in \mathcal{N}} u_i +
         \frac{\alpha}{2} \lVert \mathbf{w} - \mathbf{w_0} \rVert^2\right),
 
     with the following convex constraints:
@@ -233,8 +279,14 @@ class AADForest(Coniferest):
     random_seed : int or None, optional
         Random seed to use for reproducibility. If None - random seed is used.
 
+    C_a : float, optional
+        An anomaly loss coefficient value in the loss function. Default is 1.0.
+
+    C_n : float, optional
+        A nominal loss coefficient value in the loss function. Default is 1.0.
+
     prior_influence : float or callable, optional
-        An regularization coefficient value in the loss functioin. Default is 1.0.
+        A regularization coefficient value in the loss function. Default is 1.0.
         Signature: '(anomaly_count, nominal_count) -> float'
 
     map_value : ["const", "exponential", "linear", "reciprocal"] or callable, optional
@@ -249,6 +301,7 @@ class AADForest(Coniferest):
         max_depth=None,
         budget="auto",
         C_a=1.0,
+        C_n=1.0,
         prior_influence=1.0,
         n_jobs=-1,
         random_seed=None,
@@ -269,11 +322,15 @@ class AADForest(Coniferest):
             raise ValueError('budget must be an int or float or "auto"')
 
         self.budget = budget
-        self.C_a = C_a
 
         if isinstance(prior_influence, Callable):
-            self.prior_influence = prior_influence
+            self.C_a, self.C_n, label_loss_is_infinite = _normalize_label_loss_coefficients(C_a, C_n)
+            if label_loss_is_infinite:
+                self.prior_influence = lambda anomaly_count, nominal_count: 0.0
+            else:
+                self.prior_influence = prior_influence
         elif isinstance(prior_influence, Real):
+            self.C_a, self.C_n, prior_influence = _normalize_loss_coefficients(C_a, C_n, prior_influence)
             self.prior_influence = lambda anomaly_count, nominal_count: prior_influence
         else:
             raise ValueError("prior_influence is neither a callable nor a constant")
