@@ -3,6 +3,16 @@ import pytest
 
 from coniferest.aadforest import AADForest
 from coniferest.datasets import single_outlier
+from coniferest.label import Label
+
+
+def infinite_coefficient_data():
+    rng = np.random.default_rng(0)
+    data = rng.standard_normal((64, 4))
+    known_data = data[[0, 1, 2]]
+    known_labels = np.array([Label.ANOMALY, Label.REGULAR, Label.REGULAR])
+
+    return data, known_data, known_labels
 
 
 def test_scores_negative():
@@ -38,6 +48,83 @@ def test_prior_influence_callable():
     scores = forest.score_samples(data)
     # Outlier goes last and must have the lowest score
     assert np.argmin(scores) == data.shape[0] - 1
+
+
+def test_infinite_c_a_produces_finite_scores():
+    data, known_data, known_labels = infinite_coefficient_data()
+
+    forest = AADForest(n_trees=10, n_subsamples=32, random_seed=0, C_a=np.inf, budget=0.1, n_jobs=1)
+    forest.fit_known(data, known_data=known_data, known_labels=known_labels)
+
+    assert np.all(np.isfinite(forest.evaluator.weights))
+    assert np.all(np.isfinite(forest.score_samples(data)))
+
+
+@pytest.mark.parametrize(
+    ("infinite_params", "normalized_params"),
+    [
+        ({"C_a": np.inf}, {"C_a": 1.0, "C_n": 0.0, "prior_influence": 0.0}),
+        ({"C_n": np.inf}, {"C_a": 0.0, "C_n": 1.0, "prior_influence": 0.0}),
+        ({"prior_influence": np.inf}, {"C_a": 0.0, "C_n": 0.0, "prior_influence": 1.0}),
+        (
+            {"prior_influence": lambda anomaly_count, nominal_count: np.inf},
+            {"C_a": 0.0, "C_n": 0.0, "prior_influence": 1.0},
+        ),
+    ],
+)
+def test_infinite_coefficient_matches_normalized_loss(infinite_params, normalized_params):
+    data, known_data, known_labels = infinite_coefficient_data()
+    forest_params = dict(
+        n_trees=10,
+        n_subsamples=32,
+        random_seed=0,
+        budget=0.1,
+        n_jobs=1,
+    )
+
+    forest = AADForest(**(forest_params | infinite_params)).fit_known(
+        data,
+        known_data=known_data,
+        known_labels=known_labels,
+    )
+    normalized_forest = AADForest(**(forest_params | normalized_params)).fit_known(
+        data,
+        known_data=known_data,
+        known_labels=known_labels,
+    )
+
+    np.testing.assert_allclose(
+        forest.score_samples(data),
+        normalized_forest.score_samples(data),
+        rtol=1e-5,
+        atol=1e-7,
+    )
+
+
+@pytest.mark.parametrize(
+    "forest_params",
+    [
+        {"C_a": np.inf, "C_n": np.inf},
+        {"C_a": np.inf, "prior_influence": np.inf},
+        {"C_n": np.inf, "prior_influence": np.inf},
+    ],
+)
+def test_multiple_infinite_coefficients_raise(forest_params):
+    with pytest.raises(ValueError, match="At most one"):
+        AADForest(**forest_params)
+
+
+def test_invalid_callable_prior_influence_raises():
+    data, known_data, known_labels = infinite_coefficient_data()
+    forest = AADForest(
+        n_trees=10,
+        n_subsamples=32,
+        random_seed=0,
+        prior_influence=lambda anomaly_count, nominal_count: np.nan,
+    )
+
+    with pytest.raises(ValueError, match="prior_influence"):
+        forest.fit_known(data, known_data=known_data, known_labels=known_labels)
 
 
 @pytest.mark.regression
