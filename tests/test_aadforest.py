@@ -126,6 +126,7 @@ def test_invalid_callable_prior_influence_raises():
     with pytest.raises(ValueError, match="prior_influence"):
         forest.fit_known(data, known_data=known_data, known_labels=known_labels)
 
+
 @pytest.mark.regression
 def test_budget_auto(regression_data):
     data, _metadata = single_outlier()
