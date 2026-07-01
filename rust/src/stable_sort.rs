@@ -2,7 +2,10 @@ use numpy::{PyArray1, PyReadonlyArray1, PyUntypedArrayMethods};
 use ordered_float::OrderedFloat;
 use pyo3::{Bound, PyResult, Python, pyfunction};
 use std::cmp;
-use std::collections::BinaryHeap;
+
+fn sort_key(arr: &[f64], x: &usize) -> (OrderedFloat<f64>, usize) {
+    (OrderedFloat(arr[*x]), *x)
+}
 
 #[pyfunction]
 #[pyo3(signature = (arr, pos))]
@@ -17,24 +20,21 @@ pub(crate) fn argpartial_sort<'py>(
     }
 
     let slice = arr.as_slice()?;
-    let v = Vec::from_iter(
-        slice
-            .iter()
-            .enumerate()
-            .map(|(i, x)| (OrderedFloat(*x), i))
-            .take(capacity),
-    );
-    let mut heap = BinaryHeap::from(v);
+    let len = slice.len();
 
-    for (i, value) in slice.iter().enumerate().skip(capacity) {
-        let cur = (OrderedFloat(*value), i);
-        let mut val = heap.peek_mut().unwrap();
+    // Create a temporary vector of indices from 0 to len-1
+    let mut indices: Vec<usize> = (0..len).collect();
+    let head = if capacity < len {
+        // Partition so that the first `capacity` elements are the smallest
+        indices.select_nth_unstable_by_key(capacity, |x| sort_key(slice, x));
 
-        if *val > cur {
-            *val = cur;
-        }
-    }
+        &mut indices[..capacity]
+    } else {
+        &mut indices[..]
+    };
 
-    let vec = heap.into_sorted_vec();
-    Ok(PyArray1::from_iter(py, vec.into_iter().map(|(_, i)| i)))
+    head.sort_by_key(|x| sort_key(slice, x));
+
+    // Copy the first `capacity` elements into the result
+    Ok(PyArray1::from_vec(py, indices[..capacity].to_vec()))
 }
