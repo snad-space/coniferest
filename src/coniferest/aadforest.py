@@ -12,33 +12,18 @@ from .label import Label
 __all__ = ["AADForest"]
 
 
-def _validate_coefficient(value, name):
+def _validate_coefficient(value, name, *, allow_infinite=True):
     if not isinstance(value, Real):
         raise ValueError(f"{name} is not a real number")
 
     value = float(value)
 
-    if np.isnan(value) or np.isneginf(value):
-        raise ValueError(f"{name} must be finite or positive infinity")
+    if np.isnan(value) or value < 0:
+        raise ValueError(f"{name} must be non-negative")
+    if not allow_infinite and np.isposinf(value):
+        raise ValueError(f"{name} must be finite")
 
     return value
-
-
-def _normalize_label_loss_coefficients(C_a, C_n):
-    C_a = _validate_coefficient(C_a, "C_a")
-    C_n = _validate_coefficient(C_n, "C_n")
-
-    infinite_C_a = np.isposinf(C_a)
-    infinite_C_n = np.isposinf(C_n)
-
-    if infinite_C_a and infinite_C_n:
-        raise ValueError("At most one of C_a, C_n and prior_influence can be infinite")
-    if infinite_C_a:
-        return 1.0, 0.0, True
-    if infinite_C_n:
-        return 0.0, 1.0, True
-
-    return C_a, C_n, False
 
 
 def _normalize_loss_coefficients(C_a, C_n, prior_influence):
@@ -122,7 +107,7 @@ class AADEvaluator(ConiferestEvaluator):
         n_anomalies = np.count_nonzero(known_labels == Label.ANOMALY)
         n_nominals = np.count_nonzero(known_labels == Label.REGULAR)
         prior_influence = self.prior_influence(n_anomalies, n_nominals)
-        C_a, C_n, prior_influence = _normalize_loss_coefficients(self.C_a, self.C_n, prior_influence)
+        prior_influence = _validate_coefficient(prior_influence, "prior_influence", allow_infinite=False)
 
         q_tau = self._q_tau(scores, prior_influence)
         known_leafs = self.apply(known_data)
@@ -146,9 +131,9 @@ class AADEvaluator(ConiferestEvaluator):
         # Problem vector q
         q_known = np.zeros_like(known_labels, dtype=self.weights.dtype)
         if n_anomalies > 0:
-            q_known[known_labels == Label.ANOMALY] = C_a * np.reciprocal(float(n_anomalies))
+            q_known[known_labels == Label.ANOMALY] = self.C_a * np.reciprocal(float(n_anomalies))
         if n_nominals > 0:
-            q_known[known_labels == Label.REGULAR] = C_n * np.reciprocal(float(n_nominals))
+            q_known[known_labels == Label.REGULAR] = self.C_n * np.reciprocal(float(n_nominals))
 
         q = np.concatenate(
             [
@@ -324,8 +309,8 @@ class AADForest(Coniferest):
         self.budget = budget
 
         if isinstance(prior_influence, Callable):
-            self.C_a, self.C_n, label_loss_is_infinite = _normalize_label_loss_coefficients(C_a, C_n)
-            if label_loss_is_infinite:
+            self.C_a, self.C_n, normalized_prior_influence = _normalize_loss_coefficients(C_a, C_n, 1.0)
+            if normalized_prior_influence == 0.0:
                 self.prior_influence = lambda anomaly_count, nominal_count: 0.0
             else:
                 self.prior_influence = prior_influence

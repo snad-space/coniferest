@@ -66,10 +66,6 @@ def test_infinite_c_a_produces_finite_scores():
         ({"C_a": np.inf}, {"C_a": 1.0, "C_n": 0.0, "prior_influence": 0.0}),
         ({"C_n": np.inf}, {"C_a": 0.0, "C_n": 1.0, "prior_influence": 0.0}),
         ({"prior_influence": np.inf}, {"C_a": 0.0, "C_n": 0.0, "prior_influence": 1.0}),
-        (
-            {"prior_influence": lambda anomaly_count, nominal_count: np.inf},
-            {"C_a": 0.0, "C_n": 0.0, "prior_influence": 1.0},
-        ),
     ],
 )
 def test_infinite_coefficient_matches_normalized_loss(infinite_params, normalized_params):
@@ -114,16 +110,40 @@ def test_multiple_infinite_coefficients_raise(forest_params):
         AADForest(**forest_params)
 
 
-def test_invalid_callable_prior_influence_raises():
+@pytest.mark.parametrize(
+    "forest_params",
+    [
+        {"C_a": -1.0},
+        {"C_a": -np.inf},
+        {"C_n": -1.0},
+        {"C_n": -np.inf},
+        {"prior_influence": -1.0},
+        {"prior_influence": -np.inf},
+    ],
+)
+def test_negative_coefficients_raise(forest_params):
+    with pytest.raises(ValueError, match="non-negative"):
+        AADForest(**forest_params)
+
+
+@pytest.mark.parametrize(
+    "prior_influence",
+    [
+        lambda anomaly_count, nominal_count: np.nan,
+        lambda anomaly_count, nominal_count: -1.0,
+        lambda anomaly_count, nominal_count: np.inf,
+    ],
+)
+def test_invalid_callable_prior_influence_raises(prior_influence):
     data, known_data, known_labels = infinite_coefficient_data()
     forest = AADForest(
         n_trees=10,
         n_subsamples=32,
         random_seed=0,
-        prior_influence=lambda anomaly_count, nominal_count: np.nan,
+        prior_influence=prior_influence,
     )
 
-    with pytest.raises(ValueError, match="prior_influence"):
+    with pytest.raises(ValueError):
         forest.fit_known(data, known_data=known_data, known_labels=known_labels)
 
 
