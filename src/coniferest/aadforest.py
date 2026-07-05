@@ -41,6 +41,17 @@ def _normalize_loss_coefficients(C_a, C_n, prior_influence):
     return C_a, C_n, prior_influence
 
 
+def _validated_prior_influence(prior_influence):
+    def inner(anomaly_count, nominal_count):
+        return _validate_coefficient(
+            prior_influence(anomaly_count, nominal_count),
+            "prior_influence",
+            allow_infinite=False,
+        )
+
+    return inner
+
+
 class AADEvaluator(ConiferestEvaluator):
     def __init__(self, aad):
         super(AADEvaluator, self).__init__(aad, map_value=aad.map_value)
@@ -107,7 +118,6 @@ class AADEvaluator(ConiferestEvaluator):
         n_anomalies = np.count_nonzero(known_labels == Label.ANOMALY)
         n_nominals = np.count_nonzero(known_labels == Label.REGULAR)
         prior_influence = self.prior_influence(n_anomalies, n_nominals)
-        prior_influence = _validate_coefficient(prior_influence, "prior_influence", allow_infinite=False)
 
         q_tau = self._q_tau(scores, prior_influence)
         known_leafs = self.apply(known_data)
@@ -313,7 +323,7 @@ class AADForest(Coniferest):
             if normalized_prior_influence == 0.0:
                 self.prior_influence = lambda anomaly_count, nominal_count: 0.0
             else:
-                self.prior_influence = prior_influence
+                self.prior_influence = _validated_prior_influence(prior_influence)
         elif isinstance(prior_influence, Real):
             self.C_a, self.C_n, prior_influence = _normalize_loss_coefficients(C_a, C_n, prior_influence)
             self.prior_influence = lambda anomaly_count, nominal_count: prior_influence
