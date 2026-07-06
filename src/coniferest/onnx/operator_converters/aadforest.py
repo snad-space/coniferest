@@ -19,7 +19,7 @@ def get_default_attribute_pairs():
     return attrs
 
 
-def get_leaf_weight(tree_id, node_id, parents, model):
+def get_leaf_weight(tree_id, node_id, model):
     evaluator = model.evaluator
     selector_id = evaluator.node_offsets[tree_id].astype(int) + node_id
     selector = evaluator.selectors[selector_id]
@@ -52,8 +52,6 @@ def add_leaf(attr_pairs, tree_id, node_id, mode, weight):
 
 
 def add_tree_to_attribute_pairs(attr_pairs, tree, tree_id, model):
-    parents = {}
-
     for i in range(tree.node_count):
         node_id = i
 
@@ -63,13 +61,11 @@ def add_tree_to_attribute_pairs(attr_pairs, tree, tree_id, model):
             threshold = tree.threshold[i]
             left_child_id = int(tree.children_left[i])
             right_child_id = int(tree.children_right[i])
-            parents[left_child_id] = i
-            parents[right_child_id] = i
 
             add_node(attr_pairs, tree_id, node_id, feat_id, mode, threshold, left_child_id, right_child_id)
         else:
             mode = "LEAF"
-            weight = get_leaf_weight(tree_id, node_id, parents, model)
+            weight = get_leaf_weight(tree_id, node_id, model)
 
             add_leaf(attr_pairs, tree_id, node_id, mode, weight)
 
