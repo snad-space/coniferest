@@ -2,12 +2,18 @@ from onnxconverter_common.data_types import FloatTensorType
 from onnxconverter_common.topology import Topology
 
 from ..aadforest import AADForest
+from ..isoforest import IsolationForest
+from ..pineforest import PineForest
 from ._container import ConiferestModelContainer
 
 
 def _get_coniferest_operator_name(model):
     if isinstance(model, AADForest):
         return "AADForest"
+    elif isinstance(model, IsolationForest):
+        return "IsolationForest"
+    elif isinstance(model, PineForest):
+        return "PineForest"
 
     raise ValueError("No proper operator name found for '%s'" % type(model))
 
