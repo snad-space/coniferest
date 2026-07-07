@@ -239,6 +239,12 @@ class AADForest(Coniferest):
     map_value : ["const", "exponential", "linear", "reciprocal"] or callable, optional
         An function applied to the leaf depth before weighting. Possible
         meaning variants are: 1, 1-exp(-x), x, -1/x.
+
+    Attributes
+    ----------
+    n_features_in_ : int
+        Number of features seen during :term:`fit`. Available only after
+        :meth:`fit` or :meth:`fit_known` has been called.
     """
 
     def __init__(

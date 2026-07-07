@@ -51,6 +51,12 @@ class PineForest(Coniferest):
 
     random_seed : int or None, optional
         Random seed. If None - random seed is used.
+
+    Attributes
+    ----------
+    n_features_in_ : int
+        Number of features seen during :term:`fit`. Available only after
+        :meth:`fit` or :meth:`fit_known` has been called.
     """
 
     def __init__(
