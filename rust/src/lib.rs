@@ -1,7 +1,9 @@
 mod selector;
+mod stable_sort;
 mod tree_traversal;
 
 use crate::selector::Selector;
+use crate::stable_sort::argpartial_sort;
 use crate::tree_traversal::{calc_apply, calc_feature_delta_sum, calc_paths_sum};
 use pyo3::prelude::*;
 
@@ -12,5 +14,6 @@ fn calc_trees(py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(calc_paths_sum, m)?)?;
     m.add_function(wrap_pyfunction!(calc_feature_delta_sum, m)?)?;
     m.add_function(wrap_pyfunction!(calc_apply, m)?)?;
+    m.add_function(wrap_pyfunction!(argpartial_sort, m)?)?;
     Ok(())
 }
