@@ -43,6 +43,13 @@ class Coniferest(ABC):
 
     random_seed : int or None, optional
         Seed for the reproducibility. If None, then random seed is used.
+
+    Attributes
+    ----------
+    n_features_in_ : int
+        Number of features seen during :term:`fit`. Available only after
+        the forest has been built (i.e. after :meth:`build_trees`,
+        :meth:`fit`, or :meth:`fit_known` has been called).
     """
 
     def __init__(
@@ -76,6 +83,13 @@ class Coniferest(ABC):
         self.min_impurity_decrease = 0
         # How many outputs does each experiment (point) have? Zero can't be in sklearn.
         self.n_outputs = 1
+
+    @property
+    def n_features_in_(self):
+        """Number of features seen during :term:`fit`."""
+        if len(self.trees) == 0:
+            raise AttributeError(f"{self.__class__.__name__} object has no attribute n_features_in_")
+        return self.trees[0].n_features
 
     def build_trees(self, data, n_trees):
         """
