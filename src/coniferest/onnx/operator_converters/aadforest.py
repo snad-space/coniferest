@@ -3,10 +3,7 @@ from onnxconverter_common.registration import register_converter
 from .coniferest import add_leaf, add_node, get_default_attribute_pairs
 
 
-def get_leaf_weight(tree_id, node_id, model):
-    evaluator = model.evaluator
-    selector_id = evaluator.node_offsets[tree_id].astype(int) + node_id
-    selector = evaluator.selectors[selector_id]
+def get_leaf_weight(selector, evaluator):
     value = selector["value"]
     # Generally, selector["leaf"] should be -1 for leafs,
     # but for AADForest it stores related weight index.
@@ -16,32 +13,36 @@ def get_leaf_weight(tree_id, node_id, model):
     return weight * value
 
 
-def add_tree_to_attribute_pairs(attr_pairs, tree, tree_id, model):
-    for i in range(tree.node_count):
-        node_id = i
+def add_tree_to_attribute_pairs(attr_pairs, tree_id, evaluator):
+    node_offset = evaluator.node_offsets[tree_id]
+    node_end = evaluator.node_offsets[tree_id + 1]
+    tree_selectors = evaluator.selectors[node_offset:node_end]
 
-        if tree.children_left[i] > i or tree.children_right[i] > i:
+    for node_id, selector in enumerate(tree_selectors):
+        if selector["feature"] >= 0:
             mode = "BRANCH_LEQ"
-            feat_id = tree.feature[i]
-            threshold = tree.threshold[i]
-            left_child_id = int(tree.children_left[i])
-            right_child_id = int(tree.children_right[i])
+            feat_id = int(selector["feature"])
+            threshold = selector["value"]
+            left_child_id = int(selector["left"])
+            right_child_id = int(selector["right"])
 
             add_node(attr_pairs, tree_id, node_id, feat_id, mode, threshold, left_child_id, right_child_id)
         else:
             mode = "LEAF"
-            weight = get_leaf_weight(tree_id, node_id, model)
+            weight = get_leaf_weight(selector, evaluator)
 
             add_leaf(attr_pairs, tree_id, node_id, mode, weight)
 
 
 def convert_aadforest(scope, operator, container):
     model = operator.raw_operator
+    evaluator = model.evaluator
+    n_trees = evaluator.n_trees
 
     attr_pairs = get_default_attribute_pairs()
 
-    for i, tree in enumerate(model.trees):
-        add_tree_to_attribute_pairs(attr_pairs, tree, i, model)
+    for tree_id in range(n_trees):
+        add_tree_to_attribute_pairs(attr_pairs, tree_id, evaluator)
 
     container.add_node(
         "TreeEnsembleRegressor",
