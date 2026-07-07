@@ -1,1 +1,1 @@
-from .calc_trees import __version__  # noqa: F401
+from ._core import __version__  # noqa: F401

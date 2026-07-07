@@ -3,45 +3,36 @@ import math
 import numpy as np
 from scipy.sparse import csr_array
 
-from .calc_trees import calc_apply, calc_feature_delta_sum, calc_paths_sum, selector_dtype  # noqa
+from ._core import Tree, calc_apply, calc_feature_delta_sum, calc_paths_sum  # noqa
 from .utils import average_path_length
 
 __all__ = ["ForestEvaluator"]
 
 
 class ForestEvaluator:
-    selector_dtype = selector_dtype
-
-    def __init__(self, samples, selectors, node_offsets, leaf_offsets, *, num_threads, sampletrees_per_batch):
+    def __init__(self, samples, trees, *, num_threads, sampletrees_per_batch):
         """
         Base class for the forest evaluators. Does the trivial job:
         * runs calc_paths_sum written in Rust,
-        * helps to combine several trees' representations into two arrays.
+        * combines per-tree leaf values into a global array.
 
         Parameters
         ----------
         samples
             Number of samples in every tree.
 
-        selectors
-            Array with all the nodes of all the trees.
-
-        node_offsets
-            Offsets for tree indices for node-sized arrays. For example
-            for two trees of node-length `len1` and `len2` it would be:
-            [0, len1, len1 + len2]
-
-        leaf_offsets
-            Offsets for tree indices for leaf-sized arrays.
+        trees
+            List of `coniferest._core.Tree` objects.
 
         num_threads : int or None
-            Number of threads to use for calculations. If None then
+            Number of threads to use for calculations. If None or negative,
+            all available CPUs are used.
+
+        sampletrees_per_batch : int
+            Target number of sample-tree pairs per parallel batch.
         """
         self.samples = samples
-
-        self.selectors = selectors
-        self.node_offsets = node_offsets
-        self.leaf_offsets = leaf_offsets
+        self.trees = list(trees)
 
         if num_threads is None or num_threads < 0:
             # Ask Rust's rayon to use all available threads
@@ -55,57 +46,20 @@ class ForestEvaluator:
     def batch_size(self):
         return math.ceil(self.sampletrees_per_batch / self.n_trees)
 
-    @classmethod
-    def combine_selectors(cls, selectors_list):
-        """
-        Combine several node arrays into one array of nodes and one array of
-        start node_offsets.
-
-        Parameters
-        ----------
-        selectors_list
-            List of node arrays to combine.
-
-        Returns
-        -------
-        np.ndarray of selectors
-            Node array with all the nodes from all the trees.
-        np.ndarray of int
-            Array of tree offsets for node-arrays.
-        np.ndarray of int
-            Array of tree offsets for leaf-arrays.
-        """
-        lens = [len(sels) for sels in selectors_list]
-        full_len = sum(lens)
-
-        selectors = np.empty((full_len,), dtype=cls.selector_dtype)
-
-        node_offsets = np.zeros((len(selectors_list) + 1,), dtype=np.uintp)
-        node_offsets[1:] = np.add.accumulate(lens)
-
-        for i in range(len(selectors_list)):
-            selectors[node_offsets[i] : node_offsets[i + 1]] = selectors_list[i]
-
-        # Assign a unique sequential index to every leaf
-        # The index is used for weighted scores
-        leaf_mask = selectors["feature"] < 0
-
-        # Each offset tells how many leafs are in all previous trees
-        leaf_offsets = np.zeros_like(node_offsets)
-        leaf_offsets[1:] = np.cumsum(leaf_mask)[node_offsets[1:] - 1]
-        leaf_count = leaf_offsets[-1]
-
-        selectors["left"][leaf_mask] = np.arange(0, leaf_count)
-
-        return selectors, node_offsets, leaf_offsets
+    @staticmethod
+    def combine_leaf_values(trees):
+        """Concatenate per-tree leaf values into one global-leaf-indexed array."""
+        if len(trees) == 0:
+            return np.empty((0,), dtype=np.float64)
+        return np.concatenate([tree.leaf_values() for tree in trees])
 
     @property
     def n_trees(self):
-        return self.node_offsets.shape[0] - 1
+        return len(self.trees)
 
     @property
     def n_leaves(self):
-        return self.leaf_offsets[-1]
+        return int(sum(tree.n_leaves for tree in self.trees))
 
     def score_samples(self, x):
         """
@@ -127,8 +81,7 @@ class ForestEvaluator:
             2
             ** (
                 -calc_paths_sum(
-                    self.selectors,
-                    self.node_offsets,
+                    self.trees,
                     x,
                     num_threads=self.num_threads,
                     batch_size=self.batch_size,
@@ -142,8 +95,7 @@ class ForestEvaluator:
             x = np.ascontiguousarray(x)
 
         return calc_feature_delta_sum(
-            self.selectors,
-            self.node_offsets,
+            self.trees,
             x,
             num_threads=self.num_threads,
             batch_size=self.batch_size,
@@ -164,8 +116,7 @@ class ForestEvaluator:
             x = np.ascontiguousarray(x)
 
         return calc_apply(
-            self.selectors,
-            self.node_offsets,
+            self.trees,
             x,
             num_threads=self.num_threads,
             batch_size=self.batch_size,

@@ -24,9 +24,7 @@ classifiers = [
 dependencies = [
     "click>=8.2", # click.Choice to accept enums
     "numpy",
-    # sklearn.tree._splitter.RandomSplitter changed signature in 1.4.0
-    # sklearn.tree._tree.DTYPE is missed from 1.9.0 https://github.com/snad-space/coniferest/issues/333
-    "scikit-learn>=1.4,<1.9",
+    "scipy",
     "onnxconverter-common",
     "clarabel",
 ]
@@ -43,18 +41,20 @@ dev = [
     "pytest",
     "pytest-benchmark[histogram]",
     "onnxruntime",
+    # Tests compare our isolation forest with the scikit-learn's one
+    "scikit-learn",
 ]
 
 [project.urls]
 "Source Code" = "https://github.com/snad-space/coniferest"
 
 [tool.maturin]
-module-name = "coniferest.calc_trees"
+module-name = "coniferest._core"
 # It asks to use Cargo.lock to make the build reproducible
 locked = true
 
 [tool.maturin.target.aarch64-apple-darwin]
-# I belive Rust requires it
+# I believe Rust requires it
 macos-deployment-target = "11.0"
 
 [tool.pytest.ini_options]

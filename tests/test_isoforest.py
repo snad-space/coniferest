@@ -4,8 +4,8 @@ from numpy.testing import assert_allclose, assert_equal
 from sklearn.ensemble import IsolationForest as SkIsolationForest
 
 from coniferest.datasets import MalanchevDataset
+from coniferest.evaluator import ForestEvaluator
 from coniferest.isoforest import IsolationForest
-from coniferest.sklearn.isoforest import IsolationForestEvaluator
 
 
 @pytest.fixture()
@@ -30,26 +30,11 @@ class IsoforestResults:
 
         forest = SkIsolationForest(n_estimators=trees, random_state=seed + 3)
         self.skores1 = self.calc_forest_scores(forest, data)
-        self.skores1_by_evaluator = IsolationForestEvaluator(forest).score_samples(data)
 
     @staticmethod
     def calc_forest_scores(forest, data):
         forest.fit(data)
         return forest.score_samples(data)
-
-
-def test_sklearn_isolation_forest_evaluator(isoforest_results):
-    """
-    Does evaluator scores coinside with the ones computed by sklearn?
-    """
-    r = isoforest_results
-    assert_allclose(
-        r.skores1_by_evaluator,
-        r.skores1,
-        atol=1e-10,
-        rtol=0,
-        err_msg="sklearn and our results nust be the same",
-    )
 
 
 def test_isolation_forest(isoforest_results):
@@ -62,6 +47,36 @@ def test_isolation_forest(isoforest_results):
     assert diff_coni_to_sk < 1.5 * diff_sk_to_sk
 
 
+def test_rank_correlation_with_sklearn(isoforest_results):
+    """
+    Do our scores rank samples like sklearn's ones? Our decorrelation from
+    sklearn must be comparable to sklearn's seed-to-seed decorrelation.
+    """
+    from scipy.stats import spearmanr
+
+    r = isoforest_results
+    rho_sk_to_sk = spearmanr(r.skores0, r.skores1).statistic
+    rho_coni_to_sk = spearmanr(r.skores0, r.scores).statistic
+    assert rho_coni_to_sk >= 1.0 - 1.5 * (1.0 - rho_sk_to_sk)
+
+
+def test_top_anomalies_match_sklearn(isoforest_results):
+    """
+    Do we find the same top anomalies as sklearn? The dataset has 50 outliers,
+    so we compare the top-50 sets, with sklearn's seed-to-seed agreement as
+    the yardstick.
+    """
+    r = isoforest_results
+    k = 50
+
+    def top(scores):
+        return set(np.argsort(scores)[:k])
+
+    overlap_sk_to_sk = len(top(r.skores0) & top(r.skores1))
+    overlap_coni_to_sk = len(top(r.skores0) & top(r.scores))
+    assert overlap_coni_to_sk >= overlap_sk_to_sk - int(0.5 * (k - overlap_sk_to_sk)) - 1
+
+
 def test_serialization(isoforest_results):
     """
     Does (de)serialization work correctly?
@@ -72,10 +87,6 @@ def test_serialization(isoforest_results):
     s = pickle.dumps(r.forest)
     reforest = pickle.loads(s)
     assert_allclose(reforest.score_samples(r.dataset.data), r.scores, atol=1e-12)
-
-
-def forest_n_features(forest: IsolationForest):
-    return forest.evaluator.selectors[0, 0].n_features
 
 
 def assert_forest_scores(forest1: IsolationForest, forest2: IsolationForest, data=None, n_features=None):
@@ -130,9 +141,7 @@ def test_apply_dense():
     forest.fit(data)
 
     leafs = forest.apply(data)
-    selectors = forest.evaluator.selectors
-    leaf_mask = selectors["feature"] < 0
-    scores = np.sum(selectors[leaf_mask][leafs]["value"], axis=1)
+    scores = np.sum(ForestEvaluator.combine_leaf_values(forest.trees)[leafs], axis=1)
     scores = -(2 ** (-scores / (forest.evaluator.average_path_length(n_subsamples) * n_trees)))
     assert_allclose(forest.score_samples(data), scores)
 
@@ -156,9 +165,7 @@ def test_apply_sparse():
     forest.fit(data)
 
     leafs = forest.apply(data, "sparse")
-    selectors = forest.evaluator.selectors
-    leaf_mask = selectors["feature"] < 0
-    scores = leafs @ selectors[leaf_mask]["value"]
+    scores = leafs @ ForestEvaluator.combine_leaf_values(forest.trees)
     scores = -(2 ** (-scores / (forest.evaluator.average_path_length(n_subsamples) * n_trees)))
     assert_allclose(forest.score_samples(data), scores)
 

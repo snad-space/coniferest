@@ -5,7 +5,7 @@ import numpy as np
 from coniferest.coniferest import Coniferest
 from coniferest.pineforest import PineForest
 
-from ..calc_trees import argpartial_sort
+from .._core import argpartial_sort
 from ..label import Label
 from .callback import prompt_decision_callback
 

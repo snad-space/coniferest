@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from coniferest.calc_trees import argpartial_sort
+from coniferest._core import argpartial_sort
 from numpy.testing import assert_equal
 
 
@@ -35,7 +35,7 @@ def test_k_larger_than_array():
 @pytest.mark.parametrize("k", [1, 10, 100, 10000])
 def test_benchmark_argpartial_sort(size, k, benchmark):
     benchmark.group = f"argpartial_sort {size = :4d}, {k = :2d}"
-    benchmark.name = "coniferest.calc_trees.argpartial_sort"
+    benchmark.name = "coniferest._core.argpartial_sort"
 
     rng = np.random.default_rng(seed=0)
 
