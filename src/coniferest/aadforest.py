@@ -233,7 +233,7 @@ class AADForest(Coniferest):
         Random seed to use for reproducibility. If None - random seed is used.
 
     prior_influence : float or callable, optional
-        An regularization coefficient value in the loss functioin. Default is 1.0.
+        An regularization coefficient value in the loss functioin. Default is 0.0.
         Signature: '(anomaly_count, nominal_count) -> float'
 
     map_value : ["const", "exponential", "linear", "reciprocal"] or callable, optional
@@ -248,7 +248,7 @@ class AADForest(Coniferest):
         max_depth=None,
         budget="auto",
         C_a=1.0,
-        prior_influence=1.0,
+        prior_influence=0.0,
         n_jobs=-1,
         random_seed=None,
         sampletrees_per_batch=1 << 20,
