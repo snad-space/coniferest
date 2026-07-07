@@ -18,9 +18,8 @@ def _guess_initial_types(X, model, initial_types):
         shape = [None, X.shape[1]]
         initial_types = [("X", FloatTensorType(shape))]
 
-    if len(model.trees):
-        shape = [None, model.trees[0].n_features]
-        initial_types = [("X", FloatTensorType(shape))]
+    shape = [None, model.n_features_in_]
+    initial_types = [("X", FloatTensorType(shape))]
 
     return initial_types
 
