@@ -54,6 +54,15 @@ class ForestEvaluator:
         return np.concatenate([tree.leaf_values() for tree in trees])
 
     @property
+    def dtype(self):
+        """Data dtype the trees were built on."""
+        return np.dtype(self.trees[0].dtype)
+
+    def _prepare_x(self, x):
+        """C-contiguous array of the trees' dtype, copying only if needed."""
+        return np.ascontiguousarray(x, dtype=self.dtype)
+
+    @property
     def n_trees(self):
         return len(self.trees)
 
@@ -68,14 +77,14 @@ class ForestEvaluator:
         Parameters
         ----------
         x
-            Features to calculate scores of. Should be C-contiguous for performance.
+            Features to calculate scores of. The data is copied unless it is
+            C-contiguous and of the same dtype the trees were built on.
 
         Returns
         -------
         Array of scores.
         """
-        if not x.flags["C_CONTIGUOUS"]:
-            x = np.ascontiguousarray(x)
+        x = self._prepare_x(x)
 
         return -(
             2
@@ -91,8 +100,7 @@ class ForestEvaluator:
         )
 
     def _feature_delta_sum(self, x):
-        if not x.flags["C_CONTIGUOUS"]:
-            x = np.ascontiguousarray(x)
+        x = self._prepare_x(x)
 
         return calc_feature_delta_sum(
             self.trees,
@@ -112,8 +120,7 @@ class ForestEvaluator:
         return np.sum(delta_sum, axis=0) / np.sum(hit_count, axis=0) / self.average_path_length(self.samples)
 
     def _dense_apply(self, x):
-        if not x.flags["C_CONTIGUOUS"]:
-            x = np.ascontiguousarray(x)
+        x = self._prepare_x(x)
 
         return calc_apply(
             self.trees,
@@ -141,7 +148,8 @@ class ForestEvaluator:
         Parameters
         ----------
         x : ndarray shape (n_samples, n_features)
-            2-d array with features.
+            2-d array with features. The data is copied unless it is
+            C-contiguous and of the same dtype the trees were built on.
         output : {"dense", "sparse"}, default="dense"
             If "dense", returns a dense array of leaf indices per tree.
             If "sparse", returns a sparse CSR matrix of shape (n_samples, n_leaves)

@@ -50,7 +50,8 @@ class AADEvaluator(ConiferestEvaluator):
         Parameters
         ----------
         x
-            Features to calculate scores of. Should be C-contiguous for performance.
+            Features to calculate scores of. The data is copied unless it is
+            C-contiguous and of the same dtype the trees were built on.
         weights
             Specific leaf weights to use instead of self.weights
 
@@ -58,8 +59,7 @@ class AADEvaluator(ConiferestEvaluator):
         -------
         Array of scores.
         """
-        if not x.flags["C_CONTIGUOUS"]:
-            x = np.ascontiguousarray(x)
+        x = self._prepare_x(x)
 
         if weights is None:
             weights = self.weights

@@ -224,6 +224,24 @@ def test_n_jobs():
 
 @pytest.mark.benchmark
 @pytest.mark.long
+def test_benchmark_score_float32(n_jobs, benchmark):
+    benchmark.group = f"IsolationForest.score_samples float32 {n_jobs = :2d}"
+    benchmark.name = "coniferest.isoforest.IsolationForest"
+
+    random_seed = 0
+    n_samples = 1 << 20
+    n_features = 16
+    n_trees = 100
+    rng = np.random.default_rng(random_seed)
+    data = rng.standard_normal((n_samples, n_features), dtype=np.float32)
+    forest = IsolationForest(n_trees=n_trees, n_jobs=n_jobs, random_seed=random_seed)
+    forest.fit(data)
+
+    benchmark(forest.score_samples, data)
+
+
+@pytest.mark.benchmark
+@pytest.mark.long
 @pytest.mark.parametrize("n_trees", [128, 1024])
 def test_benchmark_fit(n_trees, n_jobs, benchmark):
     benchmark.group = f"IsolationForest.fit {n_trees = :4d}, {n_jobs = :2d}"
@@ -331,3 +349,20 @@ def test_benchmark_score_samples(n_samples, n_trees, n_jobs, benchmark):
 
     test_data = data[:n_samples]
     benchmark(forest.score_samples, test_data)
+
+
+def test_float32_data():
+    """
+    Trees are built on the data dtype; scoring data of a different dtype
+    is cast (copied) to it.
+    """
+    rng = np.random.default_rng(0)
+    data = rng.standard_normal((2048, 4), dtype=np.float32)
+
+    forest = IsolationForest(n_trees=32, random_seed=0)
+    forest.fit(data)
+    assert all(tree.dtype == "float32" for tree in forest.trees)
+    assert forest.evaluator.dtype == np.float32
+
+    scores = forest.score_samples(data)
+    assert_equal(forest.score_samples(data.astype(np.float64)), scores)

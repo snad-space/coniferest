@@ -1,9 +1,8 @@
-use crate::tree::{Leaf, Node, SplitNode, Tree};
+use crate::tree::{Leaf, Node, SplitNode, Tree, TreeDtype, TreeInner};
 use crate::tree_traversal::Data;
 use crate::utils::average_path_length;
 use itertools::Itertools;
 use ndarray::ArrayView2;
-use num_traits::AsPrimitive;
 use numpy::{Element, PyArray2, PyArrayMethods};
 use pyo3::exceptions::PyValueError;
 use pyo3::{Bound, PyResult, Python, pyfunction};
@@ -87,16 +86,19 @@ struct Task<'a> {
     slice: &'a mut [usize],
 }
 
-impl Tree {
+impl<T> TreeInner<T>
+where
+    T: Copy + PartialOrd,
+{
     /// Build a single isolation tree from a random subsample of `data` rows.
-    pub(crate) fn build<T>(
+    pub(crate) fn build(
         data: &ArrayView2<T>,
         seed: u64,
         n_subsamples: usize,
         max_depth: u16,
-    ) -> Tree
+    ) -> Self
     where
-        T: Copy + PartialOrd + SampleUniform + AsPrimitive<f64>,
+        T: SampleUniform,
     {
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
 
@@ -110,20 +112,19 @@ impl Tree {
 
     /// Build a single tree from the given subsample of `data` rows, using
     /// a custom splitting logic.
-    pub(crate) fn build_with_splitter<T, S>(
+    pub(crate) fn build_with_splitter<S>(
         data: &ArrayView2<T>,
         mut indices: Vec<usize>,
         max_depth: u16,
         mut splitter: S,
-    ) -> Tree
+    ) -> Self
     where
-        T: Copy + PartialOrd + AsPrimitive<f64>,
         S: Splitter<T>,
     {
         let n_subsamples = indices.len();
         let n_nodes_max = 2 * n_subsamples - 1;
 
-        let mut nodes: Vec<Node> = Vec::with_capacity(n_nodes_max);
+        let mut nodes: Vec<Node<T>> = Vec::with_capacity(n_nodes_max);
         // Kept on the side during the build, converted to the average path
         // length sidecar array afterwards
         let mut n_node_samples: Vec<u32> = Vec::with_capacity(n_nodes_max);
@@ -152,7 +153,7 @@ impl Tree {
                 None => {
                     nodes.push(Node::Leaf(Leaf {
                         leaf_index: n_leaves,
-                        value: depth as f64 + average_path_length::<_, f64>(slice.len()),
+                        value: depth as f32 + average_path_length::<_, f32>(slice.len()),
                     }));
                     n_leaves += 1;
                 }
@@ -161,8 +162,7 @@ impl Tree {
                         left_node_index: NonZeroU32::new(next_node_index)
                             .expect("node indices start from 1"),
                         split_feature: feature,
-                        // Exact value of T is representable in f64 for both f32 and f64
-                        split_value: value.as_(),
+                        split_value: value,
                     }));
                     next_node_index += 2;
 
@@ -191,7 +191,7 @@ impl Tree {
             .map(|&n| average_path_length(n))
             .collect();
 
-        Tree {
+        TreeInner {
             nodes,
             node_average_path_length,
             n_leaves,
@@ -211,7 +211,7 @@ fn build_trees_impl<T>(
     num_threads: usize,
 ) -> PyResult<Vec<Tree>>
 where
-    T: Element + Copy + Send + Sync + PartialOrd + SampleUniform + AsPrimitive<f64>,
+    T: Element + Copy + Send + Sync + PartialOrd + SampleUniform + TreeDtype,
 {
     let data = data.readonly();
     let data_view = data.as_array();
@@ -241,11 +241,11 @@ where
     let mut master_rng = Xoshiro256PlusPlus::seed_from_u64(seed);
     let seeds: Vec<u64> = (0..n_trees).map(|_| master_rng.next_u64()).collect();
 
-    let trees: Vec<Tree> = py.detach(|| {
+    let trees: Vec<TreeInner<T>> = py.detach(|| {
         if num_threads == 1 {
             seeds
                 .iter()
-                .map(|&seed| Tree::build(&data_view, seed, n_subsamples, max_depth))
+                .map(|&seed| TreeInner::build(&data_view, seed, n_subsamples, max_depth))
                 .collect()
         } else {
             rayon::ThreadPoolBuilder::new()
@@ -255,13 +255,16 @@ where
                 .install(|| {
                     seeds
                         .par_iter()
-                        .map(|&seed| Tree::build(&data_view, seed, n_subsamples, max_depth))
+                        .map(|&seed| TreeInner::build(&data_view, seed, n_subsamples, max_depth))
                         .collect()
                 })
         }
     });
 
-    Ok(trees)
+    Ok(trees
+        .into_iter()
+        .map(|inner| Tree(T::wrap(inner)))
+        .collect())
 }
 
 /// Build isolation trees in parallel.
