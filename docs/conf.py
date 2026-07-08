@@ -31,4 +31,4 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
 html_theme = "alabaster"
 html_static_path = ["_static"]
 
-nbsphinx_execute = 'never'
+nbsphinx_execute = 'auto'
