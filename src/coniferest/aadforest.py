@@ -16,6 +16,7 @@ class AADEvaluator(ConiferestEvaluator):
     def __init__(self, aad):
         super(AADEvaluator, self).__init__(aad, map_value=aad.map_value)
         self.C_a = aad.C_a
+        self.C_n = aad.C_n
         self.budget = aad.budget
         self.n_jobs = aad.n_jobs
         self.prior_influence = aad.prior_influence
@@ -101,7 +102,7 @@ class AADEvaluator(ConiferestEvaluator):
         if n_anomalies > 0:
             q_known[known_labels == Label.ANOMALY] = self.C_a * np.reciprocal(float(n_anomalies))
         if n_nominals > 0:
-            q_known[known_labels == Label.REGULAR] = np.reciprocal(float(n_nominals))
+            q_known[known_labels == Label.REGULAR] = self.C_n * np.reciprocal(float(n_nominals))
 
         q = np.concatenate(
             [
@@ -179,15 +180,15 @@ class AADForest(Coniferest):
        \mathbf{w} = \arg\min_{\mathbf{w}} \left(
         \frac{C_a}{\left|\mathcal{A}\right|}
             \sum_{i \in \mathcal{A}} \mathrm{ReLU}\left(s(\mathbf{x_i} | \mathbf{w}) - q_{\tau}\right) +
-        \frac{1}{\left|\mathcal{N}\right|}
+        \frac{C_n}{\left|\mathcal{N}\right|}
             \sum_{i \in \mathcal{N}} \mathrm{ReLU}\left(q_{\tau} - s(\mathbf{x_i} | \mathbf{w})\right) +
         \frac{\alpha}{2} \lVert \mathbf{w} - \mathbf{w_0}\rVert^2\right),
 
-    where :math:`C_a` is `C_a`, regularization parameter :math:`\alpha` is
-    `prior_influence`, :math:`\mathcal{A}` is a set of known anomalies,
-    :math:`\mathcal{N}` is a set of known nominals, :math:`s(\mathbf{x_i} |
-    \mathbf{w})` is the anomaly score of instance with features
-    :math:`\mathbf{x_i}` given weights :math:`\mathbf{w}`.
+    where :math:`C_a` is `C_a`, :math:`C_n` is `C_n`, regularization parameter
+    :math:`\alpha` is `prior_influence`, :math:`\mathcal{A}` is a set of known
+    anomalies, :math:`\mathcal{N}` is a set of known nominals,
+    :math:`s(\mathbf{x_i} | \mathbf{w})` is the anomaly score of instance with
+    features :math:`\mathbf{x_i}` given weights :math:`\mathbf{w}`.
 
     This problem is reformulated as an equivalent quadratic programming problem:
 
@@ -198,7 +199,7 @@ class AADForest(Coniferest):
        \mathbf{u}
        \end{bmatrix} = \arg\min_{\mathbf{w}, \mathbf{u}} \left(
         \frac{C_a}{\left|\mathcal{A}\right|} \sum_{i \in \mathcal{A}} u_i +
-        \frac{1}{\left|\mathcal{N}\right|} \sum_{i \in \mathcal{N}} u_i +
+        \frac{C_n}{\left|\mathcal{N}\right|} \sum_{i \in \mathcal{N}} u_i +
         \frac{\alpha}{2} \lVert \mathbf{w} - \mathbf{w_0} \rVert^2\right),
 
     with the following convex constraints:
@@ -226,6 +227,12 @@ class AADForest(Coniferest):
         number of items. If string "auto" is set then the exact parameter is
         found during the train. Default is "auto".
 
+    C_a : float, default=1.0
+        Finite nonnegative cost parameter for anomalies in the loss function. It is a cost for false negative anomalies.
+
+    C_n : float, default=1.0
+        Finite nonnegative cost parameter for nominals in the loss function. It is a cost for false positive anomalies.
+
     n_jobs : int, default=-1
         Number of threads to use for scoring. If -1, use all available CPUs.
 
@@ -233,11 +240,11 @@ class AADForest(Coniferest):
         Random seed to use for reproducibility. If None - random seed is used.
 
     prior_influence : float or callable, optional
-        An regularization coefficient value in the loss functioin. Default is 0.0.
+        A regularization coefficient value in the loss function. Default is 0.0.
         Signature: '(anomaly_count, nominal_count) -> float'
 
     map_value : ["const", "exponential", "linear", "reciprocal"] or callable, optional
-        An function applied to the leaf depth before weighting. Possible
+        A function applied to the leaf depth before weighting. Possible
         meaning variants are: 1, 1-exp(-x), x, -1/x.
 
     Attributes
@@ -254,6 +261,7 @@ class AADForest(Coniferest):
         max_depth=None,
         budget="auto",
         C_a=1.0,
+        C_n=1.0,
         prior_influence=0.0,
         n_jobs=-1,
         random_seed=None,
@@ -275,6 +283,7 @@ class AADForest(Coniferest):
 
         self.budget = budget
         self.C_a = C_a
+        self.C_n = C_n
 
         if isinstance(prior_influence, Callable):
             self.prior_influence = prior_influence
@@ -378,7 +387,7 @@ class AADForest(Coniferest):
 
     def score_samples(self, samples):
         """
-        Computer scores for the supplied data.
+        Compute scores for the supplied data.
 
         Parameters
         ----------
