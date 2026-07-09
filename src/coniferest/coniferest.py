@@ -110,26 +110,6 @@ class Coniferest(ABC):
 
         return build_trees(data, seed, n_trees, n_samples, int(self.max_depth), num_threads=self.num_threads)
 
-    def build_one_tree(self, data):
-        """
-        Build just one tree from the whole `data`, without subsampling.
-
-        Parameters
-        ----------
-        data
-            Features to build that one tree of.
-
-        Returns
-        -------
-        A tree.
-        """
-        data = self._prepare_data(data)
-
-        seed = int(self.rng.integers(0, 1 << 64, dtype=np.uint64))
-        (tree,) = build_trees(data, seed, 1, data.shape[0], int(self.max_depth), num_threads=1)
-
-        return tree
-
     @staticmethod
     def _validate_known_data(known_data=None, known_labels=None):
         known_data = np.asarray(known_data) if known_data is not None else None

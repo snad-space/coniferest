@@ -229,6 +229,10 @@ class PineForest(Coniferest):
         """
         data = self._prepare_data(data)
 
+        # `trees` is the pre-filter superset (n_trees + n_spare_trees), which generally
+        # doesn't match self.trees/self.evaluator (built for the previous, smaller tree
+        # set), so apply() needs its own evaluator built from `trees` rather than
+        # self.evaluator, or leaf indices below would be computed against the wrong trees.
         evaluator = ForestEvaluator(
             samples=self.n_subsamples,
             trees=trees,

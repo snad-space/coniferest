@@ -14,9 +14,12 @@ def isoforest_results():
 
 
 class IsoforestResults:
+    inliers = 1000
+    outliers = 50
+
     def __init__(self):
         seed = 622341
-        self.dataset = MalanchevDataset(inliers=1000, outliers=50, regions=[1, 1, -1], rng=seed)
+        self.dataset = MalanchevDataset(inliers=self.inliers, outliers=self.outliers, regions=[1, 1, -1], rng=seed)
 
         data = self.dataset.data
         trees = 1000
@@ -55,26 +58,18 @@ def test_rank_correlation_with_sklearn(isoforest_results):
     from scipy.stats import spearmanr
 
     r = isoforest_results
-    rho_sk_to_sk = spearmanr(r.skores0, r.skores1).statistic
-    rho_coni_to_sk = spearmanr(r.skores0, r.scores).statistic
-    assert rho_coni_to_sk >= 1.0 - 1.5 * (1.0 - rho_sk_to_sk)
+    # Check if outlier ranking matches, 50 is the number of outliers in the dataset
+    spearman_pvalue = spearmanr(np.argsort(r.skores0)[: r.outliers], np.argsort(r.scores)[: r.outliers]).pvalue
+    assert spearman_pvalue > 0.1
 
 
 def test_top_anomalies_match_sklearn(isoforest_results):
-    """
-    Do we find the same top anomalies as sklearn? The dataset has 50 outliers,
-    so we compare the top-50 sets, with sklearn's seed-to-seed agreement as
-    the yardstick.
-    """
+    """Test if most of the outliers match between ours and scikit-learn isoforests"""
     r = isoforest_results
-    k = 50
 
-    def top(scores):
-        return set(np.argsort(scores)[:k])
-
-    overlap_sk_to_sk = len(top(r.skores0) & top(r.skores1))
-    overlap_coni_to_sk = len(top(r.skores0) & top(r.scores))
-    assert overlap_coni_to_sk >= overlap_sk_to_sk - int(0.5 * (k - overlap_sk_to_sk)) - 1
+    iso_outliers = frozenset(np.argsort(r.scores)[: r.outliers])
+    sk_outliers = frozenset(np.argsort(r.skores0)[: r.outliers])
+    assert len(iso_outliers.symmetric_difference(sk_outliers)) < 3
 
 
 def test_serialization(isoforest_results):

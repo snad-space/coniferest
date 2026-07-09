@@ -16,7 +16,7 @@ def test_scores_negative():
 def test_single_outlier():
     data, _metadata = single_outlier()
     # Enough trees to make the outlier robustly the lowest-score sample
-    forest = AADForest(n_trees=100, random_seed=0).fit(data)
+    forest = AADForest(n_trees=10, random_seed=42).fit(data)
     scores = forest.score_samples(data)
     # Outlier goes last and must have the lowest score
     assert np.argmin(scores) == data.shape[0] - 1

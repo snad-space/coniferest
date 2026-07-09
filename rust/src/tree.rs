@@ -77,13 +77,47 @@ where
                 Node::Leaf(leaf) => break leaf,
                 Node::Split(split) => {
                     let left = split.left_node_index.get() as usize;
-                    i = if *unsafe { sample.get_unchecked(split.split_feature as usize) }
-                        <= split.split_value
-                    {
-                        left
-                    } else {
-                        left + 1
-                    };
+                    let value = *unsafe { sample.get_unchecked(split.split_feature as usize) };
+                    // By construction, the right child ID is always one greater
+                    // than the left child ID.
+                    // Benchamrks showed that it is faster to do an unconditional addition here
+                    // instead of implementing it as a conditional branch.
+                    i = left + (value > split.split_value) as usize;
+                }
+            }
+        }
+    }
+
+    /// Follow the decision path for `sample`, calling `visit` at every split
+    /// node visited, and return the reached leaf.
+    ///
+    /// `visit(node_index, split, child_index)` is called for every split
+    /// node visited, where:
+    /// - `node_index: usize` is the index of the visited split node;
+    /// - `split: &SplitNode<T>` is the split node itself (feature and
+    ///   threshold);
+    /// - `child_index: usize` is the index of the child chosen for
+    ///   `sample`, i.e. the node `for_each_split` will visit or return next.
+    ///
+    /// Safety: relies on the invariants checked in the constructor: child
+    /// indices are within the tree and greater than the parent index, and
+    /// split features are less than `n_features` (`sample` length).
+    #[inline]
+    pub(crate) fn for_each_split(
+        &self,
+        sample: &[T],
+        mut visit: impl FnMut(usize, &SplitNode<T>, usize),
+    ) -> &Leaf {
+        let mut node_index = 0;
+        loop {
+            match unsafe { self.nodes.get_unchecked(node_index) } {
+                Node::Leaf(leaf) => break leaf,
+                Node::Split(split) => {
+                    let left = split.left_node_index.get() as usize;
+                    let value = *unsafe { sample.get_unchecked(split.split_feature as usize) };
+                    let child_index = left + (value > split.split_value) as usize;
+                    visit(node_index, split, child_index);
+                    node_index = child_index;
                 }
             }
         }

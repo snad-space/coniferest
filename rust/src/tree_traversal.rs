@@ -1,4 +1,4 @@
-use crate::tree::{Node, Tree, TreeDtype, TreeInner};
+use crate::tree::{Tree, TreeDtype, TreeInner};
 use ndarray::parallel::prelude::*;
 use ndarray::{ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2, Zip};
 use numpy::{Element, PyArray1, PyArray2, PyArrayMethods};
@@ -316,31 +316,13 @@ fn calc_feature_delta_sum_impl<T>(
             // Sidecar array with the average path length of each node
             let node_apl = &tree.node_average_path_length;
 
-            let mut i = 0;
-            loop {
-                match unsafe { tree.nodes.get_unchecked(i) } {
-                    Node::Leaf(_) => break,
-                    Node::Split(split) => {
-                        let left = split.left_node_index.get() as usize;
-                        let child =
-                            if *unsafe { sample.get_unchecked(split.split_feature as usize) }
-                                <= split.split_value
-                            {
-                                left
-                            } else {
-                                left + 1
-                            };
-
-                        // Here we cast to f64 following the original Cython implementation, but
-                        // it is a subject to change.
-                        *unsafe { delta_sum_row.uget_mut(split.split_feature as usize) } +=
-                            1.0 + (node_apl[child] - node_apl[i]) as f64;
-                        *unsafe { hit_count_row.uget_mut(split.split_feature as usize) } += 1;
-
-                        i = child;
-                    }
-                }
-            }
+            tree.for_each_split(sample, |node_index, split, child_index| {
+                // Here we cast to f64 following the original Cython implementation, but
+                // it is subject to change.
+                *unsafe { delta_sum_row.uget_mut(split.split_feature as usize) } +=
+                    1.0 + (node_apl[child_index] - node_apl[node_index]) as f64;
+                *unsafe { hit_count_row.uget_mut(split.split_feature as usize) } += 1;
+            });
         }
     };
 
