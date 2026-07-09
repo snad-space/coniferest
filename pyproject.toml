@@ -27,6 +27,7 @@ dependencies = [
     # sklearn.tree._splitter.RandomSplitter changed signature in 1.4.0
     # sklearn.tree._tree.DTYPE is missed from 1.9.0 https://github.com/snad-space/coniferest/issues/333
     "scikit-learn>=1.4,<1.9",
+    "scipy",
     "onnxconverter-common",
     "clarabel",
 ]
