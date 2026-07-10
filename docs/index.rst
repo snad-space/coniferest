@@ -23,9 +23,9 @@ Getting started
 ----------------
 
 - :doc:`tutorial` — install the package and run your first isolation forest and active anomaly detection session.
-- :doc:`isoforest` — details on the isolation forest implementation.
-- :doc:`pariou` — active anomaly detection on the Pariou active learning benchmark.
 - :doc:`notebooks` — worked examples and workshop tutorials as Jupyter notebooks.
+- :doc:`isoforest` — details on the isolation forest implementation.
+- :doc:`pariou` — mathematical background of anomaly detection feature signatures.
 - :doc:`modules` — full API reference.
 
 Citation
