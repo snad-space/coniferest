@@ -1,5 +1,6 @@
 sphinx
 sphinx-autoapi
+sphinx-book-theme
 sphinx-copybutton
 nbsphinx
 ipython
