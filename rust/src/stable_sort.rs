@@ -8,7 +8,7 @@ use std::collections::BinaryHeap;
 #[pyo3(signature = (arr, pos))]
 pub(crate) fn argpartial_sort<'py>(
     py: Python<'py>,
-    arr: PyReadonlyArray1<f64>,
+    arr: PyReadonlyArray1<'py, f64>,
     pos: usize,
 ) -> PyResult<Bound<'py, PyArray1<usize>>> {
     let capacity = cmp::min(pos, arr.len());

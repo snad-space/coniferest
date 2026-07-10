@@ -3,9 +3,9 @@ use crate::tree_traversal::Data;
 use crate::utils::average_path_length;
 use itertools::Itertools;
 use ndarray::ArrayView2;
-use numpy::{Element, PyArray2, PyArrayMethods};
+use numpy::{Element, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
-use pyo3::{Bound, PyResult, Python, pyfunction};
+use pyo3::{PyResult, Python, pyfunction};
 use rand::distr::uniform::SampleUniform;
 use rand::distr::{Distribution, Uniform};
 use rand::{Rng, RngExt, SeedableRng};
@@ -249,7 +249,7 @@ impl<T> TreeBuildDtype for T where T: TreeDtype + SplitterValue + Element + Send
 
 fn build_trees_impl<T>(
     py: Python<'_>,
-    data: &Bound<'_, PyArray2<T>>,
+    data: &PyReadonlyArray2<'_, T>,
     seed: u64,
     n_trees: usize,
     n_subsamples: usize,
@@ -259,7 +259,6 @@ fn build_trees_impl<T>(
 where
     T: TreeBuildDtype,
 {
-    let data = data.readonly();
     let data_view = data.as_array();
     if !data_view.is_standard_layout() {
         return Err(PyValueError::new_err(
@@ -279,11 +278,11 @@ where
     }
     if data_view.ncols() > u32::MAX as usize {
         return Err(PyValueError::new_err(
-            "number of features is equal or larger than 2**32, it is likely to be a mistake with data shape",
+            "number of features is equal or larger than 2^32, it is likely to be a mistake with data shape",
         ));
     }
     if data_view.is_empty() {
-        return Err(PyValueError::new_err("data may not be empty"));
+        return Err(PyValueError::new_err("data must not be empty"));
     }
     // A deeper tree is not possible: every split isolates at least one sample
     let max_depth = u16::try_from(max_depth)

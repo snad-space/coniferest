@@ -80,7 +80,7 @@ where
                     let value = *unsafe { sample.get_unchecked(split.split_feature as usize) };
                     // By construction, the right child ID is always one greater
                     // than the left child ID.
-                    // Benchamrks showed that it is faster to do an unconditional addition here
+                    // Benchmarks showed that it is faster to do an unconditional addition here
                     // instead of implementing it as a conditional branch.
                     i = left + (value > split.split_value) as usize;
                 }

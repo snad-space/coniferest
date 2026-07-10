@@ -1,7 +1,7 @@
 use crate::tree::{Tree, TreeDtype, TreeInner};
 use ndarray::parallel::prelude::*;
 use ndarray::{ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2, Zip};
-use numpy::{Element, PyArray1, PyArray2, PyArrayMethods};
+use numpy::{Element, PyArray1, PyArray2, PyArrayMethods, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
@@ -10,8 +10,8 @@ type DeltaSumHitCount<'py> = (Bound<'py, PyArray2<f64>>, Bound<'py, PyArray2<i64
 /// Input data: 2-D numpy array of features, C-contiguous, one sample per row.
 #[derive(FromPyObject)]
 pub(crate) enum Data<'py> {
-    F64(Bound<'py, PyArray2<f64>>),
-    F32(Bound<'py, PyArray2<f32>>),
+    F64(PyReadonlyArray2<'py, f64>),
+    F32(PyReadonlyArray2<'py, f32>),
 }
 
 /// Borrowed trees of the forest with their global leaf offsets.
@@ -117,8 +117,8 @@ pub(crate) fn calc_paths_sum<'py>(
     py: Python<'py>,
     trees: Vec<Py<Tree>>,
     data: Data<'py>,
-    weights: Option<Bound<'py, PyArray1<f64>>>,
-    leaf_values: Option<Bound<'py, PyArray1<f64>>>,
+    weights: Option<PyReadonlyArray1<'py, f64>>,
+    leaf_values: Option<PyReadonlyArray1<'py, f64>>,
     num_threads: usize,
     batch_size: usize,
 ) -> PyResult<Bound<'py, PyArray1<f64>>> {
@@ -147,28 +147,25 @@ pub(crate) fn calc_paths_sum<'py>(
 fn calc_paths_sum_generic<'py, T>(
     py: Python<'py>,
     trees: &[Py<Tree>],
-    data: &Bound<'py, PyArray2<T>>,
-    weights: Option<Bound<'py, PyArray1<f64>>>,
-    leaf_values: Option<Bound<'py, PyArray1<f64>>>,
+    data: &PyReadonlyArray2<'py, T>,
+    weights: Option<PyReadonlyArray1<'py, f64>>,
+    leaf_values: Option<PyReadonlyArray1<'py, f64>>,
     num_threads: usize,
     batch_size: usize,
 ) -> PyResult<Bound<'py, PyArray1<f64>>>
 where
     T: Element + Copy + Send + Sync + PartialOrd + TreeDtype,
 {
-    let data = data.readonly();
     let data_view = data.as_array();
     check_data(data_view)?;
 
     let forest = Forest::new(trees, data_view.ncols())?;
 
-    let weights = weights.map(|weights| weights.readonly());
     let weights_view = weights.as_ref().map(|weights| weights.as_array());
     if let Some(weights_view) = weights_view {
         check_leaf_array(weights_view, forest.n_leaves, "weights")?;
     }
 
-    let leaf_values = leaf_values.map(|leaf_values| leaf_values.readonly());
     let leaf_values_view = leaf_values
         .as_ref()
         .map(|leaf_values| leaf_values.as_array());
@@ -263,14 +260,13 @@ pub(crate) fn calc_feature_delta_sum<'py>(
 fn calc_feature_delta_sum_generic<'py, T>(
     py: Python<'py>,
     trees: &[Py<Tree>],
-    data: &Bound<'py, PyArray2<T>>,
+    data: &PyReadonlyArray2<'py, T>,
     num_threads: usize,
     batch_size: usize,
 ) -> PyResult<DeltaSumHitCount<'py>>
 where
     T: Element + Copy + Send + Sync + PartialOrd + TreeDtype,
 {
-    let data = data.readonly();
     let data_view = data.as_array();
     check_data(data_view)?;
 
@@ -366,14 +362,13 @@ pub(crate) fn calc_apply<'py>(
 fn calc_apply_generic<'py, T>(
     py: Python<'py>,
     trees: &[Py<Tree>],
-    data: &Bound<'py, PyArray2<T>>,
+    data: &PyReadonlyArray2<'py, T>,
     num_threads: usize,
     batch_size: usize,
 ) -> PyResult<Bound<'py, PyArray2<i32>>>
 where
     T: Element + Copy + Send + Sync + PartialOrd + TreeDtype,
 {
-    let data = data.readonly();
     let data_view = data.as_array();
     check_data(data_view)?;
 
