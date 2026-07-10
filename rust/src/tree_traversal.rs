@@ -352,7 +352,7 @@ pub(crate) fn calc_apply<'py>(
     data: Data<'py>,
     num_threads: usize,
     batch_size: usize,
-) -> PyResult<Bound<'py, PyArray2<i32>>> {
+) -> PyResult<Bound<'py, PyArray2<u32>>> {
     match &data {
         Data::F64(array) => calc_apply_generic(py, &trees, array, num_threads, batch_size),
         Data::F32(array) => calc_apply_generic(py, &trees, array, num_threads, batch_size),
@@ -365,7 +365,7 @@ fn calc_apply_generic<'py, T>(
     data: &PyReadonlyArray2<'py, T>,
     num_threads: usize,
     batch_size: usize,
-) -> PyResult<Bound<'py, PyArray2<i32>>>
+) -> PyResult<Bound<'py, PyArray2<u32>>>
 where
     T: Element + Copy + Send + Sync + PartialOrd + TreeDtype,
 {
@@ -373,11 +373,6 @@ where
     check_data(data_view)?;
 
     let forest = Forest::new(trees, data_view.ncols())?;
-    if forest.n_leaves > i32::MAX as usize {
-        return Err(PyValueError::new_err(
-            "too many leaves in the forest for i32 leaf indices",
-        ));
-    }
 
     let num_threads = get_num_threads(data_view.nrows(), num_threads, batch_size)?;
 
@@ -395,16 +390,16 @@ fn calc_apply_impl<T>(
     data: ArrayView2<T>,
     num_threads: usize,
     batch_size: usize,
-    mut leafs: ArrayViewMut2<i32>,
+    mut leafs: ArrayViewMut2<u32>,
 ) where
     T: Copy + Send + Sync + PartialOrd + TreeDtype,
 {
-    let inner_fn = |sample: ArrayView1<T>, mut sample_leafs: ArrayViewMut1<i32>| {
+    let inner_fn = |sample: ArrayView1<T>, mut sample_leafs: ArrayViewMut1<u32>| {
         let sample = sample.as_slice().unwrap();
         let leafs_slice = sample_leafs.as_slice_mut().unwrap();
         for ((tree, leaf_offset), leaf_id) in forest.iter().zip(leafs_slice.iter_mut()) {
             let leaf = tree.find_leaf(sample);
-            *leaf_id = (leaf_offset + leaf.leaf_index) as i32;
+            *leaf_id = leaf_offset + leaf.leaf_index;
         }
     };
 

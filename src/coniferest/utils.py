@@ -22,9 +22,4 @@ def average_path_length(n):
     -------
     Average path length.
     """
-    is_scalar = np.isscalar(n)
-    n = np.asarray(n)
-    result = _average_path_length(n)
-    if is_scalar:
-        return result.item()
-    return result
+    return _average_path_length(np.asarray(n))

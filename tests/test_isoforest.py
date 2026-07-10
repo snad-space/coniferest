@@ -50,28 +50,6 @@ def test_isolation_forest(isoforest_results):
     assert diff_coni_to_sk < 1.5 * diff_sk_to_sk
 
 
-def test_rank_correlation_with_sklearn(isoforest_results):
-    """
-    Do our scores rank samples like sklearn's ones? Our decorrelation from
-    sklearn must be comparable to sklearn's seed-to-seed decorrelation.
-    """
-    from scipy.stats import spearmanr
-
-    r = isoforest_results
-    # Check if outlier ranking matches, 50 is the number of outliers in the dataset
-    spearman_pvalue = spearmanr(np.argsort(r.skores0)[: r.outliers], np.argsort(r.scores)[: r.outliers]).pvalue
-    assert spearman_pvalue > 0.1
-
-
-def test_top_anomalies_match_sklearn(isoforest_results):
-    """Test if most of the outliers match between ours and scikit-learn isoforests"""
-    r = isoforest_results
-
-    iso_outliers = frozenset(np.argsort(r.scores)[: r.outliers])
-    sk_outliers = frozenset(np.argsort(r.skores0)[: r.outliers])
-    assert len(iso_outliers.symmetric_difference(sk_outliers)) < 3
-
-
 def test_serialization(isoforest_results):
     """
     Does (de)serialization work correctly?

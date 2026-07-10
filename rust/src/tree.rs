@@ -71,21 +71,7 @@ where
     /// split features are less than `n_features` (`sample` length).
     #[inline]
     pub(crate) fn find_leaf(&self, sample: &[T]) -> &Leaf {
-        let mut i = 0;
-        loop {
-            match unsafe { self.nodes.get_unchecked(i) } {
-                Node::Leaf(leaf) => break leaf,
-                Node::Split(split) => {
-                    let left = split.left_node_index.get() as usize;
-                    let value = *unsafe { sample.get_unchecked(split.split_feature as usize) };
-                    // By construction, the right child ID is always one greater
-                    // than the left child ID.
-                    // Benchmarks showed that it is faster to do an unconditional addition here
-                    // instead of implementing it as a conditional branch.
-                    i = left + (value > split.split_value) as usize;
-                }
-            }
-        }
+        self.for_each_split(sample, |_, _, _| {})
     }
 
     /// Follow the decision path for `sample`, calling `visit` at every split

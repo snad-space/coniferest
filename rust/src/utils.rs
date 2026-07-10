@@ -56,7 +56,7 @@ where
 pub(crate) fn average_path_length_py<'py>(
     py: Python<'py>,
     n: &Bound<'py, PyUntypedArray>,
-) -> PyResult<Py<PyAny>> {
+) -> PyResult<Bound<'py, PyAny>> {
     let dtype = n.dtype();
     match dtype.char() as char {
         'f' => average_path_length_generic::<f32, f32>(py, n),
@@ -90,7 +90,7 @@ fn unsupported_dtype_err(dtype: &Bound<'_, numpy::PyArrayDescr>) -> PyErr {
 fn average_path_length_generic<'py, N, T>(
     py: Python<'py>,
     n: &Bound<'py, PyUntypedArray>,
-) -> PyResult<Py<PyAny>>
+) -> PyResult<Bound<'py, PyAny>>
 where
     N: Element + AsPrimitive<T>,
     T: Element + Float + AplConsts + 'static,
@@ -100,5 +100,5 @@ where
         .readonly()
         .as_array()
         .mapv(average_path_length::<N, T>);
-    Ok(PyArrayDyn::from_owned_array(py, result).into_any().unbind())
+    Ok(PyArrayDyn::from_owned_array(py, result).into_any())
 }
