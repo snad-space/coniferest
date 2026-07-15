@@ -4,24 +4,17 @@ use numpy::{Element, PyArrayDyn, PyUntypedArray};
 use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
 
-/// Per-type constants needed by [average_path_length], baked in at
-/// monomorphization time so no runtime f64-to-`T` cast is needed.
-pub(crate) trait AplConsts {
+/// Return type of [average_path_length].
+pub(crate) trait AveragePathLengthOutput: Float + 'static {
     const EULER_GAMMA: Self;
-    const TWO: Self;
-    const TWELVE: Self;
 }
 
-impl AplConsts for f32 {
+impl AveragePathLengthOutput for f32 {
     const EULER_GAMMA: Self = std::f32::consts::EULER_GAMMA;
-    const TWO: Self = 2.0;
-    const TWELVE: Self = 12.0;
 }
 
-impl AplConsts for f64 {
+impl AveragePathLengthOutput for f64 {
     const EULER_GAMMA: Self = std::f64::consts::EULER_GAMMA;
-    const TWO: Self = 2.0;
-    const TWELVE: Self = 12.0;
 }
 
 /// Average path length of an unsuccessful search in a binary search tree
@@ -30,17 +23,19 @@ impl AplConsts for f64 {
 /// `coniferest.utils.average_path_length`.
 pub(crate) fn average_path_length<N, T>(n: N) -> T
 where
+    f32: AsPrimitive<T>,
     N: AsPrimitive<T>,
-    T: Float + AplConsts + 'static,
+    T: AveragePathLengthOutput,
 {
     let n: T = n.as_();
     if n <= T::one() {
         T::zero()
     } else {
-        T::TWO
-            * (n.ln() + T::EULER_GAMMA + T::one() / (T::TWO * n)
-                - T::one() / (T::TWELVE * n * n)
-                - T::one())
+        // According to godblot all these .as_() will happen in the compile time
+        2.0.as_()
+            * (T::ln(n) + T::EULER_GAMMA + 1.0.as_() / (2.0.as_() * n)
+                - 1.0.as_() / (12.0.as_() * n * n)
+                - 1.0.as_())
     }
 }
 
@@ -93,7 +88,8 @@ fn average_path_length_generic<'py, N, T>(
 ) -> PyResult<Bound<'py, PyAny>>
 where
     N: Element + AsPrimitive<T>,
-    T: Element + Float + AplConsts + 'static,
+    f32: AsPrimitive<T>,
+    T: Element + Float + AveragePathLengthOutput + 'static,
 {
     let typed = n.cast::<PyArrayDyn<N>>()?;
     let result = typed

@@ -4,18 +4,22 @@ from numpy.testing import assert_allclose, assert_array_equal
 
 from coniferest.utils import average_path_length
 
-
-def _reference_average_path_length(n):
-    """Reference implementation of the Liu et al. 2008 formula in float64."""
-    n = np.asarray(n, dtype=np.float64)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        # n <= 1 entries produce spurious warnings here but are masked out below.
-        result = 2.0 * (np.log(n) + np.euler_gamma + 1.0 / (2.0 * n) - 1.0 / (12.0 * n * n) - 1.0)
-    # The formula is only defined for n > 1; otherwise the path length is zero.
-    return np.where(n > 1.0, result, 0.0)
-
-
-# --- scalar input -----------------------------------------------------------
+# Pre-computed reference values of the average path length of an unsuccessful
+# search in a binary search tree with n elements (Liu et al. 2008):
+#   c(n) = 2 * (ln(n) + euler_gamma + 1/(2n) - 1/(12n^2) - 1)   for n > 1
+#   c(n) = 0                                                     for n <= 1
+# computed independently in float64 with numpy.euler_gamma.
+REFERENCE = {
+    0: 0.0,
+    1: 0.0,
+    2: 0.9990590242562898,
+    3: 1.6664707219541004,
+    5: 2.5666404880046,
+    10: 3.85793484912449,
+    100: 8.374755035112582,
+    256: 10.24868992563068,
+    1000: 12.970941721100672,
+}
 
 
 def test_scalar_returns_zero_dim_array():
@@ -28,7 +32,7 @@ def test_scalar_returns_zero_dim_array():
 
 @pytest.mark.parametrize("n", [2, 3, 5, 10, 100, 256, 1000])
 def test_scalar_matches_reference(n):
-    assert_allclose(average_path_length(n), _reference_average_path_length(n))
+    assert_allclose(average_path_length(n), REFERENCE[n])
 
 
 @pytest.mark.parametrize("n", [0, 1])
@@ -64,7 +68,8 @@ def test_array_returns_ndarray():
 
 def test_array_matches_reference():
     n = np.asarray([0, 1, 2, 5, 10, 100, 1000], dtype=np.int64)
-    assert_allclose(average_path_length(n), _reference_average_path_length(n))
+    expected = [REFERENCE[x] for x in n.tolist()]
+    assert_allclose(average_path_length(n), expected)
 
 
 def test_array_edge_values():
@@ -95,22 +100,22 @@ def test_integer_dtypes_return_float64(dtype):
     n = np.asarray([2, 10, 100], dtype=dtype)
     result = average_path_length(n)
     assert result.dtype == np.float64
-    assert_allclose(result, _reference_average_path_length(n))
+    assert_allclose(result, [REFERENCE[2], REFERENCE[10], REFERENCE[100]])
 
 
 def test_float32_keeps_float32():
     n = np.asarray([2, 10, 100], dtype=np.float32)
     result = average_path_length(n)
     assert result.dtype == np.float32
-    # Computed in single precision, so compare against the reference loosely.
-    assert_allclose(result, _reference_average_path_length(n), rtol=1e-6)
+    # Computed in single precision, so compare against the float64 reference loosely.
+    assert_allclose(result, [REFERENCE[2], REFERENCE[10], REFERENCE[100]], rtol=1e-6)
 
 
 def test_float64_keeps_float64():
     n = np.asarray([2, 10, 100], dtype=np.float64)
     result = average_path_length(n)
     assert result.dtype == np.float64
-    assert_allclose(result, _reference_average_path_length(n))
+    assert_allclose(result, [REFERENCE[2], REFERENCE[10], REFERENCE[100]])
 
 
 def test_python_default_int_dtype():
@@ -118,7 +123,7 @@ def test_python_default_int_dtype():
     n = np.asarray([2, 10, 100])
     result = average_path_length(n)
     assert result.dtype == np.float64
-    assert_allclose(result, _reference_average_path_length(n))
+    assert_allclose(result, [REFERENCE[2], REFERENCE[10], REFERENCE[100]])
 
 
 @pytest.mark.parametrize("dtype", [np.float16, np.complex64, np.complex128, np.bool_])
