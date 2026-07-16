@@ -352,7 +352,8 @@ impl Tree {
     }
 
     /// Split feature per node, leaf index for leaves.
-    fn _get_feature<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<u32>> {
+    #[getter]
+    fn feature<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<u32>> {
         on_inner!(&self.0, tree => PyArray1::from_iter(
             py,
             tree.nodes.iter().map(|node| match node {
@@ -364,7 +365,8 @@ impl Tree {
 
     /// Split value per node, decision value for leaves.
     /// The array is of the tree dtype.
-    fn _get_value<'py>(&self, py: Python<'py>) -> Bound<'py, PyAny> {
+    #[getter]
+    fn value<'py>(&self, py: Python<'py>) -> Bound<'py, PyAny> {
         match &self.0 {
             TreeVariant::F32(tree) => PyArray1::from_iter(
                 py,
@@ -425,8 +427,8 @@ impl Tree {
             Self::type_object(py),
             (
                 this.left(py),
-                this._get_feature(py),
-                this._get_value(py),
+                this.feature(py),
+                this.value(py),
                 this.node_average_path_length_py(py),
                 this.n_subsamples(),
                 this.n_features(),
