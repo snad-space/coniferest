@@ -130,6 +130,7 @@ where
 {
     /// Build a single isolation tree from a random subsample of `data` rows.
     pub(crate) fn build(
+        // TODO: change to ArrayRef
         data: &ArrayView2<T>,
         n_subsamples: usize,
         max_depth: u16,
@@ -402,5 +403,101 @@ mod bench_alloc {
             let rng = Xoshiro256PlusPlus::seed_from_u64(0);
             TreeInner::build(view, n_subsamples, max_depth, rng)
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ndarray::Array1;
+
+    /// Test that the tree building algorithm works correctly on a simple 1-d dataset and
+    /// deterministic equal-half splitter.
+    #[test]
+    fn build_algorithm() {
+        struct EqualHalfSplitter;
+
+        impl SplitAlgorithm<f64> for EqualHalfSplitter {
+            fn choose_split(
+                &mut self,
+                data: &ArrayView2<f64>,
+                indices: &[usize],
+                _rng: &mut impl Rng,
+            ) -> Option<(u32, f64)> {
+                let feature = 0;
+                let (min, max) = indices
+                    .iter()
+                    .map(|&i| data[[i, feature as usize]])
+                    .minmax()
+                    .into_option()?;
+                if min == max {
+                    return None;
+                }
+                let split_value = (min + max) / 2.0;
+                Some((feature, split_value))
+            }
+        }
+
+        let max_depth = 4;
+        let n_samples = 1 << max_depth as usize;
+        let data = (0..n_samples)
+            .map(|i| i as f64)
+            .collect::<Array1<_>>()
+            .into_shape_with_order((n_samples, 1))
+            .unwrap();
+        let tree = TreeInner::build_with_splitter(
+            &data.view(),
+            (0..n_samples).collect(),
+            max_depth,
+            EqualHalfSplitter,
+            // not used
+            rand::rngs::StdRng::seed_from_u64(0),
+        );
+        assert_eq!(tree.n_leaves, 16);
+        assert_eq!(tree.n_subsamples, 16);
+        assert_eq!(tree.n_features, 1);
+        assert_eq!(tree.nodes.len(), (2 << max_depth as usize) - 1);
+        assert_eq!(
+            tree.node_average_path_length.len(),
+            (2 << max_depth as usize) - 1
+        );
+
+        // Using visitor pattern check that paths are correct
+        {
+            // Smaller than the smallest value
+            let mut n_samples_left = n_samples;
+            tree.for_each_split(&[-1.0], |_node_index, split, child_index| {
+                // We should go left each time
+                assert_eq!(child_index % 2, 1);
+                assert_eq!(split.split_feature, 0);
+                assert_eq!(split.split_value, (n_samples_left as f64 - 1.0) / 2.0);
+                n_samples_left /= 2;
+            });
+        }
+        {
+            // Larger than the largest value
+            let mut n_samples_left = n_samples;
+            tree.for_each_split(&[n_samples as f64], |_node_index, split, child_index| {
+                // We should go right each time
+                assert_eq!(child_index % 2, 0);
+                assert_eq!(split.split_feature, 0);
+                assert_eq!(
+                    split.split_value,
+                    (n_samples as f64 - 1.0) - (n_samples_left as f64 - 1.0) / 2.0
+                );
+                n_samples_left /= 2;
+            });
+        }
+        {
+            // Median value
+            let mut going_left = true;
+            let median = (n_samples as f64 - 1.0) / 2.0;
+            tree.for_each_split(&[median], |_node_index, split, child_index| {
+                // We go left first time, and go right each time after
+                assert_eq!(child_index % 2, going_left as usize);
+                going_left = false;
+                assert_eq!(split.split_feature, 0);
+            });
+        }
     }
 }
