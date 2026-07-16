@@ -2,30 +2,17 @@ from abc import ABC, abstractmethod
 from warnings import warn
 
 import numpy as np
-from sklearn.ensemble._bagging import _generate_indices  # noqa
-from sklearn.tree._criterion import MSE  # noqa
-from sklearn.tree._splitter import RandomSplitter  # noqa
-from sklearn.tree._tree import DepthFirstTreeBuilder, Tree  # noqa
-from sklearn.utils.validation import check_random_state
 
+from ._core import Tree, build_trees  # noqa
 from .evaluator import ForestEvaluator
-from .utils import average_path_length
 
-__all__ = ["Coniferest", "ConiferestEvaluator"]
-
-# Instead of doing:
-# from sklearn.utils._random import RAND_R_MAX
-# we have:
-RAND_R_MAX = 0x7FFFFFFF
-
-
-# Cause RAND_R_MAX is restricted to C-code.
+__all__ = ["Coniferest", "ConiferestEvaluator", "Tree"]
 
 
 class Coniferest(ABC):
     """
     Base class for the forests in the package. It settles the basic
-    low-level machinery with the sklearn's trees, used here.
+    low-level machinery with the Rust tree builder, used here.
 
     Parameters
     ----------
@@ -39,7 +26,8 @@ class Coniferest(ABC):
         Maximum depth of the trees in use. If None, then `log2(n_subsamples)` is used.
 
     n_jobs : int, default=-1
-        Number of threads to use for scoring. If -1, use all available CPUs.
+        Number of threads to use for building and scoring. If -1, use all
+        available CPUs.
 
     random_seed : int or None, optional
         Seed for the reproducibility. If None, then random seed is used.
@@ -62,27 +50,7 @@ class Coniferest(ABC):
         self.n_jobs = n_jobs
         self.sampletrees_per_batch = sampletrees_per_batch
 
-        # For the better future with reproducible parallel tree building.
-        # self.seedseq = np.random.SeedSequence(random_state)
-        # rng, = self.seedseq.spawn(1)
-        # self.rng = np.random.default_rng(rng)
-
         self.rng = np.random.default_rng(random_seed)
-
-        # The following are the setting for the tree building procedures.
-
-        # May we use the same data points during subsampling? No.
-        self.bootstrap_samples = False
-        # How many samples the node should have at least to perform a split? Two.
-        self.min_samples_split = 2
-        # How many samples the leaf might have? One.
-        self.min_samples_leaf = 1
-        # Don't know what it is.
-        self.min_weight_leaf = 0
-        # Don't know. Deprecated. And deleted in newer version of sklearn.
-        self.min_impurity_decrease = 0
-        # How many outputs does each experiment (point) have? Zero can't be in sklearn.
-        self.n_outputs = 1
 
     @property
     def n_features_in_(self):
@@ -91,9 +59,29 @@ class Coniferest(ABC):
             raise AttributeError(f"{self.__class__.__name__} object has no attribute n_features_in_")
         return self.trees[0].n_features
 
+    @property
+    def num_threads(self):
+        """`n_jobs` converted to the Rust extension conventions: 0 means all CPUs."""
+        if self.n_jobs is None or self.n_jobs < 0:
+            return 0
+        return self.n_jobs
+
+    @staticmethod
+    def _prepare_data(data):
+        """Convert data to a C-contiguous float32/float64 array."""
+        data = np.asarray(data)
+        if data.dtype not in (np.float32, np.float64):
+            data = data.astype(np.float64)
+        return np.ascontiguousarray(data)
+
     def build_trees(self, data, n_trees):
         """
         Just build `n_trees` trees from supplied `data`.
+
+        Trees are built in parallel, each tree from its own random subsample
+        of `data` rows. Random seeds for the trees are sampled in advance,
+        so the result is reproducible and does not depend on the number of
+        threads.
 
         Parameters
         ----------
@@ -107,7 +95,8 @@ class Coniferest(ABC):
         -------
         List of trees.
         """
-        n_population, n_features = data.shape
+        data = self._prepare_data(data)
+        n_population, _n_features = data.shape
 
         n_samples = self.n_subsamples
         if n_samples > n_population:
@@ -117,78 +106,9 @@ class Coniferest(ABC):
             warn(msg1 + ", " + msg2 + ", " + msg3)
             n_samples = n_population
 
-        trees = []
-        for tree_index in range(n_trees):
-            random_state = check_random_state(self.rng.integers(RAND_R_MAX))
-            indices = _generate_indices(
-                random_state=random_state,
-                bootstrap=self.bootstrap_samples,
-                n_population=n_population,
-                n_samples=n_samples,
-            )
+        seed = int(self.rng.integers(0, 1 << 64, dtype=np.uint64))
 
-            subsamples = data[indices, :]
-            tree = self.build_one_tree(subsamples)
-            trees.append(tree)
-
-        return trees
-
-    def build_one_tree(self, data):
-        """
-        Build just one tree.
-
-        Parameters
-        ----------
-        data
-            Features to build that one tree of.
-
-        Returns
-        -------
-        A tree.
-        """
-        # Hollow plug
-        criterion = MSE(self.n_outputs, self.n_subsamples)
-
-        # Splitter for splitting the nodes.
-        splitter_state = check_random_state(self.rng.integers(RAND_R_MAX))
-        splitter = RandomSplitter(
-            criterion=criterion,
-            max_features=1,
-            min_samples_leaf=self.min_samples_leaf,
-            min_weight_leaf=self.min_weight_leaf,
-            random_state=splitter_state,
-            monotonic_cst=None,
-        )
-
-        builder_args = {
-            "splitter": splitter,
-            "min_samples_split": self.min_samples_split,
-            "min_samples_leaf": self.min_samples_leaf,
-            "min_weight_leaf": self.min_weight_leaf,
-            "max_depth": self.max_depth,
-            "min_impurity_decrease": self.min_impurity_decrease,
-        }
-
-        # Initialize the builder
-        builder = DepthFirstTreeBuilder(**builder_args)
-
-        # Initialize the tree
-        n_samples, n_features = data.shape
-        tree = Tree(n_features, np.array([1] * self.n_outputs, dtype=np.int64), self.n_outputs)
-
-        # Cause of sklearn bugs we cannot do this:
-        # y = np.zeros((n_samples, self.n_outputs))
-        # Instead we do:
-        y = np.empty((n_samples, self.n_outputs))
-        y_column = np.arange(n_samples)
-        for oi in range(self.n_outputs):
-            y[:, oi] = y_column
-        # The counterpart is rnd.uniform from sklearn.ensemble.IsolationForest.fit.
-
-        # And finally build that tree.
-        builder.build(tree, data, y)
-
-        return tree
+        return build_trees(data, seed, n_trees, n_samples, int(self.max_depth), num_threads=self.num_threads)
 
     @staticmethod
     def _validate_known_data(known_data=None, known_labels=None):
@@ -243,62 +163,12 @@ class ConiferestEvaluator(ForestEvaluator):
     ----------
     coniferest : Coniferest
         The forest for building the evaluator from.
-    map_value : callable or None
-        Optional function to map leaf values, mast accept 1-D array of values
-        and return an array of the same shape.
     """
 
-    def __init__(self, coniferest, map_value=None):
-        selectors_list = [self.extract_selectors(t, map_value) for t in coniferest.trees]
-        selectors, node_offsets, leaf_offsets = self.combine_selectors(selectors_list)
-
+    def __init__(self, coniferest):
         super().__init__(
             samples=coniferest.n_subsamples,
-            selectors=selectors,
-            node_offsets=node_offsets,
-            leaf_offsets=leaf_offsets,
+            trees=coniferest.trees,
             num_threads=coniferest.n_jobs,
             sampletrees_per_batch=coniferest.sampletrees_per_batch,
         )
-
-    @classmethod
-    def extract_selectors(cls, tree, map_value=None):
-        """
-        Extract node representations for the tree.
-
-        Parameters
-        ----------
-        tree
-            Tree to extract selectors from.
-        map_value
-            Optional function to map leaf values
-
-        Returns
-        -------
-        Array with selectors.
-        """
-        nodes = tree.__getstate__()["nodes"]
-        selectors = np.zeros_like(nodes, dtype=cls.selector_dtype)
-
-        selectors["feature"] = nodes["feature"]
-        selectors["feature"][selectors["feature"] < 0] = -1
-
-        selectors["left"] = nodes["left_child"]
-        selectors["right"] = nodes["right_child"]
-        selectors["value"] = nodes["threshold"]
-
-        n_node_samples = nodes["n_node_samples"]
-
-        selectors["node_average_path_length"] = average_path_length(n_node_samples * 1.0)
-
-        def correct_values(i, depth):
-            if selectors[i]["feature"] < 0:
-                value = depth + average_path_length(n_node_samples[i])
-                selectors[i]["value"] = value if map_value is None else map_value(value)
-            else:
-                correct_values(selectors[i]["left"], depth + 1)
-                correct_values(selectors[i]["right"], depth + 1)
-
-        correct_values(0, 0)
-
-        return selectors

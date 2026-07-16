@@ -7,30 +7,25 @@ from coniferest.utils import average_path_length
 from .coniferest import add_leaf, add_node, get_default_attribute_pairs
 
 
-def get_leaf_weight(selector, evaluator):
-    weight = -np.log(2.0) / average_path_length(evaluator.samples)
-    value = selector["value"]
+def add_tree_to_attribute_pairs(attr_pairs, tree_id, tree, evaluator):
+    left = tree.left
+    feature = tree.feature
+    value = tree.value
 
-    return weight * value
+    leaf_weight = -np.log(2.0) / average_path_length(evaluator.samples)
 
-
-def add_tree_to_attribute_pairs(attr_pairs, tree_id, evaluator):
-    node_offset = evaluator.node_offsets[tree_id]
-    node_end = evaluator.node_offsets[tree_id + 1]
-    tree_selectors = evaluator.selectors[node_offset:node_end]
-
-    for node_id, selector in enumerate(tree_selectors):
-        if selector["feature"] >= 0:
+    for node_id in range(tree.n_nodes):
+        if left[node_id] > 0:
             mode = "BRANCH_LEQ"
-            feat_id = int(selector["feature"])
-            threshold = selector["value"]
-            left_child_id = int(selector["left"])
-            right_child_id = int(selector["right"])
+            feat_id = int(feature[node_id])
+            threshold = value[node_id]
+            left_child_id = int(left[node_id])
+            right_child_id = left_child_id + 1
 
             add_node(attr_pairs, tree_id, node_id, feat_id, mode, threshold, left_child_id, right_child_id)
         else:
             mode = "LEAF"
-            weight = get_leaf_weight(selector, evaluator)
+            weight = leaf_weight * value[node_id]
 
             add_leaf(attr_pairs, tree_id, node_id, mode, weight)
 
@@ -42,8 +37,8 @@ def convert_isoforest(scope, operator, container):
     attr_pairs = get_default_attribute_pairs()
     attr_pairs["aggregate_function"] = "AVERAGE"
 
-    for tree_id in range(evaluator.n_trees):
-        add_tree_to_attribute_pairs(attr_pairs, tree_id, evaluator)
+    for tree_id, tree in enumerate(evaluator.trees):
+        add_tree_to_attribute_pairs(attr_pairs, tree_id, tree, evaluator)
 
     # Declare intermediate variable for the tree ensemble output
     leaf_avg_var = scope.declare_local_variable("leaf_avg", FloatTensorType())

@@ -14,7 +14,6 @@ Subpackages
 
    coniferest.datasets
    coniferest.session
-   coniferest.sklearn
 
 Submodules
 ----------

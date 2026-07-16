@@ -5,7 +5,7 @@ import clarabel
 import numpy as np
 from scipy import sparse
 
-from .calc_trees import calc_paths_sum  # noqa
+from ._core import calc_paths_sum  # noqa
 from .coniferest import Coniferest, ConiferestEvaluator
 from .label import Label
 
@@ -14,7 +14,7 @@ __all__ = ["AADForest"]
 
 class AADEvaluator(ConiferestEvaluator):
     def __init__(self, aad):
-        super(AADEvaluator, self).__init__(aad, map_value=aad.map_value)
+        super(AADEvaluator, self).__init__(aad)
         self.C_a = aad.C_a
         self.C_n = aad.C_n
         self.budget = aad.budget
@@ -22,8 +22,10 @@ class AADEvaluator(ConiferestEvaluator):
         self.prior_influence = aad.prior_influence
         self.weights = np.full(shape=(self.n_leaves,), fill_value=np.reciprocal(np.sqrt(self.n_leaves)))
 
-        leaf_mask = self.selectors["feature"] < 0
-        self.leaf_values = self.selectors["value"][leaf_mask]
+        # Global-leaf-indexed array of the mapped decision values: it is used
+        # both for scoring (overriding the raw values stored in the trees)
+        # and for building the optimization problem in fit_known
+        self.leaf_values = aad.map_value(self.combine_leaf_values(self.trees))
 
     def _q_tau(self, scores):
         if self.budget == "auto":
@@ -49,7 +51,8 @@ class AADEvaluator(ConiferestEvaluator):
         Parameters
         ----------
         x
-            Features to calculate scores of. Should be C-contiguous for performance.
+            Features to calculate scores of. The data is copied unless it is
+            C-contiguous and of the same dtype the trees were built on.
         weights
             Specific leaf weights to use instead of self.weights
 
@@ -57,17 +60,16 @@ class AADEvaluator(ConiferestEvaluator):
         -------
         Array of scores.
         """
-        if not x.flags["C_CONTIGUOUS"]:
-            x = np.ascontiguousarray(x)
+        x = self._prepare_x(x)
 
         if weights is None:
             weights = self.weights
 
         return calc_paths_sum(
-            self.selectors,
-            self.node_offsets,
+            self.trees,
             x,
             weights,
+            leaf_values=self.leaf_values,
             num_threads=self.num_threads,
             batch_size=self.batch_size,
         )

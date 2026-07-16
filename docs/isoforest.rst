@@ -14,14 +14,12 @@ Implementation
 --------------
 
 The :class:`IsolationForest <coniferest.isoforest.IsolationForest>` class is a reimplementation of scikit-learn's `IsolationForest <https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html>`_, designed for enhanced performance.
-It employs the low-level trees and tree builders from ``scikit-learn``, but the score evaluation has been re-implemented using Cython for superior efficiency.
+Both tree building and score evaluation are implemented in Rust and run in parallel: each tree is built from its own data subsample as an independent job, and the random seeds for all the trees are sampled in advance, so the result is reproducible regardless of the number of threads.
 
 While training is typically the most time-consuming aspect of most machine learning algorithms, for the Isolation Forest and active learning algorithms based upon it, scoring is the more demanding process.
 This is because scoring, which is essential for anomaly detection, requires the use of the entire dataset, whereas training often only utilizes a small data subset.
 
 Despite the fact that the ``.score_samples()`` method is not parallelized, thus creating a performance bottleneck in the ``scikit-learn`` implementation, we have addressed this in our own version.
-We have parallelized the ``.score_samples()`` method by leveraging Cython's support of OpenMP.
-However, please note that achieving parallelization of ``.score_samples()`` on macOS still poses significant challenges, as discussed `here <https://github.com/snad-space/coniferest/pull/15>`_.
 
 See `API documentation <coniferest.isoforest.IsolationForest>` for usage details, and see examples below for basic usage and performance comparison with scikit-learn.
 

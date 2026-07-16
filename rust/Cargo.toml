@@ -4,7 +4,7 @@ version = "0.1.7"
 edition = "2024"
 
 [lib]
-name = "calc_trees"
+name = "_core"
 crate-type = ["cdylib"]
 
 # We'd like to build fast code with `pip install -e '.[dev]'`
@@ -20,7 +20,6 @@ codegen-units = 1
 default = ["pyo3/abi3-py310"]
 
 [dependencies]
-enum_dispatch = "0.3"
 itertools = "0.15"
 pyo3 = { version = "0.27", features = ["extension-module"] }
 # Needs to be consistent with ndarray dependency in numpy
@@ -30,3 +29,6 @@ numpy = "0.27.1"
 # Needs to be consistent with rayon dependency in ndarray
 rayon = "1.12"
 ordered-float = "5.3.0"
+rand = "0.10"
+# We use an explicitly specified PRNG algorithm for reproducibility of tree building
+rand_xoshiro = "0.8"

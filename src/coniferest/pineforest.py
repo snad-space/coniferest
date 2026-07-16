@@ -1,9 +1,8 @@
 import numpy as np
-from sklearn.tree._tree import DTYPE as TreeDTYPE  # noqa
 
 from .coniferest import Coniferest, ConiferestEvaluator
+from .evaluator import ForestEvaluator
 from .label import Label
-from .utils import average_path_length
 
 __all__ = ["PineForest"]
 
@@ -228,21 +227,23 @@ class PineForest(Coniferest):
         weight_ratio
             Weight of the false positive experience relative to false negative. Defaults to 1.
         """
-        data = np.asarray(data, dtype=TreeDTYPE)
+        data = self._prepare_data(data)
 
-        n_samples, _ = data.shape
-        n_trees = len(trees)
+        # `trees` is the pre-filter superset (n_trees + n_spare_trees), which generally
+        # doesn't match self.trees/self.evaluator (built for the previous, smaller tree
+        # set), so apply() needs its own evaluator built from `trees` rather than
+        # self.evaluator, or leaf indices below would be computed against the wrong trees.
+        evaluator = ForestEvaluator(
+            samples=self.n_subsamples,
+            trees=trees,
+            num_threads=self.n_jobs,
+            sampletrees_per_batch=self.sampletrees_per_batch,
+        )
 
-        heights = np.empty(shape=(n_samples, n_trees))
-        for tree_index in range(n_trees):
-            tree = trees[tree_index]
-            leaves_index = tree.apply(data)
-            n_samples_leaf = tree.n_node_samples[leaves_index]
-            n_samples_leaf = n_samples_leaf.astype(dtype=np.float64)
-
-            heights[:, tree_index] = (
-                np.ravel(tree.decision_path(data).sum(axis=1)) + average_path_length(n_samples_leaf) - 1
-            )
+        # Leaf values are depth + average_path_length(n_leaf_samples),
+        # i.e. the estimated path lengths
+        leaf_values = ForestEvaluator.combine_leaf_values(trees)
+        heights = leaf_values[evaluator.apply(data)]
 
         weights = labels.copy()
         weights[labels == Label.REGULAR] = weight_ratio * Label.REGULAR
