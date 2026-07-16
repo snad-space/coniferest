@@ -24,7 +24,7 @@ classifiers = [
 dependencies = [
     "click>=8.2", # click.Choice to accept enums
     "numpy",
-    "scipy", # sparse matrices for AAD
+    "scipy",
     "onnxconverter-common",
     "clarabel",
 ]
