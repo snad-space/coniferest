@@ -27,7 +27,7 @@ dependencies = [
 
 [[package]]
 name = "coniferest"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "itertools",
  "ndarray",
