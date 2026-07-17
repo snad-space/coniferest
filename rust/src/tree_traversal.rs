@@ -1,6 +1,6 @@
 use crate::tree::{Tree, TreeDtype, TreeInner};
 use ndarray::parallel::prelude::*;
-use ndarray::{ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2, Zip};
+use ndarray::{ArrayRef1, ArrayRef2, ArrayView1, ArrayViewMut1, Zip};
 use numpy::{Element, PyArray1, PyArray2, PyArrayMethods, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -73,7 +73,7 @@ where
 }
 
 #[inline]
-fn check_data<T>(data: ArrayView2<T>) -> PyResult<()> {
+fn check_data<T>(data: &ArrayRef2<T>) -> PyResult<()> {
     if !data.is_standard_layout() {
         return Err(PyValueError::new_err(
             "data must be contiguous and in memory order",
@@ -83,7 +83,7 @@ fn check_data<T>(data: ArrayView2<T>) -> PyResult<()> {
 }
 
 #[inline]
-fn check_leaf_array(array: ArrayView1<f64>, n_leaves: usize, name: &str) -> PyResult<()> {
+fn check_leaf_array(array: &ArrayRef1<f64>, n_leaves: usize, name: &str) -> PyResult<()> {
     if array.len() != n_leaves {
         return Err(PyValueError::new_err(format!(
             "{} must have the same length as the total number of leaves in the forest: \
@@ -157,19 +157,19 @@ where
     T: Element + Copy + Send + Sync + PartialOrd + TreeDtype,
 {
     let data_view = data.as_array();
-    check_data(data_view)?;
+    check_data(&data_view)?;
 
     let forest = Forest::new(trees, data_view.ncols())?;
 
     let weights_view = weights.as_ref().map(|weights| weights.as_array());
-    if let Some(weights_view) = weights_view {
+    if let Some(weights_view) = weights_view.as_deref() {
         check_leaf_array(weights_view, forest.n_leaves, "weights")?;
     }
 
     let leaf_values_view = leaf_values
         .as_ref()
         .map(|leaf_values| leaf_values.as_array());
-    if let Some(leaf_values_view) = leaf_values_view {
+    if let Some(leaf_values_view) = leaf_values_view.as_deref() {
         check_leaf_array(leaf_values_view, forest.n_leaves, "leaf_values")?;
     }
 
@@ -177,16 +177,16 @@ where
 
     let paths = PyArray1::zeros(py, data_view.nrows(), false);
     // SAFETY: this call invalidates other views, but it is the only view we need
-    let paths_view_mut = unsafe { paths.as_array_mut() };
+    let mut paths_view_mut = unsafe { paths.as_array_mut() };
 
     calc_paths_sum_impl(
         &forest,
-        data_view,
-        weights_view,
-        leaf_values_view,
+        &data_view,
+        weights_view.as_deref(),
+        leaf_values_view.as_deref(),
         num_threads,
         batch_size,
-        paths_view_mut,
+        &mut paths_view_mut,
     );
 
     Ok(paths)
@@ -194,12 +194,12 @@ where
 
 fn calc_paths_sum_impl<T>(
     forest: &Forest<T>,
-    data: ArrayView2<T>,
-    weights: Option<ArrayView1<f64>>,
-    leaf_values: Option<ArrayView1<f64>>,
+    data: &ArrayRef2<T>,
+    weights: Option<&ArrayRef1<f64>>,
+    leaf_values: Option<&ArrayRef1<f64>>,
     num_threads: usize,
     batch_size: usize,
-    paths: ArrayViewMut1<f64>,
+    paths: &mut ArrayRef1<f64>,
 ) where
     T: Copy + Send + Sync + PartialOrd + TreeDtype,
 {
@@ -268,7 +268,7 @@ where
     T: Element + Copy + Send + Sync + PartialOrd + TreeDtype,
 {
     let data_view = data.as_array();
-    check_data(data_view)?;
+    check_data(&data_view)?;
 
     let forest = Forest::new(trees, data_view.ncols())?;
 
@@ -278,17 +278,17 @@ where
     let hit_count = PyArray2::zeros(py, (data_view.nrows(), data_view.ncols()), false);
 
     // SAFETY: this call invalidates other views, but it is the only view we need
-    let delta_sum_view = unsafe { delta_sum.as_array_mut() };
+    let mut delta_sum_view = unsafe { delta_sum.as_array_mut() };
     // SAFETY: this call invalidates other views, but it is the only view we need
-    let hit_count_view = unsafe { hit_count.as_array_mut() };
+    let mut hit_count_view = unsafe { hit_count.as_array_mut() };
 
     calc_feature_delta_sum_impl(
         &forest,
-        data_view,
+        &data_view,
         num_threads,
         batch_size,
-        delta_sum_view,
-        hit_count_view,
+        &mut delta_sum_view,
+        &mut hit_count_view,
     );
 
     Ok((delta_sum, hit_count))
@@ -296,11 +296,11 @@ where
 
 fn calc_feature_delta_sum_impl<T>(
     forest: &Forest<T>,
-    data: ArrayView2<T>,
+    data: &ArrayRef2<T>,
     num_threads: usize,
     batch_size: usize,
-    mut delta_sum: ArrayViewMut2<f64>,
-    mut hit_count: ArrayViewMut2<i64>,
+    delta_sum: &mut ArrayRef2<f64>,
+    hit_count: &mut ArrayRef2<i64>,
 ) where
     T: Copy + Send + Sync + PartialOrd + TreeDtype,
 {
@@ -370,7 +370,7 @@ where
     T: Element + Copy + Send + Sync + PartialOrd + TreeDtype,
 {
     let data_view = data.as_array();
-    check_data(data_view)?;
+    check_data(&data_view)?;
 
     let forest = Forest::new(trees, data_view.ncols())?;
 
@@ -378,19 +378,25 @@ where
 
     let leafs = PyArray2::zeros(py, (data_view.nrows(), forest.trees.len()), false);
     // SAFETY: this call invalidates other views, but it is the only view we need
-    let leafs_view = unsafe { leafs.as_array_mut() };
+    let mut leafs_view = unsafe { leafs.as_array_mut() };
 
-    calc_apply_impl(&forest, data_view, num_threads, batch_size, leafs_view);
+    calc_apply_impl(
+        &forest,
+        &data_view,
+        num_threads,
+        batch_size,
+        &mut leafs_view,
+    );
 
     Ok(leafs)
 }
 
 fn calc_apply_impl<T>(
     forest: &Forest<T>,
-    data: ArrayView2<T>,
+    data: &ArrayRef2<T>,
     num_threads: usize,
     batch_size: usize,
-    mut leafs: ArrayViewMut2<u32>,
+    leafs: &mut ArrayRef2<u32>,
 ) where
     T: Copy + Send + Sync + PartialOrd + TreeDtype,
 {
