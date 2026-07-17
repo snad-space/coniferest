@@ -132,12 +132,12 @@ struct Task<'a> {
 /// (via [`push_uninit`](Self::push_uninit)) before the node itself is known, so
 /// slots are written out of order by [`insert`](Self::insert). Uninitialized
 /// slots are held as [`MaybeUninit`], which avoids requiring `N: Default`.
-struct NodesBuilder<N> {
-    nodes: Vec<MaybeUninit<N>>,
+struct NodesBuilder<T> {
+    nodes: Vec<MaybeUninit<Node<T>>>,
     n_node_samples: Vec<f32>,
 }
 
-impl<N> NodesBuilder<N> {
+impl<T> NodesBuilder<T> {
     /// Create a builder with room for `capacity` nodes and the root slot
     /// (index 0) already allocated.
     fn with_capacity(capacity: usize) -> Self {
@@ -163,7 +163,7 @@ impl<N> NodesBuilder<N> {
     /// `index` must be a slot allocated by [`push_uninit`](Self::push_uninit).
     /// Overwriting an already-initialized slot leaks it rather than dropping,
     /// but is otherwise sound.
-    unsafe fn insert(&mut self, index: usize, node: N, n_samples: usize) {
+    unsafe fn insert(&mut self, index: usize, node: Node<T>, n_samples: usize) {
         let node = MaybeUninit::new(node);
         let n_samples = n_samples as f32;
         unsafe { *self.nodes.as_mut_ptr().add(index) = node };
@@ -175,12 +175,24 @@ impl<N> NodesBuilder<N> {
     /// # Safety
     /// Every slot allocated by [`push_uninit`](Self::push_uninit) must have
     /// been initialized by [`insert`](Self::insert).
-    unsafe fn build(self) -> (Vec<N>, Vec<f32>) {
+    unsafe fn build(self) -> (Vec<Node<T>>, Vec<f32>, u32) {
         // `MaybeUninit<N>` has the same layout as `N`, so once every element is
         //  initialized, the two vectors are layout-compatible.
-        let mut nodes = unsafe { std::mem::transmute::<_, Vec<N>>(self.nodes) };
+        let mut nodes = unsafe { std::mem::transmute::<_, Vec<_>>(self.nodes) };
         nodes.shrink_to_fit();
-        (nodes, self.n_node_samples)
+
+        let mut leaf_index = 0;
+        for node in nodes.iter_mut() {
+            match node {
+                Node::Leaf(leaf) => {
+                    leaf.leaf_index = leaf_index;
+                    leaf_index += 1;
+                }
+                Node::Split(_) => {}
+            }
+        }
+
+        (nodes, self.n_node_samples, leaf_index)
     }
 
     fn len(&self) -> usize {
@@ -230,7 +242,6 @@ where
         let node_vector_capacity = usize::min(n_subsamples, 1 << max_depth as usize);
 
         let mut builder = NodesBuilder::with_capacity(node_vector_capacity);
-        let mut n_leaves: u32 = 0;
 
         // LIFO queue of tasks: the first task is the root node, and tasks are being added in the
         // reverse order. This makes the build happening depth-first, so we need up to
@@ -263,13 +274,13 @@ where
                         builder.insert(
                             node_index,
                             Node::Leaf(Leaf {
-                                leaf_index: n_leaves,
+                                // Temporary: we will re-assign bellow
+                                leaf_index: 0,
                                 value: depth as f32 + average_path_length::<_, f32>(slice.len()),
                             }),
                             slice.len(),
                         )
                     };
-                    n_leaves += 1;
                 }
                 Some((feature, value)) => {
                     let left_node_index = builder.push_uninit();
@@ -305,7 +316,7 @@ where
         }
 
         // SAFETY: the node vector is fully initialized, and we can safely build it.
-        let (nodes, n_node_samples) = unsafe { builder.build() };
+        let (nodes, n_node_samples, n_leaves) = unsafe { builder.build() };
 
         let node_average_path_length = n_node_samples
             .iter()
