@@ -491,33 +491,33 @@ mod tests {
     use super::*;
     use ndarray::Array1;
 
+    struct EqualHalfSplitter;
+
+    impl SplitAlgorithm<f64> for EqualHalfSplitter {
+        fn choose_split(
+            &mut self,
+            data: &ArrayView2<f64>,
+            indices: &[usize],
+            _rng: &mut impl Rng,
+        ) -> Option<(u32, f64)> {
+            let feature = 0;
+            let (min, max) = indices
+                .iter()
+                .map(|&i| data[[i, feature as usize]])
+                .minmax()
+                .into_option()?;
+            if min == max {
+                return None;
+            }
+            let split_value = (min + max) / 2.0;
+            Some((feature, split_value))
+        }
+    }
+
     /// Test that the tree building algorithm works correctly on a simple 1-d dataset and
     /// deterministic equal-half splitter.
     #[test]
     fn build_algorithm() {
-        struct EqualHalfSplitter;
-
-        impl SplitAlgorithm<f64> for EqualHalfSplitter {
-            fn choose_split(
-                &mut self,
-                data: &ArrayView2<f64>,
-                indices: &[usize],
-                _rng: &mut impl Rng,
-            ) -> Option<(u32, f64)> {
-                let feature = 0;
-                let (min, max) = indices
-                    .iter()
-                    .map(|&i| data[[i, feature as usize]])
-                    .minmax()
-                    .into_option()?;
-                if min == max {
-                    return None;
-                }
-                let split_value = (min + max) / 2.0;
-                Some((feature, split_value))
-            }
-        }
-
         let max_depth = 4;
         let n_samples = 1 << max_depth as usize;
         let data = (0..n_samples)
@@ -580,30 +580,51 @@ mod tests {
             });
         }
 
-        // node_average_path_length is a sidecar indexed by node index: each
-        // entry must equal average_path_length of that node's own subsample
-        // size. In this complete balanced tree a node at depth d holds
-        // n_samples >> d subsamples.
-        {
-            let mut depth_of = vec![0u32; tree.nodes.len()];
-            let mut stack = vec![0usize];
-            while let Some(idx) = stack.pop() {
-                if let Node::Split(split) = &tree.nodes[idx] {
-                    // Left and right children were allocated consecutively
-                    let left = split.left_node_index.get() as usize;
-                    depth_of[left] = depth_of[idx] + 1;
-                    depth_of[left + 1] = depth_of[idx] + 1;
-                    stack.push(left);
-                    stack.push(left + 1);
-                }
-            }
-            for (idx, &depth) in depth_of.iter().enumerate() {
-                let expected = average_path_length::<u32, f32>((n_samples >> depth) as u32);
-                assert_eq!(
-                    tree.node_average_path_length[idx], expected,
-                    "wrong average path length for node {idx} at depth {depth}",
-                );
-            }
-        }
+        // node_average_path_length holds average_path_length of each node's
+        // subsample size. This complete tree has 2^d nodes of n_samples >> d
+        // samples at every depth d.
+        let mut expected: Vec<f32> = (0..=max_depth)
+            .flat_map(|depth| {
+                let count = n_samples >> depth;
+                vec![average_path_length::<_, f32>(count as usize); 1usize << depth]
+            })
+            .collect();
+        let mut actual = tree.node_average_path_length.clone();
+        expected.sort_by(f32::total_cmp);
+        actual.sort_by(f32::total_cmp);
+        assert_eq!(actual, expected);
+    }
+
+    /// Check that leaf indices are a perturbation of 0..n_samples
+    #[test]
+    fn leaf_indices() {
+        let max_depth = 4;
+        let n_samples = 1 << max_depth as usize;
+        let data = (0..n_samples)
+            .map(|i| i as f64)
+            .collect::<Array1<_>>()
+            .into_shape_with_order((n_samples, 1))
+            .unwrap();
+        let tree = TreeInner::build_with_splitter(
+            &data.view(),
+            (0..n_samples).collect(),
+            max_depth,
+            EqualHalfSplitter,
+            // not used
+            rand::rngs::StdRng::seed_from_u64(0),
+        );
+
+        let mut leaf_indices: Vec<u32> = tree
+            .nodes
+            .iter()
+            .filter_map(|node| match node {
+                Node::Leaf(leaf) => Some(leaf.leaf_index),
+                Node::Split(_) => None,
+            })
+            .collect();
+        assert_eq!(leaf_indices.len(), tree.n_leaves as usize);
+
+        leaf_indices.sort_unstable();
+        assert_eq!(leaf_indices, (0..tree.n_leaves).collect::<Vec<_>>());
     }
 }
