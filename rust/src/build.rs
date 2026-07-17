@@ -113,49 +113,78 @@ where
     }
 }
 
-/// A pending node-splitting job: build a node at `depth` from the subsample
-/// indices in `slice`, a disjoint part of the tree's subsample index array.
+/// A pending node-splitting job: build the node at `node_index` and `depth`
+/// from the subsample indices in `slice`, a disjoint part of the tree's
+/// subsample index array.
 ///
-/// The task queue is FIFO and node indices are allocated in the enqueue
-/// order, so tasks are processed in the node index order and the node built
-/// by the i-th task is the i-th node of the tree.
+/// `node_index` is the node's final position in the tree; it is allocated by
+/// the parent (see [NodesBuilder]) before the task is enqueued. Tasks are run
+/// from a LIFO stack, so the build is depth-first and tasks are *not* processed
+/// in node-index order.
 struct Task<'a> {
     node_index: usize,
     depth: u16,
     slice: &'a mut [usize],
 }
 
+/// Grow-only arena of tree nodes that are allocated and filled in separate
+/// steps. During a depth-first build a node's index is allocated by its parent
+/// (via [`push_uninit`](Self::push_uninit)) before the node itself is known, so
+/// slots are written out of order by [`insert`](Self::insert). Uninitialized
+/// slots are held as [`MaybeUninit`], which avoids requiring `N: Default`.
 struct NodesBuilder<N> {
-    store: Vec<MaybeUninit<N>>,
+    nodes: Vec<MaybeUninit<N>>,
+    n_node_samples: Vec<f32>,
 }
 
 impl<N> NodesBuilder<N> {
+    /// Create a builder with room for `capacity` nodes and the root slot
+    /// (index 0) already allocated.
     fn with_capacity(capacity: usize) -> Self {
         let mut slf = Self {
-            store: Vec::with_capacity(capacity),
+            nodes: Vec::with_capacity(capacity),
+            n_node_samples: Vec::with_capacity(capacity),
         };
-        slf.expend();
+        slf.push_uninit();
         slf
     }
 
-    fn expend(&mut self) -> usize {
+    /// Allocate a new, still-uninitialized node slot and return its index.
+    fn push_uninit(&mut self) -> usize {
         let new_last_index = self.len();
-        self.store.push(MaybeUninit::uninit());
+        self.nodes.push(MaybeUninit::uninit());
+        self.n_node_samples.push(0.0);
         new_last_index
     }
 
-    unsafe fn insert(&mut self, index: usize, node: N) {
-        unsafe { *self.store.as_mut_ptr().add(index) = MaybeUninit::new(node) };
+    /// Write `node` into a previously allocated slot.
+    ///
+    /// # Safety
+    /// `index` must be a slot allocated by [`push_uninit`](Self::push_uninit).
+    /// Overwriting an already-initialized slot leaks it rather than dropping,
+    /// but is otherwise sound.
+    unsafe fn insert(&mut self, index: usize, node: N, n_samples: usize) {
+        let node = MaybeUninit::new(node);
+        let n_samples = n_samples as f32;
+        unsafe { *self.nodes.as_mut_ptr().add(index) = node };
+        unsafe { *self.n_node_samples.as_mut_ptr().add(index) = n_samples };
     }
 
-    unsafe fn build(self) -> Vec<N> {
-        let mut vec = unsafe { std::mem::transmute::<_, Vec<N>>(self.store) };
-        vec.shrink_to_fit();
-        vec
+    /// Consume the builder and return the nodes as a plain `Vec<N>`.
+    ///
+    /// # Safety
+    /// Every slot allocated by [`push_uninit`](Self::push_uninit) must have
+    /// been initialized by [`insert`](Self::insert).
+    unsafe fn build(self) -> (Vec<N>, Vec<f32>) {
+        // `MaybeUninit<N>` has the same layout as `N`, so once every element is
+        //  initialized, the two vectors are layout-compatible.
+        let mut nodes = unsafe { std::mem::transmute::<_, Vec<N>>(self.nodes) };
+        nodes.shrink_to_fit();
+        (nodes, self.n_node_samples)
     }
 
     fn len(&self) -> usize {
-        self.store.len()
+        self.nodes.len()
     }
 }
 
@@ -201,9 +230,6 @@ where
         let node_vector_capacity = usize::min(n_subsamples, 1 << max_depth as usize);
 
         let mut builder = NodesBuilder::with_capacity(node_vector_capacity);
-        // Kept on the side during the build, converted to the average path
-        // length sidecar array afterward
-        let mut n_node_samples: Vec<u32> = Vec::with_capacity(node_vector_capacity);
         let mut n_leaves: u32 = 0;
 
         // LIFO queue of tasks: the first task is the root node, and tasks are being added in the
@@ -216,16 +242,14 @@ where
             slice: indices.as_mut_slice(),
         });
 
-        // Tasks are processed in the node index order (see `Task` docs),
-        // so the nodes are simply pushed one by one
+        // Depth-first (see `Task` docs): each node is written to its own
+        // pre-allocated `node_index`, not in the order tasks are processed
         while let Some(Task {
             node_index,
             depth,
             slice,
         }) = queue.pop()
         {
-            n_node_samples.push(slice.len() as u32);
-
             let split = if depth < max_depth && slice.len() >= 2 {
                 splitter.choose_split(data, slice, &mut rng)
             } else {
@@ -242,21 +266,23 @@ where
                                 leaf_index: n_leaves,
                                 value: depth as f32 + average_path_length::<_, f32>(slice.len()),
                             }),
+                            slice.len(),
                         )
                     };
                     n_leaves += 1;
                 }
                 Some((feature, value)) => {
-                    let left_node_index = builder.expend();
-                    let right_node_index = builder.expend();
+                    let left_node_index = builder.push_uninit();
+                    let right_node_index = builder.push_uninit();
 
-                    // SAFETY: we pre-allocated this node_index
+                    // SAFETY: we pre-allocated this node_index when push_uinit() was called,
+                    // either in the previous iteration or in the root node's allocation.
                     unsafe {
                         builder.insert(node_index, Node::Split(SplitNode {
                         left_node_index: NonZeroU32::new(left_node_index.try_into().expect("number of nodes exceeded 2^32, please specify smaller max_depth or request support for larger trees")).unwrap(),
                         split_feature: feature,
                         split_value: value,
-                    }));
+                    }), slice.len());
                     };
 
                     let mid = itertools::partition(slice.iter_mut(), |&i| {
@@ -279,7 +305,7 @@ where
         }
 
         // SAFETY: the node vector is fully initialized, and we can safely build it.
-        let nodes = unsafe { builder.build() };
+        let (nodes, n_node_samples) = unsafe { builder.build() };
 
         let node_average_path_length = n_node_samples
             .iter()
@@ -552,6 +578,32 @@ mod tests {
                 going_left = false;
                 assert_eq!(split.split_feature, 0);
             });
+        }
+
+        // node_average_path_length is a sidecar indexed by node index: each
+        // entry must equal average_path_length of that node's own subsample
+        // size. In this complete balanced tree a node at depth d holds
+        // n_samples >> d subsamples.
+        {
+            let mut depth_of = vec![0u32; tree.nodes.len()];
+            let mut stack = vec![0usize];
+            while let Some(idx) = stack.pop() {
+                if let Node::Split(split) = &tree.nodes[idx] {
+                    // Left and right children were allocated consecutively
+                    let left = split.left_node_index.get() as usize;
+                    depth_of[left] = depth_of[idx] + 1;
+                    depth_of[left + 1] = depth_of[idx] + 1;
+                    stack.push(left);
+                    stack.push(left + 1);
+                }
+            }
+            for (idx, &depth) in depth_of.iter().enumerate() {
+                let expected = average_path_length::<u32, f32>((n_samples >> depth) as u32);
+                assert_eq!(
+                    tree.node_average_path_length[idx], expected,
+                    "wrong average path length for node {idx} at depth {depth}",
+                );
+            }
         }
     }
 }
