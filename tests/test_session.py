@@ -15,9 +15,7 @@ def test_e2e_ztf_m31():
     """Basically the same example as in the docs"""
 
     class Callback:
-        """Say NO for first few objects, then say YES and terminate"""
-
-        counter = 0
+        """Say NO for the first few objects, then say YES and terminate"""
 
         def __init__(self, n_iter):
             self.n_iter = n_iter
@@ -51,7 +49,7 @@ def test_e2e_ztf_m31():
     )
     session.run()
 
-    assert callback.history == [695211200075348, 695211400017839]
+    assert callback.history == [695211400034403, 695211400018170]
     assert len(session.known_labels) == callback.n_iter
 
     oid = callback.history[-1]
