@@ -11,7 +11,7 @@ use rand::distr::{Distribution, Uniform};
 use rand::{Rng, RngExt, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
 use rayon::prelude::*;
-use std::collections::VecDeque;
+use std::mem::MaybeUninit;
 use std::num::NonZeroU32;
 
 /// Everything a [SplitAlgorithm] needs from `T` to choose a split.
@@ -120,8 +120,43 @@ where
 /// order, so tasks are processed in the node index order and the node built
 /// by the i-th task is the i-th node of the tree.
 struct Task<'a> {
+    node_index: usize,
     depth: u16,
     slice: &'a mut [usize],
+}
+
+struct NodesBuilder<N> {
+    store: Vec<MaybeUninit<N>>,
+}
+
+impl<N> NodesBuilder<N> {
+    fn with_capacity(capacity: usize) -> Self {
+        let mut slf = Self {
+            store: Vec::with_capacity(capacity),
+        };
+        slf.expend();
+        slf
+    }
+
+    fn expend(&mut self) -> usize {
+        let new_last_index = self.len();
+        self.store.push(MaybeUninit::uninit());
+        new_last_index
+    }
+
+    unsafe fn insert(&mut self, index: usize, node: N) {
+        unsafe { *self.store.as_mut_ptr().add(index) = MaybeUninit::new(node) };
+    }
+
+    unsafe fn build(self) -> Vec<N> {
+        let mut vec = unsafe { std::mem::transmute::<_, Vec<N>>(self.store) };
+        vec.shrink_to_fit();
+        vec
+    }
+
+    fn len(&self) -> usize {
+        self.store.len()
+    }
 }
 
 impl<T> TreeInner<T>
@@ -130,7 +165,6 @@ where
 {
     /// Build a single isolation tree from a random subsample of `data` rows.
     pub(crate) fn build(
-        // TODO: change to ArrayRef
         data: &ArrayView2<T>,
         n_subsamples: usize,
         max_depth: u16,
@@ -166,23 +200,30 @@ where
         // so we reserve approximately half of this estimate.
         let node_vector_capacity = usize::min(n_subsamples, 1 << max_depth as usize);
 
-        let mut nodes: Vec<Node<T>> = Vec::with_capacity(node_vector_capacity);
+        let mut builder = NodesBuilder::with_capacity(node_vector_capacity);
         // Kept on the side during the build, converted to the average path
         // length sidecar array afterward
         let mut n_node_samples: Vec<u32> = Vec::with_capacity(node_vector_capacity);
         let mut n_leaves: u32 = 0;
-        // The root takes index 0, its task is the first in the queue
-        let mut next_node_index: NonZeroU32 = NonZeroU32::new(1).unwrap();
 
-        let mut queue: VecDeque<Task> = VecDeque::with_capacity(node_vector_capacity);
-        queue.push_back(Task {
+        // LIFO queue of tasks: the first task is the root node, and tasks are being added in the
+        // reverse order. This makes the build happening depth-first, so we need up to
+        // max_depth + 1 tasks scheduled
+        let mut queue: Vec<Task> = Vec::with_capacity(max_depth as usize + 1);
+        queue.push(Task {
+            node_index: 0,
             depth: 0,
             slice: indices.as_mut_slice(),
         });
 
         // Tasks are processed in the node index order (see `Task` docs),
         // so the nodes are simply pushed one by one
-        while let Some(Task { depth, slice }) = queue.pop_front() {
+        while let Some(Task {
+            node_index,
+            depth,
+            slice,
+        }) = queue.pop()
+        {
             n_node_samples.push(slice.len() as u32);
 
             let split = if depth < max_depth && slice.len() >= 2 {
@@ -193,39 +234,52 @@ where
 
             match split {
                 None => {
-                    nodes.push(Node::Leaf(Leaf {
-                        leaf_index: n_leaves,
-                        value: depth as f32 + average_path_length::<_, f32>(slice.len()),
-                    }));
+                    // SAFETY: we pre-allocated this node_index
+                    unsafe {
+                        builder.insert(
+                            node_index,
+                            Node::Leaf(Leaf {
+                                leaf_index: n_leaves,
+                                value: depth as f32 + average_path_length::<_, f32>(slice.len()),
+                            }),
+                        )
+                    };
                     n_leaves += 1;
                 }
                 Some((feature, value)) => {
-                    nodes.push(Node::Split(SplitNode {
-                        left_node_index: next_node_index,
+                    let left_node_index = builder.expend();
+                    let right_node_index = builder.expend();
+
+                    // SAFETY: we pre-allocated this node_index
+                    unsafe {
+                        builder.insert(node_index, Node::Split(SplitNode {
+                        left_node_index: NonZeroU32::new(left_node_index.try_into().expect("number of nodes exceeded 2^32, please specify smaller max_depth or request support for larger trees")).unwrap(),
                         split_feature: feature,
                         split_value: value,
                     }));
-                    next_node_index = next_node_index.checked_add(2).expect("number of nodes exceeded 2^32, please specify smaller max_depth or request support for larger trees");
+                    };
 
                     let mid = itertools::partition(slice.iter_mut(), |&i| {
                         // SAFETY: indices are valid row indices and feature < data.ncols()
                         *unsafe { data.uget([i, feature as usize]) } <= value
                     });
                     let (left_slice, right_slice) = slice.split_at_mut(mid);
-                    queue.push_back(Task {
-                        depth: depth + 1,
-                        slice: left_slice,
-                    });
-                    queue.push_back(Task {
+                    queue.push(Task {
+                        node_index: right_node_index,
                         depth: depth + 1,
                         slice: right_slice,
+                    });
+                    queue.push(Task {
+                        node_index: left_node_index,
+                        depth: depth + 1,
+                        slice: left_slice,
                     });
                 }
             }
         }
 
-        // The tree may be shallower than the upper limit we reserved for
-        nodes.shrink_to_fit();
+        // SAFETY: the node vector is fully initialized, and we can safely build it.
+        let nodes = unsafe { builder.build() };
 
         let node_average_path_length = n_node_samples
             .iter()
