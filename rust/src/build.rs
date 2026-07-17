@@ -2,7 +2,7 @@ use crate::tree::{Leaf, Node, SplitNode, Tree, TreeDtype, TreeInner};
 use crate::tree_traversal::Data;
 use crate::utils::average_path_length;
 use itertools::Itertools;
-use ndarray::ArrayView2;
+use ndarray::ArrayRef2;
 use numpy::{Element, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
 use pyo3::{PyResult, Python, pyfunction};
@@ -27,7 +27,7 @@ pub(crate) trait SplitAlgorithm<T> {
     /// The returned value must partition `indices` into two non-empty parts.
     fn choose_split(
         &mut self,
-        data: &ArrayView2<T>,
+        data: &ArrayRef2<T>,
         indices: &[usize],
         rng: &mut impl Rng,
     ) -> Option<(u32, T)>;
@@ -59,7 +59,7 @@ where
 {
     fn choose_split(
         &mut self,
-        data: &ArrayView2<T>,
+        data: &ArrayRef2<T>,
         indices: &[usize],
         rng: &mut impl Rng,
     ) -> Option<(u32, T)> {
@@ -103,7 +103,7 @@ where
 {
     fn choose_split(
         &mut self,
-        data: &ArrayView2<T>,
+        data: &ArrayRef2<T>,
         indices: &[usize],
         rng: &mut impl Rng,
     ) -> Option<(u32, T)> {
@@ -207,7 +207,7 @@ where
 {
     /// Build a single isolation tree from a random subsample of `data` rows.
     pub(crate) fn build(
-        data: &ArrayView2<T>,
+        data: &ArrayRef2<T>,
         n_subsamples: usize,
         max_depth: u16,
         mut rng: impl Rng,
@@ -226,7 +226,7 @@ where
     /// Build a single tree from the given subsample of `data` rows, using
     /// a custom splitting logic.
     pub(crate) fn build_with_splitter<S>(
-        data: &ArrayView2<T>,
+        data: &ArrayRef2<T>,
         mut indices: Vec<usize>,
         max_depth: u16,
         mut splitter: S,
@@ -508,7 +508,7 @@ mod tests {
     impl SplitAlgorithm<f64> for EqualHalfSplitter {
         fn choose_split(
             &mut self,
-            data: &ArrayView2<f64>,
+            data: &ArrayRef2<f64>,
             indices: &[usize],
             _rng: &mut impl Rng,
         ) -> Option<(u32, f64)> {
