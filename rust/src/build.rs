@@ -178,7 +178,8 @@ impl<T> NodesBuilder<T> {
     unsafe fn build(self) -> (Vec<Node<T>>, Vec<f32>, u32) {
         // `MaybeUninit<N>` has the same layout as `N`, so once every element is
         //  initialized, the two vectors are layout-compatible.
-        let mut nodes = unsafe { std::mem::transmute::<_, Vec<_>>(self.nodes) };
+        let mut nodes =
+            unsafe { std::mem::transmute::<Vec<MaybeUninit<Node<T>>>, Vec<Node<T>>>(self.nodes) };
         nodes.shrink_to_fit();
 
         let mut leaf_index = 0;
@@ -597,7 +598,7 @@ mod tests {
         let mut expected: Vec<f32> = (0..=max_depth)
             .flat_map(|depth| {
                 let count = n_samples >> depth;
-                vec![average_path_length::<_, f32>(count as usize); 1usize << depth]
+                vec![average_path_length::<_, f32>(count); 1 << depth]
             })
             .collect();
         let mut actual = tree.node_average_path_length.clone();
