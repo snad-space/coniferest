@@ -10,6 +10,7 @@ use rand::distr::uniform::SampleUniform;
 use rand::distr::{Distribution, Uniform};
 use rand::{Rng, RngExt, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
+use rayon::prelude::*;
 use std::collections::VecDeque;
 use std::num::NonZeroU32;
 
@@ -305,7 +306,15 @@ where
                 .num_threads(num_threads)
                 .build()
                 .expect("Cannot build rayon ThreadPool")
-                .install(|| child_seeds_iter.map(tree_build_fn).collect())
+                // We have to collect first, the alternative is to use `par_bridge`, but it doesn't
+                // keep the order of the trees, so reproducibiliy may be affected.
+                .install(|| {
+                    child_seeds_iter
+                        .collect::<Vec<_>>()
+                        .into_par_iter()
+                        .map(tree_build_fn)
+                        .collect()
+                })
         }
     });
 
