@@ -1,75 +1,146 @@
-//! Implementation details of the forest traversal
+//! Implementation details of the Forest class
 
-use crate::tree::{PyTree, TreeDtype, TreeInner};
-use pyo3::PyResult;
-use pyo3::exceptions::PyValueError;
-use pyo3::prelude::*;
+use crate::tree::TreeInner;
+use std::sync::Arc;
+use std::sync::OnceLock;
 
-/// Borrowed trees of the forest with their global leaf offsets.
-///
-/// `Tree` is a frozen pyclass, so the borrows are GIL-independent and the
-/// forest can be traversed in parallel even when stored as a Python list.
-/// All the trees must be built on the data dtype `T`, matching the dtype
-/// of the scored data, so the traversal never casts values.
-pub(super) struct Forest<'a, T> {
-    trees: Vec<&'a TreeInner<T>>,
-    /// Global leaf index of the first leaf of each tree
-    leaf_offsets: Vec<u32>,
-    n_leaves: usize,
+#[derive(Clone)]
+pub(super) enum ForestVariant {
+    F32(ForestInner<f32>),
+    F64(ForestInner<f64>),
 }
 
-impl<'a, T> Forest<'a, T>
-where
-    T: TreeDtype,
-{
-    pub(super) fn new(trees: &'a [Py<PyTree>], n_features: usize) -> PyResult<Self> {
-        let trees: Vec<&TreeInner<T>> = trees
-            .iter()
-            .map(|tree| {
-                T::tree_inner(&tree.get().0).ok_or_else(|| {
-                    PyValueError::new_err(format!(
-                        "data dtype is {}, but the tree was built on {} data",
-                        T::NAME,
-                        tree.get().0.dtype_name(),
-                    ))
-                })
-            })
-            .collect::<PyResult<_>>()?;
+pub(super) struct ForestInner<T> {
+    trees: Vec<Arc<TreeInner<T>>>,
+    n_features: u32,
+    num_threads: usize,
+    leaf_offsets: OnceLock<Vec<usize>>,
+    thread_pool: OnceLock<Option<rayon::ThreadPool>>,
+}
 
-        let mut leaf_offsets = Vec::with_capacity(trees.len());
-        let mut n_leaves: u32 = 0;
-        for tree in &trees {
-            if tree.n_features() as usize != n_features {
-                return Err(PyValueError::new_err(format!(
-                    "data has {} features, but a tree was built on {} features",
-                    n_features,
-                    tree.n_features(),
-                )));
-            }
-            leaf_offsets.push(n_leaves);
-            n_leaves = n_leaves
-                .checked_add(tree.n_leaves())
-                .ok_or_else(|| PyValueError::new_err("too many leaves in the forest"))?;
+impl<T> ForestInner<T> {
+    pub(crate) fn new(n_features: u32, num_threads: usize) -> Self {
+        Self {
+            trees: Vec::new(),
+            n_features,
+            num_threads,
+            leaf_offsets: OnceLock::new(),
+            thread_pool: OnceLock::new(),
         }
-
-        Ok(Self {
-            trees,
-            leaf_offsets,
-            n_leaves: n_leaves as usize,
-        })
     }
-}
 
-impl<T> Forest<'_, T> {
-    pub(super) fn trees(&self) -> &[&TreeInner<T>] {
+    pub(crate) fn with_thread_pool(
+        trees: Vec<Arc<TreeInner<T>>>,
+        n_features: u32,
+        thread_pool: Option<rayon::ThreadPool>,
+    ) -> Self {
+        let num_threads = match &thread_pool {
+            Some(thread_pool) => thread_pool.current_num_threads(),
+            None => 1,
+        };
+        Self {
+            trees,
+            n_features,
+            num_threads,
+            leaf_offsets: OnceLock::new(),
+            thread_pool: OnceLock::from(thread_pool),
+        }
+    }
+
+    pub(super) fn trees(&self) -> &[Arc<TreeInner<T>>] {
         &self.trees
     }
 
-    pub(super) fn n_leaves(&self) -> usize {
-        self.n_leaves
+    pub(crate) fn trees_mut(&mut self) -> &mut Vec<Arc<TreeInner<T>>> {
+        self.leaf_offsets.take();
+        &mut self.trees
     }
 
-    pub(super) fn iter(&self) -> impl Iterator<Item = (&&TreeInner<T>, u32)> {
-        self.trees.iter().zip(self.leaf_offsets.iter().copied())
+    pub(crate) fn n_features(&self) -> u32 {
+        self.n_features
+    }
+
+    pub(crate) fn num_threads(&self) -> usize {
+        self.num_threads
+    }
+
+    pub(crate) fn set_num_threads(&mut self, num_threads: usize) {
+        self.num_threads = num_threads;
+        self.thread_pool.take();
+    }
+
+    fn init_leaf_offsets(trees: &[Arc<TreeInner<T>>]) -> Vec<usize> {
+        let mut leaf_offsets = Vec::with_capacity(trees.len() + 1);
+        let mut offset = 0;
+        leaf_offsets.push(offset);
+        for tree in trees {
+            leaf_offsets.push(offset);
+            offset += tree.n_leaves() as usize;
+        }
+        leaf_offsets.push(offset);
+        leaf_offsets
+    }
+
+    fn leaf_offsets(&self) -> &[usize] {
+        self.leaf_offsets
+            .get_or_init(|| Self::init_leaf_offsets(&self.trees))
+    }
+
+    pub(crate) fn n_leaves(&self) -> usize {
+        // When no trees are present, offsets are [0]
+        *self.leaf_offsets().last().unwrap()
+    }
+    pub(super) fn init_thread_pool(n_jobs: usize) -> Option<rayon::ThreadPool> {
+        if n_jobs == 1 {
+            None
+        } else {
+            Some(
+                rayon::ThreadPoolBuilder::new()
+                    .num_threads(n_jobs)
+                    .build()
+                    .unwrap(),
+            )
+        }
+    }
+
+    pub(super) fn thread_pool(&self) -> Option<&rayon::ThreadPool> {
+        self.thread_pool
+            .get_or_init(|| Self::init_thread_pool(self.num_threads))
+            .as_ref()
+    }
+
+    pub(super) fn iter(&self) -> impl Iterator<Item = (&Arc<TreeInner<T>>, usize)> {
+        // Borrow the trees rather than cloning the `Arc`s: this iterator runs
+        // once per sample inside the parallel scoring loop, and cloning would
+        // hammer the shared atomic refcounts across threads.
+        self.trees.iter().zip(self.leaf_offsets().iter().cloned())
+    }
+
+    pub(crate) fn get(&self, index: usize) -> Option<Arc<TreeInner<T>>> {
+        self.trees.get(index).cloned()
+    }
+
+    pub(crate) fn try_remove_tree(&mut self, index: usize) -> Option<Arc<TreeInner<T>>> {
+        self.leaf_offsets.take();
+        if index >= self.trees.len() {
+            None
+        } else {
+            Some(self.trees.remove(index))
+        }
+    }
+}
+
+impl<T> Clone for ForestInner<T>
+where
+    T: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            trees: self.trees.clone(),
+            n_features: self.n_features,
+            num_threads: self.num_threads,
+            leaf_offsets: self.leaf_offsets.clone(),
+            thread_pool: OnceLock::new(),
+        }
     }
 }
