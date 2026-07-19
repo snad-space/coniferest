@@ -1,21 +1,9 @@
-use num_traits::{AsPrimitive, Float};
+use crate::float::Float;
+use num_traits::AsPrimitive;
 use numpy::prelude::*;
 use numpy::{Element, PyArrayDyn, PyUntypedArray};
 use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
-
-/// Return type of [average_path_length].
-pub(crate) trait AveragePathLengthOutput: Float + 'static {
-    const EULER_GAMMA: Self;
-}
-
-impl AveragePathLengthOutput for f32 {
-    const EULER_GAMMA: Self = std::f32::consts::EULER_GAMMA;
-}
-
-impl AveragePathLengthOutput for f64 {
-    const EULER_GAMMA: Self = std::f64::consts::EULER_GAMMA;
-}
 
 /// Average path length of an unsuccessful search in a binary search tree
 /// with `n` elements, see Liu et al. 2008. It is used for both tree building
@@ -25,11 +13,11 @@ pub(crate) fn average_path_length<N, T>(n: N) -> T
 where
     f32: AsPrimitive<T>,
     N: AsPrimitive<T>,
-    T: AveragePathLengthOutput,
+    T: Float,
 {
     let n: T = n.as_();
-    if n <= T::one() {
-        T::zero()
+    if n <= 1.0.as_() {
+        0.0.as_()
     } else {
         // According to godblot all these .as_() will happen in the compile time
         2.0.as_()
@@ -89,7 +77,7 @@ fn average_path_length_generic<'py, N, T>(
 where
     N: Element + AsPrimitive<T>,
     f32: AsPrimitive<T>,
-    T: Element + Float + AveragePathLengthOutput + 'static,
+    T: Float,
 {
     let typed = n.cast::<PyArrayDyn<N>>()?;
     let result = typed
