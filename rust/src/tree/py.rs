@@ -5,6 +5,7 @@ use numpy::{PyArray1, PyArrayDescr, PyReadonlyArray1};
 use pyo3::prelude::*;
 use pyo3::types::PyType;
 use pyo3::{Bound, PyAny, PyResult, PyTypeInfo, Python};
+use std::sync::Arc;
 
 /// Decision tree of an isolation forest.
 ///
@@ -15,7 +16,8 @@ use pyo3::{Bound, PyAny, PyResult, PyTypeInfo, Python};
 /// The forest is stored as a Python list of trees. All the numpy views of
 /// the tree (`left`, `feature`, `value`, `node_average_path_length`) are
 /// copies: the tree itself is immutable.
-#[pyclass(name = "Tree", frozen, module = "coniferest._core")]
+#[derive(Clone)]
+#[pyclass(name = "Tree", frozen, module = "coniferest._core", from_py_object)]
 pub(crate) struct PyTree(pub(crate) TreeVariant);
 
 /// Dispatch `$body` over the dtype variants of a [TreeVariant].
@@ -34,9 +36,15 @@ enum ValueArray<'py> {
     F64(PyReadonlyArray1<'py, f64>),
 }
 
-impl From<TreeVariant> for PyTree {
-    fn from(variant: TreeVariant) -> Self {
-        PyTree(variant)
+impl From<Arc<TreeInner<f32>>> for PyTree {
+    fn from(inner: Arc<TreeInner<f32>>) -> Self {
+        PyTree(TreeVariant::F32(inner))
+    }
+}
+
+impl From<Arc<TreeInner<f64>>> for PyTree {
+    fn from(inner: Arc<TreeInner<f64>>) -> Self {
+        PyTree(TreeVariant::F64(inner))
     }
 }
 
@@ -56,29 +64,32 @@ impl PyTree {
         value: ValueArray,
         node_average_path_length: PyReadonlyArray1<f32>,
         n_subsamples: usize,
-        n_features: u32,
     ) -> PyResult<Self> {
         let left = left.to_vec()?;
         let feature = feature.to_vec()?;
         let node_average_path_length = node_average_path_length.to_vec()?;
 
         let variant = match value {
-            ValueArray::F32(value) => TreeVariant::F32(TreeInner::from_arrays(
-                left,
-                feature,
-                value.to_vec()?,
-                node_average_path_length,
-                n_subsamples,
-                n_features,
-            )?),
-            ValueArray::F64(value) => TreeVariant::F64(TreeInner::from_arrays(
-                left,
-                feature,
-                value.to_vec()?,
-                node_average_path_length,
-                n_subsamples,
-                n_features,
-            )?),
+            ValueArray::F32(value) => TreeVariant::F32(
+                TreeInner::from_arrays(
+                    left,
+                    feature,
+                    value.to_vec()?,
+                    node_average_path_length,
+                    n_subsamples,
+                )?
+                .into(),
+            ),
+            ValueArray::F64(value) => TreeVariant::F64(
+                TreeInner::from_arrays(
+                    left,
+                    feature,
+                    value.to_vec()?,
+                    node_average_path_length,
+                    n_subsamples,
+                )?
+                .into(),
+            ),
         };
         Ok(PyTree(variant))
     }
@@ -105,11 +116,6 @@ impl PyTree {
     #[getter]
     fn n_subsamples(&self) -> usize {
         on_tree_inner!(&self.0, tree => tree.n_subsamples())
-    }
-
-    #[getter]
-    fn n_features(&self) -> u32 {
-        on_tree_inner!(&self.0, tree => tree.n_features())
     }
 
     /// Left child index per node, 0 for leaves.
@@ -204,7 +210,7 @@ impl PyTree {
                 this.value(py),
                 this.node_average_path_length_py(py),
                 this.n_subsamples(),
-                this.n_features(),
+                this.n_leaves(),
             ),
         ))
     }

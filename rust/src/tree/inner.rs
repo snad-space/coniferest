@@ -3,62 +3,13 @@ use crate::tree::node::{Leaf, Node, SplitNode};
 use pyo3::PyResult;
 use pyo3::exceptions::PyValueError;
 use std::num::NonZeroU32;
+use std::sync::Arc;
 
 /// A tree built on either f32 or f64 data.
+#[derive(Clone)]
 pub(crate) enum TreeVariant {
-    F32(TreeInner<f32>),
-    F64(TreeInner<f64>),
-}
-
-impl TreeVariant {
-    /// The numpy name of the dtype the tree was built on.
-    pub(crate) fn dtype_name(&self) -> &'static str {
-        match self {
-            TreeVariant::F32(_) => f32::NAME,
-            TreeVariant::F64(_) => f64::NAME,
-        }
-    }
-}
-
-/// The data dtype a tree can be built on: f32 or f64.
-pub(crate) trait TreeDtype: Float {
-    /// The numpy name of the dtype.
-    const NAME: &'static str;
-
-    /// Downcast the tree to this dtype, `None` on mismatch.
-    fn tree_inner(variant: &TreeVariant) -> Option<&TreeInner<Self>>;
-
-    fn wrap(inner: TreeInner<Self>) -> TreeVariant;
-}
-
-impl TreeDtype for f32 {
-    const NAME: &'static str = "float32";
-
-    fn tree_inner(variant: &TreeVariant) -> Option<&TreeInner<Self>> {
-        match variant {
-            TreeVariant::F32(inner) => Some(inner),
-            TreeVariant::F64(_) => None,
-        }
-    }
-
-    fn wrap(inner: TreeInner<Self>) -> TreeVariant {
-        TreeVariant::F32(inner)
-    }
-}
-
-impl TreeDtype for f64 {
-    const NAME: &'static str = "float64";
-
-    fn tree_inner(variant: &TreeVariant) -> Option<&TreeInner<Self>> {
-        match variant {
-            TreeVariant::F64(inner) => Some(inner),
-            TreeVariant::F32(_) => None,
-        }
-    }
-
-    fn wrap(inner: TreeInner<Self>) -> TreeVariant {
-        TreeVariant::F64(inner)
-    }
+    F32(Arc<TreeInner<f32>>),
+    F64(Arc<TreeInner<f64>>),
 }
 
 /// Decision tree of an isolation forest, generic over the data dtype.
@@ -69,7 +20,6 @@ pub(crate) struct TreeInner<T> {
     node_average_path_length: Vec<f32>,
     n_leaves: u32,
     n_subsamples: usize,
-    n_features: u32,
 }
 
 impl<T> TreeInner<T> {
@@ -78,14 +28,12 @@ impl<T> TreeInner<T> {
         node_average_path_length: Vec<f32>,
         n_leaves: u32,
         n_subsamples: usize,
-        n_features: u32,
     ) -> Self {
         Self {
             nodes,
             node_average_path_length,
             n_leaves,
             n_subsamples,
-            n_features,
         }
     }
 
@@ -103,10 +51,6 @@ impl<T> TreeInner<T> {
 
     pub(crate) fn n_subsamples(&self) -> usize {
         self.n_subsamples
-    }
-
-    pub(crate) fn n_features(&self) -> u32 {
-        self.n_features
     }
 }
 
@@ -158,7 +102,12 @@ where
             }
         }
     }
+}
 
+impl<T> TreeInner<T>
+where
+    T: Float,
+{
     /// Build a tree from per-node arrays, validating the invariants
     /// required for the unchecked traversal.
     pub(super) fn from_arrays(
@@ -167,7 +116,6 @@ where
         value: Vec<T>,
         node_average_path_length: Vec<f32>,
         n_subsamples: usize,
-        n_features: u32,
     ) -> PyResult<Self> {
         let n_nodes = left.len();
         if n_nodes == 0 {
@@ -189,7 +137,12 @@ where
                 None => {
                     nodes.push(Node::Leaf(Leaf {
                         leaf_index: n_leaves,
-                        value: value[i].as_(),
+                        value: value[i].to_f32().ok_or_else(|| {
+                            PyValueError::new_err(format!(
+                                "failed to convert leaf value (value[{}] = {}) to f32",
+                                i, value[i]
+                            ))
+                        })?,
                     }));
                     n_leaves += 1;
                 }
@@ -201,11 +154,6 @@ where
                         return Err(PyValueError::new_err(
                             "left child index must be greater than the node index, \
                              and the right child (left + 1) must be within the tree",
-                        ));
-                    }
-                    if feature[i] >= n_features {
-                        return Err(PyValueError::new_err(
-                            "split feature must be less than n_features",
                         ));
                     }
                     nodes.push(Node::Split(SplitNode {
@@ -222,7 +170,6 @@ where
             node_average_path_length,
             n_leaves,
             n_subsamples,
-            n_features,
         })
     }
 }
