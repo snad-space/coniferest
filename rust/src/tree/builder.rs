@@ -322,13 +322,7 @@ where
             .map(|&n| average_path_length(n))
             .collect();
 
-        TreeInner::new(
-            nodes,
-            node_average_path_length,
-            n_leaves,
-            n_subsamples,
-            data.ncols() as u32,
-        )
+        TreeInner::new(nodes, node_average_path_length, n_leaves, n_subsamples)
     }
 }
 
@@ -426,7 +420,6 @@ mod tests {
         );
         assert_eq!(tree.n_leaves(), 16);
         assert_eq!(tree.n_subsamples(), 16);
-        assert_eq!(tree.n_features(), 1);
         assert_eq!(tree.nodes().len(), (2 << max_depth as usize) - 1);
         assert_eq!(
             tree.node_average_path_length().len(),
