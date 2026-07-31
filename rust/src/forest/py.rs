@@ -8,10 +8,16 @@ use crate::tree::{PyTree, TreeVariant};
 use numpy::{PyArray1, PyArray2, PyReadonlyArray1};
 use pyo3::exceptions::{PyIndexError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::{PyResult, Python};
+use pyo3::types::PyDict;
+use pyo3::{PyResult, PyTypeInfo, Python};
 
 #[derive(Clone)]
-#[pyclass(name = "CoreForest", module = "coniferest._core", sequence, skip_from_py_object)]
+#[pyclass(
+    name = "CoreForest",
+    module = "coniferest._core",
+    sequence,
+    skip_from_py_object
+)]
 pub(crate) struct PyCoreForest(ForestVariant);
 
 impl From<ForestInner<f32>> for PyCoreForest {
@@ -46,24 +52,7 @@ macro_rules! dispatch_forest_data {
     };
 }
 
-macro_rules! dispatch_forest_tree {
-    ($forest_variant:expr, $tree_variant:expr, |$forest:ident, $tree:ident| => $body:expr) => {
-        match ($forest_variant, $tree_variant) {
-            (ForestVariant::F32($forest), TreeVariant::F32($tree)) => $body,
-            (ForestVariant::F64($forest), TreeVariant::F64($tree)) => $body,
-            (ForestVariant::F32(_), TreeVariant::F64(_)) => {
-                return Err(PyTypeError::new_err(
-                    "Forest dtype float32 does not match tree dtype float64. Please either cast the tree or rebuild the forest.",
-                ));
-            }
-            (ForestVariant::F64(_), TreeVariant::F32(_)) => {
-                return Err(PyTypeError::new_err(
-                    "Forest dtype float64 does not match tree dtype float32. Please either cast the tree or rebuild the forest.",
-                ));
-            }
-        }
-    };
-}
+use crate::forest::inner::dispatch_forest_tree;
 
 macro_rules! dispatch_two_forests {
     ($left_variant:expr, $right_variant:expr, |$left:ident, $right:ident| => $body:expr) => {
@@ -140,6 +129,36 @@ pub(crate) type DeltaSumHitCount<'py> = (Bound<'py, PyArray2<f64>>, Bound<'py, P
 
 #[pymethods]
 impl PyCoreForest {
+    /// Build a forest from a non-empty list of trees, all of the same dtype.
+    ///
+    /// `n_features` must be supplied explicitly since a `Tree` does not know
+    /// the total feature count of the data it was built from.
+    #[new]
+    #[pyo3(signature = (trees, *, n_features, num_threads))]
+    fn new(trees: Vec<PyTree>, n_features: u32, num_threads: usize) -> PyResult<Self> {
+        let trees = trees.into_iter().map(|tree| tree.0).collect();
+        Ok(PyCoreForest(ForestVariant::from_trees(
+            trees,
+            n_features,
+            num_threads,
+        )?))
+    }
+
+    /// Pickle support.
+    fn __reduce__<'py>(slf: &Bound<'py, Self>) -> PyResult<(Bound<'py, PyAny>, (Vec<PyTree>,))> {
+        let py = slf.py();
+        let this = slf.borrow();
+        let trees: Vec<PyTree> = on_forest_inner!(&this.0, forest => forest.trees().iter().cloned().map(Into::into).collect());
+        let kwargs = PyDict::new(py);
+        kwargs.set_item("n_features", this.n_features())?;
+        kwargs.set_item("num_threads", this.num_threads())?;
+        let ctor = py
+            .import("functools")?
+            .getattr("partial")?
+            .call((Self::type_object(py),), Some(&kwargs))?;
+        Ok((ctor, (trees,)))
+    }
+
     #[getter]
     fn n_features(&self) -> u32 {
         on_forest_inner!(&self.0, forest => forest.n_features())
@@ -213,12 +232,12 @@ impl PyCoreForest {
 
     /// Returns the tree at the specified index.
     fn __getitem__(&self, index: usize) -> PyResult<PyTree> {
-       let tree = on_forest_inner!(&self.0, forest => forest
+        let tree = on_forest_inner!(&self.0, forest => forest
             .get(index)
             .ok_or_else(|| PyIndexError::new_err("forest tree index out of range"))?
             .into()
         );
-       Ok(tree)
+        Ok(tree)
     }
 
     fn __setitem__(&mut self, index: usize, tree: PyTree) -> PyResult<()> {
