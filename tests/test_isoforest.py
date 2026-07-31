@@ -114,7 +114,7 @@ def test_apply_dense():
     forest.fit(data)
 
     leafs = forest.apply(data)
-    scores = np.sum(ForestEvaluator.combine_leaf_values(forest.trees)[leafs], axis=1)
+    scores = np.sum(ForestEvaluator.combine_leaf_values(forest.core_forest)[leafs], axis=1)
     scores = -(2 ** (-scores / (forest.evaluator.average_path_length(n_subsamples) * n_trees)))
     assert_allclose(forest.score_samples(data), scores)
 
@@ -138,7 +138,7 @@ def test_apply_sparse():
     forest.fit(data)
 
     leafs = forest.apply(data, "sparse")
-    scores = leafs @ ForestEvaluator.combine_leaf_values(forest.trees)
+    scores = leafs @ ForestEvaluator.combine_leaf_values(forest.core_forest)
     scores = -(2 ** (-scores / (forest.evaluator.average_path_length(n_subsamples) * n_trees)))
     assert_allclose(forest.score_samples(data), scores)
 
@@ -334,7 +334,7 @@ def test_float32_data():
 
     forest = IsolationForest(n_trees=32, random_seed=0)
     forest.fit(data)
-    assert all(tree.dtype == "float32" for tree in forest.trees)
+    assert all(tree.dtype == "float32" for tree in forest.core_forest)
     assert forest.evaluator.dtype == np.float32
 
     scores = forest.score_samples(data)
