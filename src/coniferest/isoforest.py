@@ -45,7 +45,6 @@ class IsolationForest(Coniferest):
         sampletrees_per_batch=1 << 20,
     ):
         super().__init__(
-            trees=[],
             n_subsamples=n_subsamples,
             max_depth=max_depth,
             n_jobs=n_jobs,
@@ -71,7 +70,7 @@ class IsolationForest(Coniferest):
         -------
         self
         """
-        self.trees = self.build_trees(data, self.n_trees)
+        self.core_forest = self.build_forest(data, self.n_trees)
         self.evaluator = ConiferestEvaluator(self)
         return self
 
