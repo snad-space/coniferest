@@ -47,7 +47,7 @@ def convert_aadforest(scope, operator, container):
     attr_pairs["aggregate_function"] = 1  # SUM
 
     leaf_offset = 0
-    for tree in evaluator.trees:
+    for tree in evaluator.core_forest:
         add_tree_to_attribute_pairs(attr_pairs, tree, leaf_offset, evaluator)
         leaf_offset += tree.n_leaves
 

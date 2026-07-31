@@ -55,7 +55,7 @@ def convert_isoforest(scope, operator, container):
 
     attr_pairs = get_default_attribute_pairs()
 
-    for tree in evaluator.trees:
+    for tree in evaluator.core_forest:
         add_tree_to_attribute_pairs(attr_pairs, tree, evaluator)
 
     # Convert list-based attributes to ONNX tensors as required by TreeEnsemble
