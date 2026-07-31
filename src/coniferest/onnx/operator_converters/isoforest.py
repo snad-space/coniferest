@@ -37,7 +37,7 @@ def convert_isoforest(scope, operator, container):
     attr_pairs = get_default_attribute_pairs()
     attr_pairs["aggregate_function"] = "AVERAGE"
 
-    for tree_id, tree in enumerate(evaluator.trees):
+    for tree_id, tree in enumerate(evaluator.core_forest):
         add_tree_to_attribute_pairs(attr_pairs, tree_id, tree, evaluator)
 
     # Declare intermediate variable for the tree ensemble output

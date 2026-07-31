@@ -34,7 +34,7 @@ def convert_aadforest(scope, operator, container):
     attr_pairs = get_default_attribute_pairs()
 
     leaf_offset = 0
-    for tree_id, tree in enumerate(evaluator.trees):
+    for tree_id, tree in enumerate(evaluator.core_forest):
         add_tree_to_attribute_pairs(attr_pairs, tree_id, tree, leaf_offset, evaluator)
         leaf_offset += tree.n_leaves
 
