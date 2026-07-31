@@ -52,6 +52,17 @@ impl<T> TreeInner<T> {
     pub(crate) fn n_subsamples(&self) -> usize {
         self.n_subsamples
     }
+
+    /// Largest split feature index used by this tree, if it has any splits.
+    pub(crate) fn max_split_feature(&self) -> Option<u32> {
+        self.nodes
+            .iter()
+            .filter_map(|node| match node {
+                Node::Split(split) => Some(split.split_feature),
+                Node::Leaf(_) => None,
+            })
+            .max()
+    }
 }
 
 impl<T> TreeInner<T>

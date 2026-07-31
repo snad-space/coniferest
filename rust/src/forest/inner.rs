@@ -1,6 +1,8 @@
 //! Implementation details of the Forest class
 
-use crate::tree::TreeInner;
+use crate::tree::{TreeInner, TreeVariant};
+use pyo3::PyResult;
+use pyo3::exceptions::{PyTypeError, PyValueError};
 use std::sync::Arc;
 use std::sync::OnceLock;
 
@@ -10,7 +12,70 @@ pub(super) enum ForestVariant {
     F64(ForestInner<f64>),
 }
 
+/// Dispatch `$body` over variants of [ForestVariant] and [TreeVariant].
+macro_rules! dispatch_forest_tree {
+    ($forest_variant:expr, $tree_variant:expr, |$forest:ident, $tree:ident| => $body:expr) => {
+        match ($forest_variant, $tree_variant) {
+            (ForestVariant::F32($forest), TreeVariant::F32($tree)) => $body,
+            (ForestVariant::F64($forest), TreeVariant::F64($tree)) => $body,
+            (ForestVariant::F32(_), TreeVariant::F64(_)) => {
+                return Err(PyTypeError::new_err(
+                    "Forest dtype float32 does not match tree dtype float64. Please either cast the tree or rebuild the forest.",
+                ));
+            }
+            (ForestVariant::F64(_), TreeVariant::F32(_)) => {
+                return Err(PyTypeError::new_err(
+                    "Forest dtype float64 does not match tree dtype float32. Please either cast the tree or rebuild the forest.",
+                ));
+            }
+        }
+    };
+}
+pub(super) use dispatch_forest_tree;
+
 impl ForestVariant {
+    /// Push one tree, validating its dtype matches the forest's (via
+    /// [dispatch_forest_tree]) and that it doesn't reference a feature
+    /// index beyond the forest's `n_features`. Empty trees are always
+    /// accepted.
+    fn try_push_tree(&mut self, tree: TreeVariant) -> PyResult<()> {
+        dispatch_forest_tree!(self, tree, |forest, tree| => {
+            if let Some(max_feature) = tree.max_split_feature()
+                && max_feature >= forest.n_features()
+            {
+                return Err(PyValueError::new_err(format!(
+                    "n_features ({}) must be greater than the maximum split feature index used by the trees, \
+                     but trees[{}] uses feature index {}",
+                    forest.n_features(), forest.trees().len(), max_feature
+                )));
+            }
+            forest.trees_mut().push(tree);
+        });
+        Ok(())
+    }
+
+    /// Wrap a non-empty, dtype-homogeneous list of trees into a forest.
+    pub(super) fn from_trees(
+        trees: Vec<TreeVariant>,
+        n_features: u32,
+        num_threads: usize,
+    ) -> PyResult<Self> {
+        let mut iter = trees.into_iter();
+        let first = iter.next().ok_or_else(|| {
+            PyValueError::new_err("cannot build a CoreForest from an empty list of trees")
+        })?;
+
+        let mut forest = match &first {
+            TreeVariant::F32(_) => ForestVariant::F32(ForestInner::new(n_features, num_threads)),
+            TreeVariant::F64(_) => ForestVariant::F64(ForestInner::new(n_features, num_threads)),
+        };
+        forest.try_push_tree(first)?;
+        for tree in iter {
+            forest.try_push_tree(tree)?;
+        }
+        Ok(forest)
+    }
+
     /// Return the numpy dtype name.
     pub(super) fn dtype_str(&self) -> &'static str {
         match self {
