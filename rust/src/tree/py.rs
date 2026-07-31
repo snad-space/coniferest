@@ -197,7 +197,6 @@ impl PyTree {
             Bound<'py, PyAny>,
             Bound<'py, PyArray1<f32>>,
             usize,
-            u32,
         ),
     )> {
         let py = slf.py();
@@ -210,7 +209,6 @@ impl PyTree {
                 this.value(py),
                 this.node_average_path_length_py(py),
                 this.n_subsamples(),
-                this.n_leaves(),
             ),
         ))
     }
