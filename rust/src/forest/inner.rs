@@ -168,7 +168,18 @@ impl<T> ForestInner<T> {
         }
     }
 
-    pub(super) fn thread_pool(&self) -> Option<&rayon::ThreadPool> {
+    /// The cached rayon pool to use for a traversal over `nrows` rows, or
+    /// `None` to run serially. Returns `None` for a single-threaded forest or
+    /// a single-batch workload, whose cross-thread dispatch would cost more
+    /// than the traversal. The pool is materialised only when actually used.
+    pub(super) fn parallel_pool(
+        &self,
+        nrows: usize,
+        batch_size: usize,
+    ) -> Option<&rayon::ThreadPool> {
+        if self.num_threads == 1 || nrows.div_ceil(batch_size.max(1)) <= 1 {
+            return None;
+        }
         self.thread_pool
             .get_or_init(|| Self::init_thread_pool(self.num_threads))
             .as_ref()
