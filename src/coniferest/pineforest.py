@@ -69,7 +69,7 @@ class PineForest(Coniferest):
         weight_ratio=1.0,
         n_jobs=-1,
         random_seed=None,
-        sampletrees_per_batch=1 << 20,
+        sampletrees_per_batch=1 << 14,
     ):
         super().__init__(
             n_subsamples=n_subsamples,
