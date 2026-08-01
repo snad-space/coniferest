@@ -47,7 +47,7 @@ class Coniferest(ABC):
         max_depth=None,
         n_jobs=-1,
         random_seed=None,
-        sampletrees_per_batch=1 << 20,
+        sampletrees_per_batch=1 << 14,
     ):
         self.core_forest = core_forest
         self.n_subsamples = n_subsamples
