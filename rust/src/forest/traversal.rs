@@ -69,7 +69,6 @@ where
         &data_view,
         weights_view.as_deref(),
         leaf_values_view.as_deref(),
-        forest.thread_pool(),
         batch_size,
         &mut paths_view_mut,
     );
@@ -82,7 +81,6 @@ fn calc_paths_sum_impl<T>(
     data: &ArrayRef2<T>,
     weights: Option<&ArrayRef1<f64>>,
     leaf_values: Option<&ArrayRef1<f64>>,
-    thread_pool: Option<&rayon::ThreadPool>,
     batch_size: usize,
     paths: &mut ArrayRef1<f64>,
 ) where
@@ -107,7 +105,7 @@ fn calc_paths_sum_impl<T>(
 
     let zip = Zip::from(paths).and(data.rows());
 
-    if let Some(thread_pool) = thread_pool {
+    if let Some(thread_pool) = forest.parallel_pool(data.nrows(), batch_size) {
         thread_pool.install(|| {
             zip.into_par_iter()
                 .with_min_len(batch_size)
@@ -180,7 +178,7 @@ fn calc_feature_delta_sum_impl<T>(
         .and(delta_sum.rows_mut())
         .and(hit_count.rows_mut());
 
-    if let Some(thread_pool) = forest.thread_pool() {
+    if let Some(thread_pool) = forest.parallel_pool(data.nrows(), batch_size) {
         thread_pool.install(|| {
             zip.into_par_iter().with_min_len(batch_size).for_each(
                 |(sample, delta_sum_row, hit_count_row)| {
@@ -233,7 +231,7 @@ fn calc_apply_impl<T>(
 
     let zip = Zip::from(data.rows()).and(leaves.rows_mut());
 
-    if let Some(thread_pool) = forest.thread_pool() {
+    if let Some(thread_pool) = forest.parallel_pool(data.nrows(), batch_size) {
         thread_pool.install(|| {
             zip.into_par_iter()
                 .with_min_len(batch_size)
