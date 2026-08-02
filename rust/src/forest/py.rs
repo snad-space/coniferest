@@ -3,7 +3,9 @@
 use crate::data::Data;
 use crate::forest::builder::build_forest_py;
 use crate::forest::inner::{ForestInner, ForestVariant};
-use crate::forest::traversal::{calc_apply_py, calc_feature_delta_sum_py, calc_paths_sum_py};
+use crate::forest::traversal::{
+    calc_apply_py, calc_feature_delta_sum_py, calc_leaf_values_py, calc_paths_sum_py,
+};
 use crate::tree::{PyTree, TreeVariant};
 use numpy::{PyArray1, PyArray2, PyReadonlyArray1};
 use pyo3::exceptions::{PyIndexError, PyTypeError, PyValueError};
@@ -241,6 +243,17 @@ impl PyCoreForest {
         batch_size: usize,
     ) -> PyResult<Bound<'py, PyArray2<usize>>> {
         dispatch_forest_data!(&self.0, data, |forest, data| => calc_apply_py(py, forest, &data, batch_size))
+    }
+
+    /// Find values of the leaves be every sample
+    #[pyo3(signature = (data, *, batch_size))]
+    fn calc_leaf_values<'py>(
+        &self,
+        py: Python<'py>,
+        data: Data<'py>,
+        batch_size: usize,
+    ) -> PyResult<Bound<'py, PyArray2<f32>>> {
+        dispatch_forest_data!(&self.0, data, |forest, data| => calc_leaf_values_py(py, forest, &data, batch_size))
     }
 
     //
