@@ -1,7 +1,6 @@
 use crate::float::Float;
 use crate::forest::inner::ForestInner;
 use crate::forest::py::DeltaSumHitCount;
-use ndarray::parallel::prelude::*;
 use ndarray::{ArrayRef1, ArrayRef2, ArrayView1, ArrayViewMut1, Zip};
 use numpy::{PyArray1, PyArray2, PyArrayMethods, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
@@ -45,9 +44,6 @@ where
     let data_view = data.as_array();
     check_data(&data_view)?;
 
-    let data_view = data.as_array();
-    check_data(&data_view)?;
-
     let weights_view = weights.as_ref().map(|weights| weights.as_array());
     if let Some(weights_view) = weights_view.as_deref() {
         check_leaf_array(weights_view, forest.n_leaves(), "weights")?;
@@ -86,7 +82,7 @@ fn calc_paths_sum_impl<T>(
 ) where
     T: Float,
 {
-    let inner_fn = |path: &mut f64, sample: ArrayView1<T>| {
+    let inner_fn = |(path, sample): (&mut f64, ArrayView1<T>)| {
         let sample = sample.as_slice().unwrap();
         for (tree, leaf_offset) in forest.iter() {
             let leaf = tree.find_leaf(sample);
@@ -104,16 +100,7 @@ fn calc_paths_sum_impl<T>(
     };
 
     let zip = Zip::from(paths).and(data.rows());
-
-    if let Some(thread_pool) = forest.parallel_pool(data.nrows(), batch_size) {
-        thread_pool.install(|| {
-            zip.into_par_iter()
-                .with_min_len(batch_size)
-                .for_each(|(path, sample)| inner_fn(path, sample));
-        });
-    } else {
-        zip.for_each(inner_fn);
-    }
+    forest.parallel_process(zip, inner_fn, batch_size);
 }
 
 pub(crate) fn calc_feature_delta_sum_py<'py, T>(
@@ -156,9 +143,11 @@ fn calc_feature_delta_sum_impl<T>(
 ) where
     T: Float,
 {
-    let inner_fn = |sample: ArrayView1<T>,
-                    mut delta_sum_row: ArrayViewMut1<f64>,
-                    mut hit_count_row: ArrayViewMut1<i64>| {
+    let inner_fn = |(sample, mut delta_sum_row, mut hit_count_row): (
+        ArrayView1<T>,
+        ArrayViewMut1<f64>,
+        ArrayViewMut1<i64>,
+    )| {
         let sample = sample.as_slice().unwrap();
         for tree in forest.trees() {
             // Sidecar array with the average path length of each node
@@ -177,18 +166,7 @@ fn calc_feature_delta_sum_impl<T>(
     let zip = Zip::from(data.rows())
         .and(delta_sum.rows_mut())
         .and(hit_count.rows_mut());
-
-    if let Some(thread_pool) = forest.parallel_pool(data.nrows(), batch_size) {
-        thread_pool.install(|| {
-            zip.into_par_iter().with_min_len(batch_size).for_each(
-                |(sample, delta_sum_row, hit_count_row)| {
-                    inner_fn(sample, delta_sum_row, hit_count_row)
-                },
-            );
-        });
-    } else {
-        zip.for_each(inner_fn);
-    }
+    forest.parallel_process(zip, inner_fn, batch_size);
 }
 
 pub(crate) fn calc_apply_py<'py, T>(
@@ -220,24 +198,15 @@ fn calc_apply_impl<T>(
 ) where
     T: Float,
 {
-    let inner_fn = |sample: ArrayView1<T>, mut sample_leafs: ArrayViewMut1<usize>| {
+    let inner_fn = |(sample, mut sample_leaves): (ArrayView1<T>, ArrayViewMut1<usize>)| {
         let sample = sample.as_slice().unwrap();
-        let leafs_slice = sample_leafs.as_slice_mut().unwrap();
-        for ((tree, leaf_offset), leaf_id) in forest.iter().zip(leafs_slice.iter_mut()) {
+        let leaves_slice = sample_leaves.as_slice_mut().unwrap();
+        for ((tree, leaf_offset), leaf_id) in forest.iter().zip(leaves_slice.iter_mut()) {
             let leaf = tree.find_leaf(sample);
             *leaf_id = leaf_offset + leaf.leaf_index as usize;
         }
     };
 
     let zip = Zip::from(data.rows()).and(leaves.rows_mut());
-
-    if let Some(thread_pool) = forest.parallel_pool(data.nrows(), batch_size) {
-        thread_pool.install(|| {
-            zip.into_par_iter()
-                .with_min_len(batch_size)
-                .for_each(|(sample, sample_leafs)| inner_fn(sample, sample_leafs));
-        });
-    } else {
-        zip.for_each(inner_fn);
-    }
+    forest.parallel_process(zip, inner_fn, batch_size);
 }

@@ -1,8 +1,11 @@
 //! Implementation details of the Forest class
 
 use crate::tree::{TreeInner, TreeVariant};
+use ndarray::parallel::Parallel;
+use ndarray::{Dimension, NdProducer, Zip};
 use pyo3::PyResult;
 use pyo3::exceptions::{PyTypeError, PyValueError};
+use rayon::prelude::*;
 use std::sync::Arc;
 use std::sync::OnceLock;
 
@@ -73,6 +76,41 @@ impl ForestVariant {
             forest.try_push_tree(tree)?;
         }
         Ok(forest)
+    }
+}
+
+/// Serially iterate a [Zip], passing its items as a single tuple the way the
+/// rayon bridge does, rather than as one argument per producer.
+pub(super) trait ZipForEachTuple {
+    type Item;
+
+    fn for_each_tuple(self, function: impl FnMut(Self::Item));
+}
+
+impl<D, P1, P2> ZipForEachTuple for Zip<(P1, P2), D>
+where
+    D: Dimension,
+    P1: NdProducer<Dim = D>,
+    P2: NdProducer<Dim = D>,
+{
+    type Item = (P1::Item, P2::Item);
+
+    fn for_each_tuple(self, mut function: impl FnMut(Self::Item)) {
+        self.for_each(|item1, item2| function((item1, item2)));
+    }
+}
+
+impl<D, P1, P2, P3> ZipForEachTuple for Zip<(P1, P2, P3), D>
+where
+    D: Dimension,
+    P1: NdProducer<Dim = D>,
+    P2: NdProducer<Dim = D>,
+    P3: NdProducer<Dim = D>,
+{
+    type Item = (P1::Item, P2::Item, P3::Item);
+
+    fn for_each_tuple(self, mut function: impl FnMut(Self::Item)) {
+        self.for_each(|item1, item2, item3| function((item1, item2, item3)));
     }
 }
 
@@ -183,6 +221,33 @@ impl<T> ForestInner<T> {
         self.thread_pool
             .get_or_init(|| Self::init_thread_pool(self.num_threads))
             .as_ref()
+    }
+
+    /// Apply `function` to each element tuple of `zip`, spreading the rows over
+    /// the forest's thread pool in `batch_size` chunks when it is worth it.
+    pub(crate) fn parallel_process<Parts, D, Item>(
+        &self,
+        zip: Zip<Parts, D>,
+        function: impl Fn(Item) + Send + Sync,
+        batch_size: usize,
+    ) where
+        D: Dimension,
+        Item: Send,
+        Zip<Parts, D>: ZipForEachTuple<Item = Item>
+            + IntoParallelIterator<Iter = Parallel<Zip<Parts, D>>>
+            + Send,
+        Parallel<Zip<Parts, D>>: ParallelIterator<Item = Item>,
+    {
+        let batch_size = usize::max(batch_size, 1);
+        if let Some(thread_pool) = self.parallel_pool(zip.size(), batch_size) {
+            thread_pool.install(|| {
+                zip.into_par_iter()
+                    .with_min_len(batch_size)
+                    .for_each(function)
+            });
+        } else {
+            zip.for_each_tuple(function);
+        }
     }
 
     pub(super) fn iter(&self) -> impl Iterator<Item = (&Arc<TreeInner<T>>, usize)> {
