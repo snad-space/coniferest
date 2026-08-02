@@ -248,10 +248,7 @@ class PineForest(Coniferest):
             sampletrees_per_batch=self.sampletrees_per_batch,
         )
 
-        # Leaf values are depth + average_path_length(n_leaf_samples),
-        # i.e. the estimated path lengths
-        leaf_values = ForestEvaluator.combine_leaf_values(core_forest)
-        heights = leaf_values[evaluator.apply(data)]
+        heights = evaluator.leaf_values(data)
 
         weights = labels.copy()
         weights[labels == Label.REGULAR] = weight_ratio * Label.REGULAR
