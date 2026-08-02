@@ -1,6 +1,5 @@
 import numpy as np
 
-from ._core import CoreForest
 from .coniferest import Coniferest, ConiferestEvaluator
 from .evaluator import ForestEvaluator
 from .label import Label
@@ -255,8 +254,7 @@ class PineForest(Coniferest):
         weighted_paths = (heights * np.reshape(weights, (-1, 1))).sum(axis=0)
         keep_indices = weighted_paths.argsort()[n_filter:]
 
-        kept_trees = [core_forest[int(i)] for i in keep_indices]
-        return CoreForest(kept_trees, n_features=core_forest.n_features, num_threads=core_forest.num_threads)
+        return core_forest[keep_indices]
 
     def score_samples(self, samples):
         """
