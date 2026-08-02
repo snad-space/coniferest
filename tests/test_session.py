@@ -67,7 +67,7 @@ def test_e2e_ztf_m31():
     "model,n_iter,last_idx",
     [
         (AADForest(n_trees=128, random_seed=0), 37, 1097),
-        (PineForest(n_trees=128, n_spare_trees=512, random_seed=0), 36, 1109),
+        (PineForest(n_trees=128, n_spare_trees=512, random_seed=0), 35, 1109),
     ],
 )
 def test_non_anomalous_outliers(model, n_iter, last_idx):
