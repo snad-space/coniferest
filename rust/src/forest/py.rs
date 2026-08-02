@@ -2,6 +2,7 @@
 
 use crate::data::Data;
 use crate::forest::builder::build_forest_py;
+use crate::forest::index::InputForestIndex;
 use crate::forest::inner::{ForestInner, ForestVariant};
 use crate::forest::traversal::{
     calc_apply_py, calc_feature_delta_sum_py, calc_leaf_values_py, calc_paths_sum_py,
@@ -150,6 +151,19 @@ pub(crate) fn build_core_forest<'py>(
 
 pub(crate) type DeltaSumHitCount<'py> = (Bound<'py, PyArray2<f64>>, Bound<'py, PyArray2<i64>>);
 
+/// What indexing a forest gives back: a single tree, or a forest of them.
+#[derive(IntoPyObject)]
+enum TreeOrForest {
+    Tree(PyTree),
+    Forest(PyCoreForest),
+}
+
+impl PyCoreForest {
+    pub(super) fn len(&self) -> usize {
+        on_forest_inner!(&self.0, forest => forest.trees().len())
+    }
+}
+
 #[pymethods]
 impl PyCoreForest {
     /// Build a forest from a non-empty list of trees, all of the same dtype.
@@ -261,17 +275,23 @@ impl PyCoreForest {
     //
 
     fn __len__(&self) -> usize {
-        on_forest_inner!(&self.0, forest => forest.trees().len())
+        self.len()
     }
 
-    /// Returns the tree at the specified index.
-    fn __getitem__(&self, index: usize) -> PyResult<PyTree> {
-        let tree = on_forest_inner!(&self.0, forest => forest
-            .get(index)
-            .ok_or_else(|| PyIndexError::new_err("forest tree index out of range"))?
-            .into()
-        );
-        Ok(tree)
+    /// Returns the tree at the specified index, or a forest of the trees at the
+    /// specified indices.
+    fn __getitem__(&self, index: InputForestIndex) -> PyResult<TreeOrForest> {
+        let index = index.resolve(self.len());
+        if let Some(index) = index.single() {
+            let tree = on_forest_inner!(&self.0, forest => forest
+                .get(index?)
+                .expect("index is normalized against the forest length")
+                .into()
+            );
+            return Ok(TreeOrForest::Tree(tree));
+        }
+        let forest = on_forest_inner!(&self.0, forest => forest.select(index.iter())?.into());
+        Ok(TreeOrForest::Forest(forest))
     }
 
     fn __setitem__(&mut self, index: usize, tree: PyTree) -> PyResult<()> {
