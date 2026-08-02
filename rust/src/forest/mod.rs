@@ -1,4 +1,5 @@
 mod builder;
+mod index;
 mod inner;
 mod py;
 mod traversal;

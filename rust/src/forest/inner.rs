@@ -4,7 +4,7 @@ use crate::tree::{TreeInner, TreeVariant};
 use ndarray::parallel::Parallel;
 use ndarray::{Dimension, NdProducer, Zip};
 use pyo3::PyResult;
-use pyo3::exceptions::{PyTypeError, PyValueError};
+use pyo3::exceptions::{PyIndexError, PyTypeError, PyValueError};
 use rayon::prelude::*;
 use std::sync::Arc;
 use std::sync::OnceLock;
@@ -259,6 +259,32 @@ impl<T> ForestInner<T> {
 
     pub(crate) fn get(&self, index: usize) -> Option<Arc<TreeInner<T>>> {
         self.trees.get(index).cloned()
+    }
+
+    /// A new forest holding `indices`' trees, in the order given.
+    pub(crate) fn select(
+        &self,
+        indices: impl IntoIterator<Item = PyResult<usize>>,
+    ) -> PyResult<Self> {
+        let trees = indices
+            .into_iter()
+            .map(|index| {
+                let index = index?;
+                self.trees.get(index).cloned().ok_or_else(|| {
+                    PyIndexError::new_err(format!(
+                        "forest tree index {index} is out of range for a forest of {} trees",
+                        self.trees.len()
+                    ))
+                })
+            })
+            .collect::<PyResult<Vec<_>>>()?;
+        Ok(Self {
+            trees,
+            n_features: self.n_features,
+            num_threads: self.num_threads,
+            leaf_offsets: OnceLock::new(),
+            thread_pool: OnceLock::new(),
+        })
     }
 
     pub(crate) fn try_remove_tree(&mut self, index: usize) -> Option<Arc<TreeInner<T>>> {
