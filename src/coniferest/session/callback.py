@@ -5,6 +5,10 @@ import click
 from coniferest.datasets import Label
 from coniferest.onnx import convert
 
+import os
+
+from ..onnx import save_onnx_model, to_onnx
+
 
 class _LabelChoice(click.Choice):
     """Label choice class for click
@@ -115,23 +119,37 @@ class TerminateAfterNAnomalies:
 
 class SaveToOnnx:
     """
-    Save the current session model to an ONNX file.
+    Callback that periodically saves the current session model to ONNX.
+
+    Use it as an "on decision callback":
+    Session(..., on_decision_callbacks=[SaveToOnnx(directory="models")])
 
     Parameters
     ----------
-    filename : str
-        Path to the output ONNX file.
+    directory : str
+        Directory where the ONNX file will be saved. Created if missing.
+
+    filename : str, optional
+        Name of the ONNX file. Default is "model.onnx".
+
+    every_n_decisions : int, optional
+        Save every N decisions. Default is 1 (save after every decision).
     """
 
-    def __init__(self, filename: str):
+    def __init__(self, directory, filename="model.onnx", every_n_decisions=1):
+        self.directory = directory
         self.filename = filename
+        self.every_n_decision = self.every_n_decision
+        self._counter = 0
 
-    def __call__(self, *args, session=None, **kwargs) -> None:
-        if session is None and len(args) > 0:
-            session = args[-1]
+        os.makedirs(self.directory, exist_ok=True)
 
-        model = getattr(session, "model", session)
-        onnx_proto = convert(model)
+    def __call__(self, metadata, data, session) -> None:
+        self._counter += 1
 
-        with open(self.filename, "wb") as f:
-            f.write(onnx_proto.SerializeToString())
+        if self._counter % self.every_n_decision != 0:
+            return
+
+        onnx_model = to_onnx(session.model)
+        path = os.path.join(self.directory, self.filename)
+        save_onnx_model(onnx_model, path)
