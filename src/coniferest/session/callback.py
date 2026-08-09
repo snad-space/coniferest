@@ -3,6 +3,7 @@ import webbrowser
 import click
 
 from coniferest.datasets import Label
+from coniferest.onnx import convert
 
 
 class _LabelChoice(click.Choice):
@@ -110,3 +111,27 @@ class TerminateAfterNAnomalies:
         self.anomalies_count += label == Label.ANOMALY
         if self.anomalies_count >= self.budget:
             session.terminate()
+
+
+class SaveToOnnx:
+    """
+    Save the current session model to an ONNX file.
+
+    Parameters
+    ----------
+    filename : str
+        Path to the output ONNX file.
+    """
+
+    def __init__(self, filename: str):
+        self.filename = filename
+
+    def __call__(self, *args, session=None, **kwargs) -> None:
+        if session is None and len(args) > 0:
+            session = args[-1]
+
+        model = getattr(session, "model", session)
+        onnx_proto = convert(model)
+
+        with open(self.filename, "wb") as f:
+            f.write(onnx_proto.SerializeToString())
