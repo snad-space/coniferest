@@ -7,7 +7,7 @@ from coniferest.onnx import convert
 
 import os
 
-from ..onnx import save_onnx_model, to_onnx
+from ..onnx.convert import save_onnx_model, to_onnx
 
 
 class _LabelChoice(click.Choice):
@@ -127,29 +127,59 @@ class SaveToOnnx:
     Parameters
     ----------
     directory : str
-        Directory where the ONNX file will be saved. Created if missing.
+        Directory where the ONNX file(s) will be saved. Created if missing.
 
     filename : str, optional
-        Name of the ONNX file. Default is "model.onnx".
+        Base name of the ONNX file. Default is "model.onnx".
 
     every_n_decisions : int, optional
         Save every N decisions. Default is 1 (save after every decision).
+
+    overwrite : bool, optional
+        If True (default), always overwrite the same file.
+        If False, keep a new numbered file for each save
+        (e.g. model_1.onnx, model_2.onnx, ...).
     """
 
-    def __init__(self, directory, filename="model.onnx", every_n_decisions=1):
+    def __init__(
+        self,
+        directory,
+        filename="model.onnx",
+        every_n_decisions=1,
+        overwrite=True,
+    ):
         self.directory = directory
         self.filename = filename
-        self.every_n_decision = self.every_n_decision
+        self.every_n_decisions = every_n_decisions
+        self.overwrite = overwrite
         self._counter = 0
+        self._save_index = 0
 
         os.makedirs(self.directory, exist_ok=True)
+
+    def _build_path(self):
+        if self.overwrite:
+            return os.path.join(self.directory, self.filename)
+
+        self._save_index += 1
+        name, ext = os.path.splitext(self.filename)
+        numbered_filename = f"{name}_{self._save_index}{ext}"
+        return os.path.join(self.directory, numbered_filename)
 
     def __call__(self, metadata, data, session) -> None:
         self._counter += 1
 
-        if self._counter % self.every_n_decision != 0:
+        if self._counter % self.every_n_decisions != 0:
             return
 
-        onnx_model = to_onnx(session.model)
-        path = os.path.join(self.directory, self.filename)
+        model = session.model
+
+        if not hasattr(model, "n_features_in_"):
+            raise RuntimeError(
+                "SaveToOnnx callback requires a fitted model, "
+                "but the session model has not been fitted yet."
+            )
+
+        onnx_model = to_onnx(model)
+        path = self._build_path()
         save_onnx_model(onnx_model, path)
