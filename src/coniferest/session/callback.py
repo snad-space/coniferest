@@ -1,11 +1,9 @@
+import os
 import webbrowser
 
 import click
 
 from coniferest.datasets import Label
-from coniferest.onnx import convert
-
-import os
 
 from ..onnx.convert import save_onnx_model, to_onnx
 
@@ -176,8 +174,7 @@ class SaveToOnnx:
 
         if not hasattr(model, "n_features_in_"):
             raise RuntimeError(
-                "SaveToOnnx callback requires a fitted model, "
-                "but the session model has not been fitted yet."
+                "SaveToOnnx callback requires a fitted model, but the session model has not been fitted yet."
             )
 
         onnx_model = to_onnx(model)
