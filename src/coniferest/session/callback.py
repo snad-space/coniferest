@@ -1,10 +1,9 @@
-from pathlib import Path
 import webbrowser
+from pathlib import Path
 
 import click
 
 from coniferest.datasets import Label
-
 from coniferest.onnx.convert import save_onnx_model, to_onnx
 
 
