@@ -1,11 +1,11 @@
-import os
+from pathlib import Path
 import webbrowser
 
 import click
 
 from coniferest.datasets import Label
 
-from ..onnx.convert import save_onnx_model, to_onnx
+from coniferest.onnx.convert import save_onnx_model, to_onnx
 
 
 class _LabelChoice(click.Choice):
@@ -146,23 +146,22 @@ class SaveToOnnx:
         every_n_decisions=1,
         overwrite=True,
     ):
-        self.directory = directory
+        self.directory = Path(directory)
         self.filename = filename
         self.every_n_decisions = every_n_decisions
         self.overwrite = overwrite
         self._counter = 0
-        self._save_index = 0
 
-        os.makedirs(self.directory, exist_ok=True)
+        self.directory.mkdir(parents=True, exist_ok=True)
 
     def _build_path(self):
         if self.overwrite:
-            return os.path.join(self.directory, self.filename)
+            return self.directory / self.filename
 
-        self._save_index += 1
-        name, ext = os.path.splitext(self.filename)
-        numbered_filename = f"{name}_{self._save_index}{ext}"
-        return os.path.join(self.directory, numbered_filename)
+        stem = Path(self.filename).stem
+        suffix = Path(self.filename).suffix
+        numbered_filename = f"{stem}_{self._counter}{suffix}"
+        return self.directory / numbered_filename
 
     def __call__(self, metadata, data, session) -> None:
         self._counter += 1
@@ -174,7 +173,12 @@ class SaveToOnnx:
 
         if not hasattr(model, "n_features_in_"):
             raise RuntimeError(
-                "SaveToOnnx callback requires a fitted model, but the session model has not been fitted yet."
+                "SaveToOnnx callback requires a fitted model. "
+                "The session model has not been fitted yet, "
+                "which can happen if this callback is triggered "
+                "before any decision has caused a model refit. "
+                "Make sure the model is fitted (e.g. via session.model.fit(...)) "
+                "before this callback is called."
             )
 
         onnx_model = to_onnx(model)
