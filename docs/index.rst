@@ -24,6 +24,7 @@ Getting started
 
 - :doc:`tutorial` — install the package and run your first isolation forest and active anomaly detection session.
 - :doc:`notebooks` — worked examples and workshop tutorials as Jupyter notebooks.
+- :doc:`notebooks/onnx_serialization` — export a session's model to ONNX and load it back for inference.
 - :doc:`isoforest` — details on the isolation forest implementation.
 - :doc:`pariou` — mathematical background of anomaly detection feature signatures.
 - :doc:`modules` — full API reference.
@@ -53,6 +54,7 @@ If you found this project useful for your research, please cite `Kornilov, Korol
    :hidden:
 
    tutorial.rst
+   Saving and loading a session model with ONNX <notebooks/onnx_serialization>
    isoforest.rst
    pariou.rst
    notebooks.rst
