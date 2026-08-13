@@ -3,7 +3,8 @@ Notebooks with examples
 
 .. toctree::
     :maxdepth: 1
-
+    
+    Saving and loading a session model with ONNX <notebooks/onnx_serialization>
     MNIST handwritten digits  <notebooks/mnist>
     US baby names <notebooks/us-names>
     Animated discovery plots <notebooks/animated-discovery>

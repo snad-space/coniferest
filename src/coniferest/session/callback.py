@@ -1,8 +1,10 @@
 import webbrowser
+from pathlib import Path
 
 import click
 
 from coniferest.datasets import Label
+from coniferest.onnx.convert import save_onnx_model, to_onnx
 
 
 class _LabelChoice(click.Choice):
@@ -110,3 +112,79 @@ class TerminateAfterNAnomalies:
         self.anomalies_count += label == Label.ANOMALY
         if self.anomalies_count >= self.budget:
             session.terminate()
+
+
+class SaveToOnnx:
+    """
+    Callback that periodically saves the current session model to ONNX.
+
+    Use it as an "on decision callback":
+    Session(..., on_decision_callbacks=[SaveToOnnx(directory="models")])
+
+    Parameters
+    ----------
+    directory : str
+        Directory where the ONNX file(s) will be saved. Created if missing.
+
+    filename : str, optional
+        Base name of the ONNX file. Default is "model.onnx".
+
+    every_n_decisions : int, optional
+        Save every N decisions. Default is 1 (save after every decision).
+
+    overwrite : bool, optional
+    If True (default), always overwrite the same file.
+    If False, keep a new numbered file for each save
+    (e.g. model_1.onnx, model_2.onnx, ...). The number in the
+    filename corresponds to the decision counter at the time of
+    saving, so if ``every_n_decisions`` is greater than 1, the
+    numbers will not be consecutive (e.g. with
+    ``every_n_decisions=5``, files will be named
+    ``model_5.onnx``, ``model_10.onnx``, ``model_15.onnx``, ...).
+    """
+
+    def __init__(
+        self,
+        directory,
+        filename="model.onnx",
+        every_n_decisions=1,
+        overwrite=True,
+    ):
+        self.directory = Path(directory)
+        self.filename = filename
+        self.every_n_decisions = every_n_decisions
+        self.overwrite = overwrite
+        self._counter = 0
+
+        self.directory.mkdir(parents=True, exist_ok=True)
+
+    def _build_path(self):
+        if self.overwrite:
+            return self.directory / self.filename
+
+        stem = Path(self.filename).stem
+        suffix = Path(self.filename).suffix
+        numbered_filename = f"{stem}_{self._counter}{suffix}"
+        return self.directory / numbered_filename
+
+    def __call__(self, metadata, data, session) -> None:
+        self._counter += 1
+
+        if self._counter % self.every_n_decisions != 0:
+            return
+
+        model = session.model
+
+        if not hasattr(model, "n_features_in_"):
+            raise RuntimeError(
+                "SaveToOnnx callback requires a fitted model. "
+                "The session model has not been fitted yet, "
+                "which can happen if this callback is triggered "
+                "before any decision has caused a model refit. "
+                "Make sure the model is fitted (e.g. via session.model.fit(...)) "
+                "before this callback is called."
+            )
+
+        onnx_model = to_onnx(model)
+        path = self._build_path()
+        save_onnx_model(onnx_model, path)
