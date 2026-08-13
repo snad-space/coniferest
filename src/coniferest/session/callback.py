@@ -134,9 +134,14 @@ class SaveToOnnx:
         Save every N decisions. Default is 1 (save after every decision).
 
     overwrite : bool, optional
-        If True (default), always overwrite the same file.
-        If False, keep a new numbered file for each save
-        (e.g. model_1.onnx, model_2.onnx, ...).
+    If True (default), always overwrite the same file.
+    If False, keep a new numbered file for each save
+    (e.g. model_1.onnx, model_2.onnx, ...). The number in the
+    filename corresponds to the decision counter at the time of
+    saving, so if ``every_n_decisions`` is greater than 1, the
+    numbers will not be consecutive (e.g. with
+    ``every_n_decisions=5``, files will be named
+    ``model_5.onnx``, ``model_10.onnx``, ``model_15.onnx``, ...).
     """
 
     def __init__(
