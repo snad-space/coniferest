@@ -319,6 +319,8 @@ where
 mod bench_alloc {
     use super::*;
     use ndarray::Array2;
+    use rand::SeedableRng;
+    use rand_xoshiro::Xoshiro256PlusPlus;
     use test::Bencher;
 
     fn make_data() -> Array2<f64> {
