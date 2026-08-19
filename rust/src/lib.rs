@@ -1,3 +1,10 @@
+// `#[bench]` (used by the `bench_alloc` module in build.rs) is nightly-only;
+// gated on cfg(test) so ordinary `cargo build`/maturin builds stay on stable.
+#![allow(unexpected_cfgs)]
+#![cfg_attr(all(test, coniferest_nightly_bench), feature(test))]
+#[cfg(all(test, coniferest_nightly_bench))]
+extern crate test;
+
 mod build;
 mod stable_sort;
 mod tree;
