@@ -4,29 +4,27 @@ from coniferest.datasets import single_outlier
 from coniferest.isoforest import IsolationForest
 from coniferest.session.callback import PickleSession
 
+
 class _FakeSession:
     def __init__(self, model):
         self.model = model
+
 
 def _get_fitted_model():
     data, _metadata = single_outlier()
     model = IsolationForest(n_trees=10, random_seed=0).fit(data)
     return model
 
+
 def test_pickle_session_overwrite(tmp_path):
     model = _get_fitted_model()
     fake_session = _FakeSession(model)
 
-    callback = PickleSession(
-        directory=str(tmp_path),
-        filename="session.pickle",
-        every_n_decisions=2,
-        overwrite=True
-    )
+    callback = PickleSession(directory=str(tmp_path), filename="session.pickle", every_n_decisions=2, overwrite=True)
 
     expected_path = tmp_path / "session.pickle"
 
-    # counter=1, should not save 
+    # counter=1, should not save
     callback(None, None, fake_session)
     assert not expected_path.exists()
 
@@ -42,6 +40,7 @@ def test_pickle_session_overwrite(tmp_path):
     callback(None, None, fake_session)
     callback(None, None, fake_session)
     assert expected_path.exists()
+
 
 def test_pickle_session_numbered_files(tmp_path):
     model = _get_fitted_model()
@@ -63,6 +62,7 @@ def test_pickle_session_numbered_files(tmp_path):
     assert path_1.exists()
     assert path_2.exists()
 
+
 def test_pickle_session_can_restore_full_session(tmp_path):
     model = _get_fitted_model()
     fake_session = _FakeSession(model)
@@ -76,4 +76,3 @@ def test_pickle_session_can_restore_full_session(tmp_path):
         restored_session = pickle.load(f)
 
     assert restored_session.some_extra_state == "example known labels or progress"
-
