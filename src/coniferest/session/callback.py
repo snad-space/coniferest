@@ -1,3 +1,4 @@
+import pickle
 import webbrowser
 from pathlib import Path
 
@@ -188,3 +189,69 @@ class SaveToOnnx:
         onnx_model = to_onnx(model)
         path = self._build_path()
         save_onnx_model(onnx_model, path)
+
+
+class PickleSession:
+    """
+    Callback that periodically saves the whole session to a pickle file.
+
+    Unlike ``SaveToOnnx``, wich only saves the model, this callback saves
+    the entire session object (model, known labels, current candidate,
+    scores, etc.), so an interrupted session can be fully resumed later.
+
+    Use it as an "on decision callback":
+    Session(..., on_decision_callbacks=[PickleSession(directory="snapshots")])
+
+    Parameters
+    ----------
+    directory : str
+        Directory where the pickle file(s) will be saved. Created if missing.
+
+    filename : str, optional
+        Base name of the pickle file. Default is "session.pickle".
+
+    every_n_decisions : int, optional
+        Save every N decisions. Default is 1 (save after every decision).
+
+    overwrite : bool, optional
+         If True (default), always overwrite the same file.
+         If False, keep a new numbered file for each save
+         (e.g. session_1.pickle, session_2.pickle, ...). The number in the
+         filename corresponds to the decision counter at the time of
+         saving, so if ``every_n_decisions`` is greater than 1, the
+         numbers will not be consecutive.
+    """
+
+    def __init__(
+        self,
+        directory,
+        filename="session.pickle",
+        every_n_decisions=1,
+        overwrite=True,
+    ):
+        self.directory = Path(directory)
+        self.filename = filename
+        self.every_n_decisions = every_n_decisions
+        self.overwrite = overwrite
+        self._counter = 0
+
+        self.directory.mkdir(parents=True, exist_ok=True)
+
+    def _build_path(self):
+        if self.overwrite:
+            return self.directory / self.filename
+
+        stem = Path(self.filename).stem
+        suffix = Path(self.filename).suffix
+        numbered_filename = f"{stem}_{self._counter}{suffix}"
+        return self.directory / numbered_filename
+
+    def __call__(self, metadata, data, session) -> None:
+        self._counter += 1
+
+        if self._counter % self.every_n_decisions != 0:
+            return
+
+        path = self._build_path()
+        with open(path, "wb") as f:
+            pickle.dump(session, f)
