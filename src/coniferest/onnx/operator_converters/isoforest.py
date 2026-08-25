@@ -16,8 +16,6 @@ def add_tree_to_attribute_pairs(attr_pairs, tree, evaluator):
 
     leaf_weight = -np.log(2.0) / average_path_length(evaluator.samples)
 
-    node_index_map = {}
-
     def process_node(node_id):
         """Recursively add a node/leaf and return its index in attr_pairs."""
         if left[node_id] <= 0:
