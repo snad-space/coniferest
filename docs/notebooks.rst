@@ -4,6 +4,7 @@ Notebooks with examples
 .. toctree::
     :maxdepth: 1
 
+    Serialization callbacks (ONNX and pickle) <notebooks/serialization_callbacks>
     MNIST handwritten digits  <notebooks/mnist>
     US baby names <notebooks/us-names>
     Animated discovery plots <notebooks/animated-discovery>
