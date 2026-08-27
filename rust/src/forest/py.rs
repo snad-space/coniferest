@@ -86,12 +86,33 @@ macro_rules! on_forest_inner {
 ///
 /// Parameters
 /// ----------
-/// data : <TODO>
-/// <TODO>
+/// data : np.ndarray of shape (n_samples, n_features)
+///     Feature matrix, must be non-empty, C-contiguous and of either float32
+///     or float64 dtype. The dtype determines the dtype of the forest, which
+///     later must be matched by the data passed to the forest methods.
+/// seed : int
+///     Master seed, 64-bit unsigned. Per-tree seeds are derived from it in
+///     advance, so the forest does not depend on `num_threads`.
+/// n_trees : int
+///     Number of trees to build.
+/// n_subsamples : int
+///     Number of samples drawn per tree, must be positive and not greater
+///     than `n_samples`.
+/// max_depth : int
+///     Maximum tree depth, must not exceed 65535.
+/// num_threads : int
+///     Number of threads to build the trees with, 1 means serial execution.
+///     The value is stored in the forest and reused by its traversals.
 ///
 /// Returns
 /// -------
 /// CoreForest
+///
+/// Raises
+/// ------
+/// ValueError
+///     If the data is empty, not contiguous, or any of the size arguments is
+///     out of the range given above.
 #[pyfunction]
 #[pyo3(signature = (data, *, seed, n_trees, n_subsamples, max_depth, num_threads))]
 pub(crate) fn build_core_forest<'py>(
