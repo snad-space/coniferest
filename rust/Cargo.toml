@@ -28,7 +28,8 @@ default = ["pyo3/abi3-py310"]
 
 [dependencies]
 itertools = "0.15"
-pyo3 = { version = "0.29.0", features = ["extension-module"] }
+# 0.29.1 fixes https://github.com/PyO3/pyo3/issues/6211 (__inplace_concat__)
+pyo3 = { version = "0.29.1", features = ["extension-module"] }
 # Needs to be consistent with ndarray dependency in numpy
 ndarray = { version = "0.17", features = ["rayon"] }
 num-traits = "0.2"
