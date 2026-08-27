@@ -270,13 +270,13 @@ impl PyCoreForest {
         })
     }
 
-    // https://github.com/PyO3/pyo3/issues/6211
-    /*
     /// Implements += operator (iadd) between two forests.
     ///
     /// Uses num_threads of the left forest.
-    fn __inplace_concat__<'py>(slf: Bound<'py, Self>, other: Bound<'py, Self>) -> PyResult<Bound<'py, Self>> {
-        println!("__inplace_concat__");
+    fn __inplace_concat__<'py>(
+        slf: Bound<'py, Self>,
+        other: Bound<'py, Self>,
+    ) -> PyResult<Bound<'py, Self>> {
         // If doing `forest += forest`
         if slf.is(&other) {
             Ok(Self::__inplace_repeat__(slf, 2))
@@ -295,8 +295,8 @@ impl PyCoreForest {
             Ok(slf)
         }
     }
-    */
 
+    /// Implements * operator (mul) for a forest.
     fn __repeat__(&self, count: usize) -> Self {
         on_forest_inner!(&self.0, forest => {
             let new_forest = if count == 0 {
@@ -314,8 +314,6 @@ impl PyCoreForest {
         })
     }
 
-    // https://github.com/PyO3/pyo3/issues/6211
-    /*
     /// Implements the *= operator (imul) for a forest.
     fn __inplace_repeat__<'py>(slf: Bound<'py, Self>, count: usize) -> Bound<'py, Self> {
         {
@@ -336,5 +334,4 @@ impl PyCoreForest {
         }
         slf
     }
-    */
 }
