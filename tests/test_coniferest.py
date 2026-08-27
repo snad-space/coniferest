@@ -242,6 +242,53 @@ def test_core_forest_concat_feature_mismatch(n_jobs):
         forest4 + forest3
 
 
+def test_core_forest_inplace_concat(n_jobs):
+    forest = build_forest(0, n_jobs=n_jobs)
+    other = build_forest(1, n_jobs=n_jobs)
+    expected = list(forest) + list(other)
+    original = forest
+
+    forest += other
+
+    assert forest is original
+    assert len(forest) == len(expected)
+    assert len(other) == len(expected) // 2
+    assert forest.n_features == other.n_features
+    for tree, tree_expected in zip(forest, expected):
+        assert_tree_equal(tree, tree_expected)
+
+
+def test_core_forest_inplace_concat_self(n_jobs):
+    forest = build_forest(0, n_jobs=n_jobs)
+    expected = list(forest) * 2
+    original = forest
+
+    forest += forest
+
+    assert forest is original
+    assert len(forest) == len(expected)
+    for tree, tree_expected in zip(forest, expected):
+        assert_tree_equal(tree, tree_expected)
+
+
+def test_core_forest_inplace_concat_feature_mismatch(n_jobs):
+    forest4 = _small_core_forest(np.float64, n_features=4, n_jobs=n_jobs)
+    forest3 = _small_core_forest(np.float64, n_features=3, n_jobs=n_jobs)
+    n = len(forest4)
+    with pytest.raises(ValueError):
+        forest4 += forest3
+    assert len(forest4) == n
+
+
+def test_core_forest_inplace_concat_dtype_mismatch(n_jobs):
+    forest64 = _small_core_forest(np.float64, n_jobs=n_jobs)
+    forest32 = _small_core_forest(np.float32, n_jobs=n_jobs)
+    n = len(forest64)
+    with pytest.raises(TypeError):
+        forest64 += forest32
+    assert len(forest64) == n
+
+
 def test_core_forest_repeat(n_jobs):
     forest = build_forest(0, n_jobs=n_jobs)
     n = len(forest)
@@ -259,3 +306,41 @@ def test_core_forest_repeat_zero(n_jobs):
     empty = forest * 0
     assert len(empty) == 0
     assert empty.n_features == forest.n_features
+
+
+def test_core_forest_inplace_repeat(n_jobs):
+    forest = build_forest(0, n_jobs=n_jobs)
+    expected = list(forest) * 3
+    original = forest
+
+    forest *= 3
+
+    assert forest is original
+    assert len(forest) == len(expected)
+    assert forest.n_features == original.n_features
+    for tree, tree_expected in zip(forest, expected):
+        assert_tree_equal(tree, tree_expected)
+
+
+def test_core_forest_inplace_repeat_one(n_jobs):
+    forest = build_forest(0, n_jobs=n_jobs)
+    expected = list(forest)
+    original = forest
+
+    forest *= 1
+
+    assert forest is original
+    for tree, tree_expected in zip(forest, expected):
+        assert_tree_equal(tree, tree_expected)
+
+
+def test_core_forest_inplace_repeat_zero(n_jobs):
+    forest = build_forest(0, n_jobs=n_jobs)
+    n_features = forest.n_features
+    original = forest
+
+    forest *= 0
+
+    assert forest is original
+    assert len(forest) == 0
+    assert forest.n_features == n_features
