@@ -5,7 +5,6 @@ import clarabel
 import numpy as np
 from scipy import sparse
 
-from ._core import calc_paths_sum  # noqa
 from .coniferest import Coniferest, ConiferestEvaluator
 from .label import Label
 
@@ -25,7 +24,7 @@ class AADEvaluator(ConiferestEvaluator):
         # Global-leaf-indexed array of the mapped decision values: it is used
         # both for scoring (overriding the raw values stored in the trees)
         # and for building the optimization problem in fit_known
-        self.leaf_values = aad.map_value(self.combine_leaf_values(self.trees))
+        self.leaf_values = aad.map_value(self.combine_leaf_values(self.core_forest))
 
     def _q_tau(self, scores):
         if self.budget == "auto":
@@ -65,12 +64,10 @@ class AADEvaluator(ConiferestEvaluator):
         if weights is None:
             weights = self.weights
 
-        return calc_paths_sum(
-            self.trees,
+        return self.core_forest.calc_paths_sum(
             x,
             weights,
             leaf_values=self.leaf_values,
-            num_threads=self.num_threads,
             batch_size=self.batch_size,
         )
 
@@ -271,7 +268,6 @@ class AADForest(Coniferest):
         map_value=None,
     ):
         super().__init__(
-            trees=[],
             n_subsamples=n_subsamples,
             max_depth=max_depth,
             n_jobs=n_jobs,
@@ -313,9 +309,9 @@ class AADForest(Coniferest):
 
         self.evaluator = None
 
-    def _build_trees(self, data):
-        if len(self.trees) == 0:
-            self.trees = self.build_trees(data, self.n_trees)
+    def _build_forest(self, data):
+        if self.core_forest is None:
+            self.core_forest = self.build_forest(data, self.n_trees)
             self.evaluator = AADEvaluator(self)
 
     def fit(self, data, labels=None):
@@ -369,7 +365,7 @@ class AADForest(Coniferest):
 
         known_data, known_labels = self._validate_known_data(known_data, known_labels)
 
-        self._build_trees(data)
+        self._build_forest(data)
 
         if (
             known_data is None

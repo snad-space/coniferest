@@ -1,23 +1,13 @@
-use crate::tree::{Leaf, Node, SplitNode, Tree, TreeDtype, TreeInner};
-use crate::tree_traversal::Data;
+use crate::float::Float;
+use crate::tree::inner::TreeInner;
+use crate::tree::node::{Leaf, Node, SplitNode};
 use crate::utils::average_path_length;
 use itertools::Itertools;
-use ndarray::ArrayView2;
-use numpy::{Element, PyReadonlyArray2};
-use pyo3::exceptions::PyValueError;
-use pyo3::{PyResult, Python, pyfunction};
-use rand::distr::uniform::SampleUniform;
+use ndarray::ArrayRef2;
 use rand::distr::{Distribution, Uniform};
-use rand::{Rng, RngExt, SeedableRng};
-use rand_xoshiro::Xoshiro256PlusPlus;
-use rayon::prelude::*;
+use rand::{Rng, RngExt};
 use std::mem::MaybeUninit;
 use std::num::NonZeroU32;
-
-/// Everything a [SplitAlgorithm] needs from `T` to choose a split.
-pub(crate) trait SplitterValue: Copy + PartialOrd + SampleUniform {}
-
-impl<T> SplitterValue for T where T: Copy + PartialOrd + SampleUniform {}
 
 /// Node splitting logic, customizable per the tree kind.
 pub(crate) trait SplitAlgorithm<T> {
@@ -27,7 +17,7 @@ pub(crate) trait SplitAlgorithm<T> {
     /// The returned value must partition `indices` into two non-empty parts.
     fn choose_split(
         &mut self,
-        data: &ArrayView2<T>,
+        data: &ArrayRef2<T>,
         indices: &[usize],
         rng: &mut impl Rng,
     ) -> Option<(u32, T)>;
@@ -55,11 +45,11 @@ impl ItreeSplitter {
 
 impl<T> SplitAlgorithm<T> for ItreeSplitter
 where
-    T: SplitterValue,
+    T: Float,
 {
     fn choose_split(
         &mut self,
-        data: &ArrayView2<T>,
+        data: &ArrayRef2<T>,
         indices: &[usize],
         rng: &mut impl Rng,
     ) -> Option<(u32, T)> {
@@ -99,11 +89,11 @@ pub(crate) enum Splitter {
 
 impl<T> SplitAlgorithm<T> for Splitter
 where
-    T: SplitterValue,
+    T: Float,
 {
     fn choose_split(
         &mut self,
-        data: &ArrayView2<T>,
+        data: &ArrayRef2<T>,
         indices: &[usize],
         rng: &mut impl Rng,
     ) -> Option<(u32, T)> {
@@ -203,18 +193,15 @@ impl<T> NodesBuilder<T> {
 
 impl<T> TreeInner<T>
 where
-    T: Copy + PartialOrd,
+    T: Float,
 {
     /// Build a single isolation tree from a random subsample of `data` rows.
     pub(crate) fn build(
-        data: &ArrayView2<T>,
+        data: &ArrayRef2<T>,
         n_subsamples: usize,
         max_depth: u16,
         mut rng: impl Rng,
-    ) -> Self
-    where
-        T: SampleUniform,
-    {
+    ) -> Self {
         // Subsample without replacement
         let indices: Vec<usize> =
             rand::seq::index::sample(&mut rng, data.nrows(), n_subsamples).into_vec();
@@ -226,7 +213,7 @@ where
     /// Build a single tree from the given subsample of `data` rows, using
     /// a custom splitting logic.
     pub(crate) fn build_with_splitter<S>(
-        data: &ArrayView2<T>,
+        data: &ArrayRef2<T>,
         mut indices: Vec<usize>,
         max_depth: u16,
         mut splitter: S,
@@ -324,135 +311,7 @@ where
             .map(|&n| average_path_length(n))
             .collect();
 
-        TreeInner {
-            nodes,
-            node_average_path_length,
-            n_leaves,
-            n_subsamples,
-            n_features: data.ncols() as u32,
-        }
-    }
-}
-
-/// Everything needed to build trees for a dtype exposed to Python: dtype
-/// dispatch ([TreeDtype]), the numpy/threading plumbing, and the numeric
-/// operations the splitters rely on ([SplitterValue]).
-pub(crate) trait TreeBuildDtype: TreeDtype + SplitterValue + Element + Send + Sync {}
-
-impl<T> TreeBuildDtype for T where T: TreeDtype + SplitterValue + Element + Send + Sync {}
-
-fn build_trees_impl<T>(
-    py: Python<'_>,
-    data: &PyReadonlyArray2<'_, T>,
-    seed: u64,
-    n_trees: usize,
-    n_subsamples: usize,
-    max_depth: usize,
-    num_threads: usize,
-) -> PyResult<Vec<Tree>>
-where
-    T: TreeBuildDtype,
-{
-    let data_view = data.as_array();
-    if !data_view.is_standard_layout() {
-        return Err(PyValueError::new_err(
-            "data must be contiguous and in memory order",
-        ));
-    }
-    if n_subsamples == 0 || n_subsamples > data_view.nrows() {
-        return Err(PyValueError::new_err(
-            "n_subsamples must be positive and not greater than the number of samples",
-        ));
-    }
-    // Node and feature indices are stored as u32
-    if 2 * n_subsamples - 1 > u32::MAX as usize {
-        return Err(PyValueError::new_err(
-            "n_subsamples exceeds 2^31, IsolationForest usually doesn't require a huge number of samples. Please set a lower value or request support for larger trees",
-        ));
-    }
-    if data_view.ncols() > u32::MAX as usize {
-        return Err(PyValueError::new_err(
-            "number of features is equal or larger than 2^32, it is likely to be a mistake with data shape",
-        ));
-    }
-    if data_view.is_empty() {
-        return Err(PyValueError::new_err("data must not be empty"));
-    }
-    // A deeper tree is not possible: every split isolates at least one sample
-    let max_depth = u16::try_from(max_depth)
-        .map_err(|_| PyValueError::new_err(format!("max_depth must not exceed {}", u16::MAX)))?;
-
-    // Sample random seeds for all the tree building jobs in advance, so the
-    // result does not depend on the number of threads
-    let mut master_rng = Xoshiro256PlusPlus::seed_from_u64(seed);
-    let child_seeds_iter = (0..n_trees).map(|_| master_rng.next_u64());
-    let tree_build_fn = |child_seed| {
-        let rng = Xoshiro256PlusPlus::seed_from_u64(child_seed);
-        TreeInner::build(&data_view, n_subsamples, max_depth, rng)
-    };
-
-    let trees: Vec<TreeInner<T>> = py.detach(|| {
-        if num_threads == 1 {
-            child_seeds_iter.map(tree_build_fn).collect()
-        } else {
-            rayon::ThreadPoolBuilder::new()
-                .num_threads(num_threads)
-                .build()
-                .expect("Cannot build rayon ThreadPool")
-                // We have to collect first, the alternative is to use `par_bridge`, but it doesn't
-                // keep the order of the trees, so reproducibiliy may be affected.
-                .install(|| {
-                    child_seeds_iter
-                        .collect::<Vec<_>>()
-                        .into_par_iter()
-                        .map(tree_build_fn)
-                        .collect()
-                })
-        }
-    });
-
-    Ok(trees
-        .into_iter()
-        .map(|inner| Tree(T::wrap(inner)))
-        .collect())
-}
-
-/// Build isolation trees in parallel.
-///
-/// `n_trees` trees are built, each from its own random subsample of `data`
-/// rows. Per-tree random seeds are derived from `seed` in advance, so the
-/// result is reproducible and does not depend on `num_threads` (0 means all
-/// available CPUs). Returns a list of `Tree` objects.
-#[pyfunction]
-#[pyo3(signature = (data, seed, n_trees, n_subsamples, max_depth, *, num_threads))]
-pub(crate) fn build_trees<'py>(
-    py: Python<'py>,
-    data: Data<'py>,
-    seed: u64,
-    n_trees: usize,
-    n_subsamples: usize,
-    max_depth: usize,
-    num_threads: usize,
-) -> PyResult<Vec<Tree>> {
-    match &data {
-        Data::F64(array) => build_trees_impl(
-            py,
-            array,
-            seed,
-            n_trees,
-            n_subsamples,
-            max_depth,
-            num_threads,
-        ),
-        Data::F32(array) => build_trees_impl(
-            py,
-            array,
-            seed,
-            n_trees,
-            n_subsamples,
-            max_depth,
-            num_threads,
-        ),
+        TreeInner::new(nodes, node_average_path_length, n_leaves, n_subsamples)
     }
 }
 
@@ -460,6 +319,8 @@ pub(crate) fn build_trees<'py>(
 mod bench_alloc {
     use super::*;
     use ndarray::Array2;
+    use rand::SeedableRng;
+    use rand_xoshiro::Xoshiro256PlusPlus;
     use test::Bencher;
 
     fn make_data() -> Array2<f64> {
@@ -502,13 +363,14 @@ mod bench_alloc {
 mod tests {
     use super::*;
     use ndarray::Array1;
+    use rand::SeedableRng;
 
     struct EqualHalfSplitter;
 
     impl SplitAlgorithm<f64> for EqualHalfSplitter {
         fn choose_split(
             &mut self,
-            data: &ArrayView2<f64>,
+            data: &ArrayRef2<f64>,
             indices: &[usize],
             _rng: &mut impl Rng,
         ) -> Option<(u32, f64)> {
@@ -545,12 +407,11 @@ mod tests {
             // not used
             rand::rngs::StdRng::seed_from_u64(0),
         );
-        assert_eq!(tree.n_leaves, 16);
-        assert_eq!(tree.n_subsamples, 16);
-        assert_eq!(tree.n_features, 1);
-        assert_eq!(tree.nodes.len(), (2 << max_depth as usize) - 1);
+        assert_eq!(tree.n_leaves(), 16);
+        assert_eq!(tree.n_subsamples(), 16);
+        assert_eq!(tree.nodes().len(), (2 << max_depth as usize) - 1);
         assert_eq!(
-            tree.node_average_path_length.len(),
+            tree.node_average_path_length().len(),
             (2 << max_depth as usize) - 1
         );
 
@@ -601,7 +462,7 @@ mod tests {
                 vec![average_path_length::<_, f32>(count); 1 << depth]
             })
             .collect();
-        let mut actual = tree.node_average_path_length.clone();
+        let mut actual = tree.node_average_path_length().to_vec();
         expected.sort_by(f32::total_cmp);
         actual.sort_by(f32::total_cmp);
         assert_eq!(actual, expected);
@@ -627,16 +488,16 @@ mod tests {
         );
 
         let mut leaf_indices: Vec<u32> = tree
-            .nodes
+            .nodes()
             .iter()
             .filter_map(|node| match node {
                 Node::Leaf(leaf) => Some(leaf.leaf_index),
                 Node::Split(_) => None,
             })
             .collect();
-        assert_eq!(leaf_indices.len(), tree.n_leaves as usize);
+        assert_eq!(leaf_indices.len(), tree.n_leaves() as usize);
 
         leaf_indices.sort_unstable();
-        assert_eq!(leaf_indices, (0..tree.n_leaves).collect::<Vec<_>>());
+        assert_eq!(leaf_indices, (0..tree.n_leaves()).collect::<Vec<_>>());
     }
 }
