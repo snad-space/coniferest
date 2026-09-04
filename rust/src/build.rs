@@ -11,7 +11,7 @@ use rand::distr::{Distribution, Uniform};
 use rand::{Rng, RngExt, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
 use rayon::prelude::*;
-use std::collections::VecDeque;
+use std::mem::MaybeUninit;
 use std::num::NonZeroU32;
 
 /// Everything a [SplitAlgorithm] needs from `T` to choose a split.
@@ -113,15 +113,92 @@ where
     }
 }
 
-/// A pending node-splitting job: build a node at `depth` from the subsample
-/// indices in `slice`, a disjoint part of the tree's subsample index array.
+/// A pending node-splitting job: build the node at `node_index` and `depth`
+/// from the subsample indices in `slice`, a disjoint part of the tree's
+/// subsample index array.
 ///
-/// The task queue is FIFO and node indices are allocated in the enqueue
-/// order, so tasks are processed in the node index order and the node built
-/// by the i-th task is the i-th node of the tree.
+/// `node_index` is the node's final position in the tree; it is allocated by
+/// the parent (see [NodesBuilder]) before the task is enqueued. Tasks are run
+/// from a LIFO stack, so the build is depth-first and tasks are *not* processed
+/// in node-index order.
 struct Task<'a> {
+    node_index: usize,
     depth: u16,
     slice: &'a mut [usize],
+}
+
+/// Grow-only arena of tree nodes that are allocated and filled in separate
+/// steps. During a depth-first build a node's index is allocated by its parent
+/// (via [`push_uninit`](Self::push_uninit)) before the node itself is known, so
+/// slots are written out of order by [`insert`](Self::insert). Uninitialized
+/// slots are held as [`MaybeUninit`], which avoids requiring `N: Default`.
+struct NodesBuilder<T> {
+    nodes: Vec<MaybeUninit<Node<T>>>,
+    n_node_samples: Vec<f32>,
+}
+
+impl<T> NodesBuilder<T> {
+    /// Create a builder with room for `capacity` nodes and the root slot
+    /// (index 0) already allocated.
+    fn with_capacity(capacity: usize) -> Self {
+        let mut slf = Self {
+            nodes: Vec::with_capacity(capacity),
+            n_node_samples: Vec::with_capacity(capacity),
+        };
+        slf.push_uninit();
+        slf
+    }
+
+    /// Allocate a new, still-uninitialized node slot and return its index.
+    fn push_uninit(&mut self) -> usize {
+        let new_last_index = self.len();
+        self.nodes.push(MaybeUninit::uninit());
+        self.n_node_samples.push(0.0);
+        new_last_index
+    }
+
+    /// Write `node` into a previously allocated slot.
+    ///
+    /// # Safety
+    /// `index` must be a slot allocated by [`push_uninit`](Self::push_uninit).
+    /// Overwriting an already-initialized slot leaks it rather than dropping,
+    /// but is otherwise sound.
+    unsafe fn insert(&mut self, index: usize, node: Node<T>, n_samples: usize) {
+        let node = MaybeUninit::new(node);
+        let n_samples = n_samples as f32;
+        unsafe { *self.nodes.as_mut_ptr().add(index) = node };
+        unsafe { *self.n_node_samples.as_mut_ptr().add(index) = n_samples };
+    }
+
+    /// Consume the builder and return the nodes as a plain `Vec<N>`.
+    ///
+    /// # Safety
+    /// Every slot allocated by [`push_uninit`](Self::push_uninit) must have
+    /// been initialized by [`insert`](Self::insert).
+    unsafe fn build(self) -> (Vec<Node<T>>, Vec<f32>, u32) {
+        // `MaybeUninit<N>` has the same layout as `N`, so once every element is
+        //  initialized, the two vectors are layout-compatible.
+        let mut nodes =
+            unsafe { std::mem::transmute::<Vec<MaybeUninit<Node<T>>>, Vec<Node<T>>>(self.nodes) };
+        nodes.shrink_to_fit();
+
+        let mut leaf_index = 0;
+        for node in nodes.iter_mut() {
+            match node {
+                Node::Leaf(leaf) => {
+                    leaf.leaf_index = leaf_index;
+                    leaf_index += 1;
+                }
+                Node::Split(_) => {}
+            }
+        }
+
+        (nodes, self.n_node_samples, leaf_index)
+    }
+
+    fn len(&self) -> usize {
+        self.nodes.len()
+    }
 }
 
 impl<T> TreeInner<T>
@@ -165,25 +242,26 @@ where
         // so we reserve approximately half of this estimate.
         let node_vector_capacity = usize::min(n_subsamples, 1 << max_depth as usize);
 
-        let mut nodes: Vec<Node<T>> = Vec::with_capacity(node_vector_capacity);
-        // Kept on the side during the build, converted to the average path
-        // length sidecar array afterward
-        let mut n_node_samples: Vec<u32> = Vec::with_capacity(node_vector_capacity);
-        let mut n_leaves: u32 = 0;
-        // The root takes index 0, its task is the first in the queue
-        let mut next_node_index: NonZeroU32 = NonZeroU32::new(1).unwrap();
+        let mut builder = NodesBuilder::with_capacity(node_vector_capacity);
 
-        let mut queue: VecDeque<Task> = VecDeque::with_capacity(node_vector_capacity);
-        queue.push_back(Task {
+        // LIFO queue of tasks: the first task is the root node, and tasks are being added in the
+        // reverse order. This makes the build happening depth-first, so we need up to
+        // max_depth + 1 tasks scheduled
+        let mut queue: Vec<Task> = Vec::with_capacity(max_depth as usize + 1);
+        queue.push(Task {
+            node_index: 0,
             depth: 0,
             slice: indices.as_mut_slice(),
         });
 
-        // Tasks are processed in the node index order (see `Task` docs),
-        // so the nodes are simply pushed one by one
-        while let Some(Task { depth, slice }) = queue.pop_front() {
-            n_node_samples.push(slice.len() as u32);
-
+        // Depth-first (see `Task` docs): each node is written to its own
+        // pre-allocated `node_index`, not in the order tasks are processed
+        while let Some(Task {
+            node_index,
+            depth,
+            slice,
+        }) = queue.pop()
+        {
             let split = if depth < max_depth && slice.len() >= 2 {
                 splitter.choose_split(data, slice, &mut rng)
             } else {
@@ -192,39 +270,54 @@ where
 
             match split {
                 None => {
-                    nodes.push(Node::Leaf(Leaf {
-                        leaf_index: n_leaves,
-                        value: depth as f32 + average_path_length::<_, f32>(slice.len()),
-                    }));
-                    n_leaves += 1;
+                    // SAFETY: we pre-allocated this node_index
+                    unsafe {
+                        builder.insert(
+                            node_index,
+                            Node::Leaf(Leaf {
+                                // Temporary: we will re-assign bellow
+                                leaf_index: 0,
+                                value: depth as f32 + average_path_length::<_, f32>(slice.len()),
+                            }),
+                            slice.len(),
+                        )
+                    };
                 }
                 Some((feature, value)) => {
-                    nodes.push(Node::Split(SplitNode {
-                        left_node_index: next_node_index,
+                    let left_node_index = builder.push_uninit();
+                    let right_node_index = builder.push_uninit();
+
+                    // SAFETY: we pre-allocated this node_index when push_uinit() was called,
+                    // either in the previous iteration or in the root node's allocation.
+                    unsafe {
+                        builder.insert(node_index, Node::Split(SplitNode {
+                        left_node_index: NonZeroU32::new(left_node_index.try_into().expect("number of nodes exceeded 2^32, please specify smaller max_depth or request support for larger trees")).unwrap(),
                         split_feature: feature,
                         split_value: value,
-                    }));
-                    next_node_index = next_node_index.checked_add(2).expect("number of nodes exceeded 2^32, please specify smaller max_depth or request support for larger trees");
+                    }), slice.len());
+                    };
 
                     let mid = itertools::partition(slice.iter_mut(), |&i| {
                         // SAFETY: indices are valid row indices and feature < data.ncols()
                         *unsafe { data.uget([i, feature as usize]) } <= value
                     });
                     let (left_slice, right_slice) = slice.split_at_mut(mid);
-                    queue.push_back(Task {
-                        depth: depth + 1,
-                        slice: left_slice,
-                    });
-                    queue.push_back(Task {
+                    queue.push(Task {
+                        node_index: right_node_index,
                         depth: depth + 1,
                         slice: right_slice,
+                    });
+                    queue.push(Task {
+                        node_index: left_node_index,
+                        depth: depth + 1,
+                        slice: left_slice,
                     });
                 }
             }
         }
 
-        // The tree may be shallower than the upper limit we reserved for
-        nodes.shrink_to_fit();
+        // SAFETY: the node vector is fully initialized, and we can safely build it.
+        let (nodes, n_node_samples, n_leaves) = unsafe { builder.build() };
 
         let node_average_path_length = n_node_samples
             .iter()
@@ -402,5 +495,148 @@ mod bench_alloc {
             let rng = Xoshiro256PlusPlus::seed_from_u64(0);
             TreeInner::build(view, n_subsamples, max_depth, rng)
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ndarray::Array1;
+
+    struct EqualHalfSplitter;
+
+    impl SplitAlgorithm<f64> for EqualHalfSplitter {
+        fn choose_split(
+            &mut self,
+            data: &ArrayView2<f64>,
+            indices: &[usize],
+            _rng: &mut impl Rng,
+        ) -> Option<(u32, f64)> {
+            let feature = 0;
+            let (min, max) = indices
+                .iter()
+                .map(|&i| data[[i, feature as usize]])
+                .minmax()
+                .into_option()?;
+            if min == max {
+                return None;
+            }
+            let split_value = (min + max) / 2.0;
+            Some((feature, split_value))
+        }
+    }
+
+    /// Test that the tree building algorithm works correctly on a simple 1-d dataset and
+    /// deterministic equal-half splitter.
+    #[test]
+    fn build_algorithm() {
+        let max_depth = 4;
+        let n_samples = 1 << max_depth as usize;
+        let data = (0..n_samples)
+            .map(|i| i as f64)
+            .collect::<Array1<_>>()
+            .into_shape_with_order((n_samples, 1))
+            .unwrap();
+        let tree = TreeInner::build_with_splitter(
+            &data.view(),
+            (0..n_samples).collect(),
+            max_depth,
+            EqualHalfSplitter,
+            // not used
+            rand::rngs::StdRng::seed_from_u64(0),
+        );
+        assert_eq!(tree.n_leaves, 16);
+        assert_eq!(tree.n_subsamples, 16);
+        assert_eq!(tree.n_features, 1);
+        assert_eq!(tree.nodes.len(), (2 << max_depth as usize) - 1);
+        assert_eq!(
+            tree.node_average_path_length.len(),
+            (2 << max_depth as usize) - 1
+        );
+
+        // Using visitor pattern check that paths are correct
+        {
+            // Smaller than the smallest value
+            let mut n_samples_left = n_samples;
+            tree.for_each_split(&[-1.0], |_node_index, split, child_index| {
+                // We should go left each time
+                assert_eq!(child_index % 2, 1);
+                assert_eq!(split.split_feature, 0);
+                assert_eq!(split.split_value, (n_samples_left as f64 - 1.0) / 2.0);
+                n_samples_left /= 2;
+            });
+        }
+        {
+            // Larger than the largest value
+            let mut n_samples_left = n_samples;
+            tree.for_each_split(&[n_samples as f64], |_node_index, split, child_index| {
+                // We should go right each time
+                assert_eq!(child_index % 2, 0);
+                assert_eq!(split.split_feature, 0);
+                assert_eq!(
+                    split.split_value,
+                    (n_samples as f64 - 1.0) - (n_samples_left as f64 - 1.0) / 2.0
+                );
+                n_samples_left /= 2;
+            });
+        }
+        {
+            // Median value
+            let mut going_left = true;
+            let median = (n_samples as f64 - 1.0) / 2.0;
+            tree.for_each_split(&[median], |_node_index, split, child_index| {
+                // We go left first time, and go right each time after
+                assert_eq!(child_index % 2, going_left as usize);
+                going_left = false;
+                assert_eq!(split.split_feature, 0);
+            });
+        }
+
+        // node_average_path_length holds average_path_length of each node's
+        // subsample size. This complete tree has 2^d nodes of n_samples >> d
+        // samples at every depth d.
+        let mut expected: Vec<f32> = (0..=max_depth)
+            .flat_map(|depth| {
+                let count = n_samples >> depth;
+                vec![average_path_length::<_, f32>(count); 1 << depth]
+            })
+            .collect();
+        let mut actual = tree.node_average_path_length.clone();
+        expected.sort_by(f32::total_cmp);
+        actual.sort_by(f32::total_cmp);
+        assert_eq!(actual, expected);
+    }
+
+    /// Check that leaf indices are a perturbation of 0..n_samples
+    #[test]
+    fn leaf_indices() {
+        let max_depth = 4;
+        let n_samples = 1 << max_depth as usize;
+        let data = (0..n_samples)
+            .map(|i| i as f64)
+            .collect::<Array1<_>>()
+            .into_shape_with_order((n_samples, 1))
+            .unwrap();
+        let tree = TreeInner::build_with_splitter(
+            &data.view(),
+            (0..n_samples).collect(),
+            max_depth,
+            EqualHalfSplitter,
+            // not used
+            rand::rngs::StdRng::seed_from_u64(0),
+        );
+
+        let mut leaf_indices: Vec<u32> = tree
+            .nodes
+            .iter()
+            .filter_map(|node| match node {
+                Node::Leaf(leaf) => Some(leaf.leaf_index),
+                Node::Split(_) => None,
+            })
+            .collect();
+        assert_eq!(leaf_indices.len(), tree.n_leaves as usize);
+
+        leaf_indices.sort_unstable();
+        assert_eq!(leaf_indices, (0..tree.n_leaves).collect::<Vec<_>>());
     }
 }
