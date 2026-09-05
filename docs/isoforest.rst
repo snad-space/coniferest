@@ -21,7 +21,7 @@ This is because scoring, which is essential for anomaly detection, requires the 
 
 Despite the fact that the ``.score_samples()`` method is not parallelized, thus creating a performance bottleneck in the ``scikit-learn`` implementation, we have addressed this in our own version.
 
-See `API documentation <coniferest.isoforest.IsolationForest>` for usage details, and see examples below for basic usage and performance comparison with scikit-learn.
+See :class:`API documentation <coniferest.isoforest.IsolationForest>` for usage details, and see examples below for basic usage and performance comparison with scikit-learn.
 
 Examples
 --------
