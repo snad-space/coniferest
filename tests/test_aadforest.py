@@ -114,6 +114,7 @@ def test_benchmark_fit_known(n_jobs, benchmark):
 
     benchmark(forest.fit_known, data, known_data=known_data, known_labels=known_labels)
 
+
 def test_mapped_leaf_values_are_baked_into_trees():
     """
     Regression test for #368: AADEvaluator used to keep the mapped decision

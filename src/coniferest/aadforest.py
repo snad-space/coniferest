@@ -48,6 +48,7 @@ class AADEvaluator(ConiferestEvaluator):
             baked.append(tree.with_leaf_values(chunk))
             offset += n_leaves
         return baked
+
     def _q_tau(self, scores):
         if self.budget == "auto":
             # When the regularization is disabled then the problem is degenerate

@@ -115,6 +115,7 @@ def test_tree_structure():
     assert np.all(leaf_values > 0)
     assert_equal(np.sort(tree.value[leaf_mask]), np.sort(leaf_values))
 
+
 def test_with_leaf_values_replaces_leaves_only():
     tree = build_trees(0, n_trees=1)[0]
 
