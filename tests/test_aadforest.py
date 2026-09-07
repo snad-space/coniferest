@@ -113,3 +113,18 @@ def test_benchmark_fit_known(n_jobs, benchmark):
     forest.fit(data)
 
     benchmark(forest.fit_known, data, known_data=known_data, known_labels=known_labels)
+
+def test_mapped_leaf_values_are_baked_into_trees():
+    """
+    Regression test for #368: AADEvaluator used to keep the mapped decision
+    values only in a separate `self.leaf_values` array, passed as an
+    override to `calc_paths_sum`. They should now also be written into the
+    trees themselves (via `Tree.with_leaf_values`), matching
+    `self.leaf_values` exactly.
+    """
+    data = np.arange(1024.0).reshape(256, 4)
+    forest = AADForest(n_trees=5, random_seed=0).fit(data)
+    evaluator = forest.evaluator
+
+    baked_values = evaluator.combine_leaf_values(evaluator.trees)
+    np.testing.assert_array_equal(baked_values, evaluator.leaf_values)

@@ -114,3 +114,42 @@ def test_tree_structure():
     leaf_values = tree.leaf_values()
     assert np.all(leaf_values > 0)
     assert_equal(np.sort(tree.value[leaf_mask]), np.sort(leaf_values))
+
+def test_with_leaf_values_replaces_leaves_only():
+    tree = build_trees(0, n_trees=1)[0]
+
+    original_left = tree.left.copy()
+    original_feature = tree.feature.copy()
+    original_dtype = tree.dtype
+
+    new_values = np.arange(tree.n_leaves, dtype=np.float64) + 1.0
+    new_tree = tree.with_leaf_values(new_values)
+
+    # Structure (splits, feature indices, dtype) is untouched
+    assert_equal(new_tree.left, original_left)
+    assert_equal(new_tree.feature, original_feature)
+    assert new_tree.dtype == original_dtype
+    assert new_tree.n_leaves == tree.n_leaves
+    assert new_tree.n_nodes == tree.n_nodes
+
+    # Leaf values now match what was supplied, ordered by leaf_index
+    assert_equal(new_tree.leaf_values(), new_values)
+
+
+def test_with_leaf_values_does_not_mutate_original_tree():
+    tree = build_trees(0, n_trees=1)[0]
+    original_values = tree.leaf_values().copy()
+
+    new_values = original_values + 100.0
+    tree.with_leaf_values(new_values)
+
+    # `tree` itself (frozen) must be unaffected by building a new tree from it
+    assert_equal(tree.leaf_values(), original_values)
+
+
+def test_with_leaf_values_wrong_length_raises():
+    tree = build_trees(0, n_trees=1)[0]
+
+    wrong_length_values = np.zeros(tree.n_leaves + 1, dtype=np.float64)
+    with pytest.raises(ValueError):
+        tree.with_leaf_values(wrong_length_values)
