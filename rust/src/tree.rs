@@ -9,6 +9,7 @@ use std::num::NonZeroU32;
 /// Inner node of a decision tree.
 ///
 /// `T` is the dtype of the training data, f32 or f64.
+#[derive(Clone)]
 pub(crate) struct SplitNode<T> {
     /// Index of the left subtree; `right_node_index = left_node_index + 1`.
     pub(crate) left_node_index: NonZeroU32,
@@ -23,6 +24,7 @@ pub(crate) struct SplitNode<T> {
 /// The struct is 8 bytes, so it fits [Node] outside the niche of
 /// [SplitNode::left_node_index], and the enum needs no explicit tag:
 /// [Node] is the same size as [SplitNode].
+#[derive(Clone)]
 pub(crate) struct Leaf {
     /// Sequential index of the leaf within the tree, in node order.
     pub(crate) leaf_index: u32,
@@ -35,6 +37,7 @@ pub(crate) struct Leaf {
 /// The root is stored at index 0, so no split node can reference it as
 /// a child, and `left_node_index` is never zero. Its niche serves as the
 /// enum discriminant, which is checked by the assertions below.
+#[derive(Clone)]
 pub(crate) enum Node<T> {
     Split(SplitNode<T>),
     Leaf(Leaf),
@@ -50,6 +53,7 @@ const _: () = assert!(
 );
 
 /// Decision tree of an isolation forest, generic over the data dtype.
+#[derive(Clone)]
 pub(crate) struct TreeInner<T> {
     pub(crate) nodes: Vec<Node<T>>,
     /// Sidecar array: average path length for the number of samples in
@@ -403,6 +407,37 @@ impl Tree {
                 }
             }
             PyArray1::from_vec(py, values)
+        })
+    }
+
+    /// Return a new tree with the leaf decision values replaced.
+    ///
+    /// `values` must have length `n_leaves`, ordered by `leaf_index` (the
+    /// same order used by `leaf_values`). This lets Python push
+    /// externally-computed decision values (e.g. AAD-mapped weights)
+    /// straight into the tree, so scoring can use them directly instead of
+    /// keeping a second, separately-maintained array on the Python side.
+    ///
+    /// The returned Tree is a new, independent object: `self` is left
+    /// untouched, so the frozen-tree invariant (safe to traverse from
+    /// multiple threads without the GIL) still holds.
+    fn with_leaf_values(&self, values: PyReadonlyArray1<f64>) -> PyResult<Self> {
+        let values = values.as_slice()?;
+        on_inner!(&self.0, tree => {
+            if values.len() != tree.n_leaves as usize {
+                return Err(PyValueError::new_err(format!(
+                    "values length ({}) does not match n_leaves ({})",
+                    values.len(),
+                    tree.n_leaves,
+                )));
+            }
+            let mut new_tree = tree.clone();
+            for node in new_tree.nodes.iter_mut() {
+                if let Node::Leaf(leaf) = node {
+                    leaf.value = values[leaf.leaf_index as usize] as f32;
+                }
+            }
+            Ok(Self(TreeDtype::wrap(new_tree)))
         })
     }
 
