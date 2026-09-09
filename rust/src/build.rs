@@ -362,3 +362,45 @@ pub(crate) fn build_trees<'py>(
         ),
     }
 }
+
+#[cfg(all(test, coniferest_nightly_bench))]
+mod bench_alloc {
+    use super::*;
+    use ndarray::Array2;
+    use test::Bencher;
+
+    fn make_data() -> Array2<f64> {
+        let n_samples = 16_384usize;
+        let n_features = 16usize;
+        let mut rng = Xoshiro256PlusPlus::seed_from_u64(42);
+        let v: Vec<f64> = (0..n_samples * n_features)
+            .map(|_| rng.random::<f64>())
+            .collect();
+        Array2::from_shape_vec((n_samples, n_features), v).unwrap()
+    }
+
+    /// Run with
+    /// RUSTFLAGS="--cfg coniferest_nightly_bench" cargo +nightly bench --manifest-path rust/Cargo.toml -- --nocapture bench_build_trees
+    #[bench]
+    fn bench_build_trees(b: &mut Bencher) {
+        let n_subsamples = 1024usize;
+        let max_depth: u16 = 10;
+        let data = make_data();
+        let view = data.view();
+
+        let info = allocation_counter::measure(|| {
+            let rng = Xoshiro256PlusPlus::seed_from_u64(0);
+            let _tree = TreeInner::build(&view, n_subsamples, max_depth, rng);
+        });
+        println!(
+            "\n[alloc] {} allocations, {} bytes total, {} bytes peak",
+            info.count_total, info.bytes_total, info.bytes_max,
+        );
+
+        b.iter(|| {
+            let view = std::hint::black_box(&view);
+            let rng = Xoshiro256PlusPlus::seed_from_u64(0);
+            TreeInner::build(view, n_subsamples, max_depth, rng)
+        });
+    }
+}

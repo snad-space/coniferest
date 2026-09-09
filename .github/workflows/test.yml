@@ -48,6 +48,21 @@ jobs:
       - name: Run cargo test
         run: cargo test --all
 
+  rust-nightly-bench:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: rust
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: Run cargo bench
+        run: cargo bench -- --nocapture
+        env:
+          RUSTFLAGS: "--cfg coniferest_nightly_bench"
+
   rust-clippy:
     runs-on: ubuntu-latest
 
