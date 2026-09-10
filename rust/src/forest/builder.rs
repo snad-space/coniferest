@@ -1,25 +1,31 @@
 //! Forest building
 
-use crate::data::Data;
-use crate::tree::{PyTree, TreeDtype, TreeInner};
+use crate::float::Float;
+use crate::forest::inner::ForestInner;
+use crate::forest::py::PyCoreForest;
+use crate::tree::TreeInner;
+use ndarray::ArrayRef2;
 use numpy::PyReadonlyArray2;
 use pyo3::exceptions::PyValueError;
-use pyo3::{PyResult, Python, pyfunction};
-use rand::{Rng, SeedableRng};
+use pyo3::{PyResult, Python};
+use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
+use rayon::iter::IntoParallelIterator;
 use rayon::prelude::*;
+use std::sync::Arc;
 
-fn build_trees_impl<T>(
-    py: Python<'_>,
+pub(super) fn build_forest_py<'py, T>(
+    py: Python<'py>,
     data: &PyReadonlyArray2<'_, T>,
     seed: u64,
     n_trees: usize,
     n_subsamples: usize,
     max_depth: usize,
     num_threads: usize,
-) -> PyResult<Vec<PyTree>>
+) -> PyResult<PyCoreForest>
 where
-    T: TreeDtype,
+    T: Float,
+    PyCoreForest: From<ForestInner<T>>,
 {
     let data_view = data.as_array();
     if !data_view.is_standard_layout() {
@@ -43,6 +49,7 @@ where
             "number of features is equal or larger than 2^32, it is likely to be a mistake with data shape",
         ));
     }
+    let n_features = data_view.ncols() as u32;
     if data_view.is_empty() {
         return Err(PyValueError::new_err("data must not be empty"));
     }
@@ -50,76 +57,73 @@ where
     let max_depth = u16::try_from(max_depth)
         .map_err(|_| PyValueError::new_err(format!("max_depth must not exceed {}", u16::MAX)))?;
 
+    let forest_inner = py.detach(|| {
+        build_forest_inner(
+            &data_view,
+            seed,
+            n_trees,
+            n_subsamples,
+            n_features,
+            max_depth,
+            num_threads,
+        )
+    });
+    Ok(forest_inner.into())
+}
+
+fn build_forest_inner<T>(
+    data: &ArrayRef2<T>,
+    seed: u64,
+    n_trees: usize,
+    n_subsamples: usize,
+    n_features: u32,
+    max_depth: u16,
+    num_threads: usize,
+) -> ForestInner<T>
+where
+    T: Float,
+{
+    let thread_pool = ForestInner::<T>::init_thread_pool(num_threads);
+
+    let trees = build_trees(
+        data,
+        seed,
+        n_trees,
+        n_subsamples,
+        max_depth,
+        thread_pool.as_ref(),
+    );
+
+    ForestInner::with_thread_pool(trees, n_features, thread_pool)
+}
+
+fn build_trees<T>(
+    data: &ArrayRef2<T>,
+    seed: u64,
+    n_trees: usize,
+    n_subsamples: usize,
+    max_depth: u16,
+    thread_pool: Option<&rayon::ThreadPool>,
+) -> Vec<Arc<TreeInner<T>>>
+where
+    T: Float,
+{
     // Sample random seeds for all the tree building jobs in advance, so the
     // result does not depend on the number of threads
     let mut master_rng = Xoshiro256PlusPlus::seed_from_u64(seed);
     let child_seeds_iter = (0..n_trees).map(|_| master_rng.next_u64());
     let tree_build_fn = |child_seed| {
         let rng = Xoshiro256PlusPlus::seed_from_u64(child_seed);
-        TreeInner::build(&data_view, n_subsamples, max_depth, rng)
+        let tree = TreeInner::build(data, n_subsamples, max_depth, rng);
+        Arc::new(tree)
     };
 
-    let trees: Vec<TreeInner<T>> = py.detach(|| {
-        if num_threads == 1 {
-            child_seeds_iter.map(tree_build_fn).collect()
-        } else {
-            rayon::ThreadPoolBuilder::new()
-                .num_threads(num_threads)
-                .build()
-                .expect("Cannot build rayon ThreadPool")
-                // We have to collect first, the alternative is to use `par_bridge`, but it doesn't
-                // keep the order of the trees, so reproducibiliy may be affected.
-                .install(|| {
-                    child_seeds_iter
-                        .collect::<Vec<_>>()
-                        .into_par_iter()
-                        .map(tree_build_fn)
-                        .collect()
-                })
-        }
-    });
-
-    Ok(trees
-        .into_iter()
-        .map(|inner| T::wrap(inner).into())
-        .collect())
-}
-
-/// Build isolation trees in parallel.
-///
-/// `n_trees` trees are built, each from its own random subsample of `data`
-/// rows. Per-tree random seeds are derived from `seed` in advance, so the
-/// result is reproducible and does not depend on `num_threads` (0 means all
-/// available CPUs). Returns a list of `Tree` objects.
-#[pyfunction]
-#[pyo3(signature = (data, seed, n_trees, n_subsamples, max_depth, *, num_threads))]
-pub(crate) fn build_trees<'py>(
-    py: Python<'py>,
-    data: Data<'py>,
-    seed: u64,
-    n_trees: usize,
-    n_subsamples: usize,
-    max_depth: usize,
-    num_threads: usize,
-) -> PyResult<Vec<PyTree>> {
-    match &data {
-        Data::F32(array) => build_trees_impl(
-            py,
-            array,
-            seed,
-            n_trees,
-            n_subsamples,
-            max_depth,
-            num_threads,
-        ),
-        Data::F64(array) => build_trees_impl(
-            py,
-            array,
-            seed,
-            n_trees,
-            n_subsamples,
-            max_depth,
-            num_threads,
-        ),
+    if let Some(pool) = thread_pool {
+        // We have to collect first, the alternative is to use `par_bridge`, but it doesn't
+        // keep the order of the trees, so reproducibiliy may be affected.
+        let child_seeds: Vec<_> = child_seeds_iter.collect();
+        pool.install(|| child_seeds.into_par_iter().map(tree_build_fn).collect())
+    } else {
+        child_seeds_iter.map(tree_build_fn).collect()
     }
 }

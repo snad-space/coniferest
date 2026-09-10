@@ -3,7 +3,7 @@ from warnings import warn
 
 import numpy as np
 
-from ._core import Tree, build_trees  # noqa
+from ._core import Tree, build_core_forest
 from .evaluator import ForestEvaluator
 
 __all__ = ["Coniferest", "ConiferestEvaluator", "Tree"]
@@ -16,8 +16,8 @@ class Coniferest(ABC):
 
     Parameters
     ----------
-    trees : list or None, optional
-        List with the trees in the forest. If None, then empty list is used.
+    core_forest : CoreForest or None, optional
+        Prebuilt forest to start from. If None, the forest is not yet built.
 
     n_subsamples : int, optional
         Subsamples to use for the training.
@@ -36,14 +36,20 @@ class Coniferest(ABC):
     ----------
     n_features_in_ : int
         Number of features seen during :term:`fit`. Available only after
-        the forest has been built (i.e. after :meth:`build_trees`,
+        the forest has been built (i.e. after :meth:`build_forest`,
         :meth:`fit`, or :meth:`fit_known` has been called).
     """
 
     def __init__(
-        self, trees=None, n_subsamples=256, max_depth=None, n_jobs=-1, random_seed=None, sampletrees_per_batch=1 << 20
+        self,
+        core_forest=None,
+        n_subsamples=256,
+        max_depth=None,
+        n_jobs=-1,
+        random_seed=None,
+        sampletrees_per_batch=1 << 20,
     ):
-        self.trees = trees or []
+        self.core_forest = core_forest
         self.n_subsamples = n_subsamples
         self.max_depth = max_depth or int(np.log2(n_subsamples))
 
@@ -55,9 +61,9 @@ class Coniferest(ABC):
     @property
     def n_features_in_(self):
         """Number of features seen during :term:`fit`."""
-        if len(self.trees) == 0:
+        if self.core_forest is None:
             raise AttributeError(f"{self.__class__.__name__} object has no attribute n_features_in_")
-        return self.trees[0].n_features
+        return self.core_forest.n_features
 
     @property
     def num_threads(self):
@@ -74,9 +80,9 @@ class Coniferest(ABC):
             data = data.astype(np.float64)
         return np.ascontiguousarray(data)
 
-    def build_trees(self, data, n_trees):
+    def build_forest(self, data, n_trees):
         """
-        Just build `n_trees` trees from supplied `data`.
+        Build a forest of `n_trees` trees from supplied `data`.
 
         Trees are built in parallel, each tree from its own random subsample
         of `data` rows. Random seeds for the trees are sampled in advance,
@@ -93,7 +99,7 @@ class Coniferest(ABC):
 
         Returns
         -------
-        List of trees.
+        CoreForest
         """
         data = self._prepare_data(data)
         n_population, _n_features = data.shape
@@ -108,7 +114,14 @@ class Coniferest(ABC):
 
         seed = int(self.rng.integers(0, 1 << 64, dtype=np.uint64))
 
-        return build_trees(data, seed, n_trees, n_samples, int(self.max_depth), num_threads=self.num_threads)
+        return build_core_forest(
+            data,
+            seed=seed,
+            n_trees=n_trees,
+            n_subsamples=n_samples,
+            max_depth=int(self.max_depth),
+            num_threads=self.num_threads,
+        )
 
     @staticmethod
     def _validate_known_data(known_data=None, known_labels=None):
@@ -168,7 +181,6 @@ class ConiferestEvaluator(ForestEvaluator):
     def __init__(self, coniferest):
         super().__init__(
             samples=coniferest.n_subsamples,
-            trees=coniferest.trees,
-            num_threads=coniferest.n_jobs,
+            core_forest=coniferest.core_forest,
             sampletrees_per_batch=coniferest.sampletrees_per_batch,
         )
