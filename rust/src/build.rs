@@ -287,14 +287,25 @@ where
                     let left_node_index = builder.push_uninit();
                     let right_node_index = builder.push_uninit();
 
+                    // right_node_index = left_node_index + 1, and we don't want it to overflow
+                    // This also allows us to "silently" use `left_node_index as u32` bellow
+                    assert!(
+                        left_node_index < u32::MAX as usize,
+                        "number of nodes exceeded 2^32, please specify smaller max_depth or request support for larger trees"
+                    );
+
                     // SAFETY: we pre-allocated this node_index when push_uinit() was called,
                     // either in the previous iteration or in the root node's allocation.
                     unsafe {
-                        builder.insert(node_index, Node::Split(SplitNode {
-                        left_node_index: NonZeroU32::new(left_node_index.try_into().expect("number of nodes exceeded 2^32, please specify smaller max_depth or request support for larger trees")).unwrap(),
-                        split_feature: feature,
-                        split_value: value,
-                    }), slice.len());
+                        builder.insert(
+                            node_index,
+                            Node::Split(SplitNode {
+                                left_node_index: NonZeroU32::new(left_node_index as u32).unwrap(),
+                                split_feature: feature,
+                                split_value: value,
+                            }),
+                            slice.len(),
+                        );
                     };
 
                     let mid = itertools::partition(slice.iter_mut(), |&i| {
