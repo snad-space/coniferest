@@ -118,7 +118,7 @@ where
 /// subsample index array.
 ///
 /// `node_index` is the node's final position in the tree; it is allocated by
-/// the parent (see [NodesBuilder]) before the task is enqueued. Tasks are run
+/// the parent (see [NodeArena]) before the task is enqueued. Tasks are run
 /// from a LIFO stack, so the build is depth-first and tasks are *not* processed
 /// in node-index order.
 struct Task<'a> {
@@ -132,12 +132,12 @@ struct Task<'a> {
 /// (via [`push_uninit`](Self::push_uninit)) before the node itself is known, so
 /// slots are written out of order by [`insert`](Self::insert). Uninitialized
 /// slots are held as [`MaybeUninit`], which avoids requiring `N: Default`.
-struct NodesBuilder<T> {
+struct NodeArena<T> {
     nodes: Vec<MaybeUninit<Node<T>>>,
     n_node_samples: Vec<f32>,
 }
 
-impl<T> NodesBuilder<T> {
+impl<T> NodeArena<T> {
     /// Create a builder with room for `capacity` nodes and the root slot
     /// (index 0) already allocated.
     fn with_capacity(capacity: usize) -> Self {
@@ -242,7 +242,7 @@ where
         // so we reserve approximately half of this estimate.
         let node_vector_capacity = usize::min(n_subsamples, 1 << max_depth as usize);
 
-        let mut builder = NodesBuilder::with_capacity(node_vector_capacity);
+        let mut builder = NodeArena::with_capacity(node_vector_capacity);
 
         // LIFO queue of tasks: the first task is the root node, and tasks are being added in the
         // reverse order. This makes the build happening depth-first, so we need up to
