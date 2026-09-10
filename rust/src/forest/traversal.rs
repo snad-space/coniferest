@@ -1,76 +1,13 @@
-use crate::tree::{Tree, TreeDtype, TreeInner};
+use crate::data::Data;
+use crate::forest::inner::Forest;
+use crate::tree::{PyTree, TreeDtype};
 use ndarray::parallel::prelude::*;
 use ndarray::{ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2, Zip};
-use numpy::{Element, PyArray1, PyArray2, PyArrayMethods, PyReadonlyArray1, PyReadonlyArray2};
+use numpy::{PyArray1, PyArray2, PyArrayMethods, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 type DeltaSumHitCount<'py> = (Bound<'py, PyArray2<f64>>, Bound<'py, PyArray2<i64>>);
-
-/// Input data: 2-D numpy array of features, C-contiguous, one sample per row.
-#[derive(FromPyObject)]
-pub(crate) enum Data<'py> {
-    F64(PyReadonlyArray2<'py, f64>),
-    F32(PyReadonlyArray2<'py, f32>),
-}
-
-/// Borrowed trees of the forest with their global leaf offsets.
-///
-/// `Tree` is a frozen pyclass, so the borrows are GIL-independent and the
-/// forest can be traversed in parallel even when stored as a Python list.
-/// All the trees must be built on the data dtype `T`, matching the dtype
-/// of the scored data, so the traversal never casts values.
-struct Forest<'a, T> {
-    trees: Vec<&'a TreeInner<T>>,
-    /// Global leaf index of the first leaf of each tree
-    leaf_offsets: Vec<u32>,
-    n_leaves: usize,
-}
-
-impl<'a, T> Forest<'a, T>
-where
-    T: TreeDtype,
-{
-    fn new(trees: &'a [Py<Tree>], n_features: usize) -> PyResult<Self> {
-        let trees: Vec<&TreeInner<T>> = trees
-            .iter()
-            .map(|tree| {
-                T::tree_inner(tree.get()).ok_or_else(|| {
-                    PyValueError::new_err(format!(
-                        "data dtype is {}, but the tree was built on {} data",
-                        T::NAME,
-                        tree.get().dtype_name(),
-                    ))
-                })
-            })
-            .collect::<PyResult<_>>()?;
-
-        let mut leaf_offsets = Vec::with_capacity(trees.len());
-        let mut n_leaves: u32 = 0;
-        for tree in &trees {
-            if tree.n_features as usize != n_features {
-                return Err(PyValueError::new_err(format!(
-                    "data has {} features, but a tree was built on {} features",
-                    n_features, tree.n_features,
-                )));
-            }
-            leaf_offsets.push(n_leaves);
-            n_leaves = n_leaves
-                .checked_add(tree.n_leaves)
-                .ok_or_else(|| PyValueError::new_err("too many leaves in the forest"))?;
-        }
-
-        Ok(Self {
-            trees,
-            leaf_offsets,
-            n_leaves: n_leaves as usize,
-        })
-    }
-
-    fn iter(&self) -> impl Iterator<Item = (&&TreeInner<T>, u32)> {
-        self.trees.iter().zip(self.leaf_offsets.iter().copied())
-    }
-}
 
 #[inline]
 fn check_data<T>(data: ArrayView2<T>) -> PyResult<()> {
@@ -115,7 +52,7 @@ fn get_num_threads(nrows: usize, num_threads: usize, batch_size: usize) -> PyRes
 #[pyo3(signature = (trees, data, weights = None, leaf_values = None, *, num_threads, batch_size))]
 pub(crate) fn calc_paths_sum<'py>(
     py: Python<'py>,
-    trees: Vec<Py<Tree>>,
+    trees: Vec<Py<PyTree>>,
     data: Data<'py>,
     weights: Option<PyReadonlyArray1<'py, f64>>,
     leaf_values: Option<PyReadonlyArray1<'py, f64>>,
@@ -123,7 +60,7 @@ pub(crate) fn calc_paths_sum<'py>(
     batch_size: usize,
 ) -> PyResult<Bound<'py, PyArray1<f64>>> {
     match &data {
-        Data::F64(array) => calc_paths_sum_generic(
+        Data::F32(array) => calc_paths_sum_generic(
             py,
             &trees,
             array,
@@ -132,7 +69,7 @@ pub(crate) fn calc_paths_sum<'py>(
             num_threads,
             batch_size,
         ),
-        Data::F32(array) => calc_paths_sum_generic(
+        Data::F64(array) => calc_paths_sum_generic(
             py,
             &trees,
             array,
@@ -146,7 +83,7 @@ pub(crate) fn calc_paths_sum<'py>(
 
 fn calc_paths_sum_generic<'py, T>(
     py: Python<'py>,
-    trees: &[Py<Tree>],
+    trees: &[Py<PyTree>],
     data: &PyReadonlyArray2<'py, T>,
     weights: Option<PyReadonlyArray1<'py, f64>>,
     leaf_values: Option<PyReadonlyArray1<'py, f64>>,
@@ -154,7 +91,7 @@ fn calc_paths_sum_generic<'py, T>(
     batch_size: usize,
 ) -> PyResult<Bound<'py, PyArray1<f64>>>
 where
-    T: Element + Copy + Send + Sync + PartialOrd + TreeDtype,
+    T: TreeDtype,
 {
     let data_view = data.as_array();
     check_data(data_view)?;
@@ -163,14 +100,14 @@ where
 
     let weights_view = weights.as_ref().map(|weights| weights.as_array());
     if let Some(weights_view) = weights_view {
-        check_leaf_array(weights_view, forest.n_leaves, "weights")?;
+        check_leaf_array(weights_view, forest.n_leaves(), "weights")?;
     }
 
     let leaf_values_view = leaf_values
         .as_ref()
         .map(|leaf_values| leaf_values.as_array());
     if let Some(leaf_values_view) = leaf_values_view {
-        check_leaf_array(leaf_values_view, forest.n_leaves, "leaf_values")?;
+        check_leaf_array(leaf_values_view, forest.n_leaves(), "leaf_values")?;
     }
 
     let num_threads = get_num_threads(data_view.nrows(), num_threads, batch_size)?;
@@ -201,7 +138,7 @@ fn calc_paths_sum_impl<T>(
     batch_size: usize,
     paths: ArrayViewMut1<f64>,
 ) where
-    T: Copy + Send + Sync + PartialOrd + TreeDtype,
+    T: TreeDtype,
 {
     let inner_fn = |path: &mut f64, sample: ArrayView1<T>| {
         let sample = sample.as_slice().unwrap();
@@ -242,16 +179,16 @@ fn calc_paths_sum_impl<T>(
 #[pyo3(signature = (trees, data, *, num_threads, batch_size))]
 pub(crate) fn calc_feature_delta_sum<'py>(
     py: Python<'py>,
-    trees: Vec<Py<Tree>>,
+    trees: Vec<Py<PyTree>>,
     data: Data<'py>,
     num_threads: usize,
     batch_size: usize,
 ) -> PyResult<DeltaSumHitCount<'py>> {
     match &data {
-        Data::F64(array) => {
+        Data::F32(array) => {
             calc_feature_delta_sum_generic(py, &trees, array, num_threads, batch_size)
         }
-        Data::F32(array) => {
+        Data::F64(array) => {
             calc_feature_delta_sum_generic(py, &trees, array, num_threads, batch_size)
         }
     }
@@ -259,13 +196,13 @@ pub(crate) fn calc_feature_delta_sum<'py>(
 
 fn calc_feature_delta_sum_generic<'py, T>(
     py: Python<'py>,
-    trees: &[Py<Tree>],
+    trees: &[Py<PyTree>],
     data: &PyReadonlyArray2<'py, T>,
     num_threads: usize,
     batch_size: usize,
 ) -> PyResult<DeltaSumHitCount<'py>>
 where
-    T: Element + Copy + Send + Sync + PartialOrd + TreeDtype,
+    T: TreeDtype,
 {
     let data_view = data.as_array();
     check_data(data_view)?;
@@ -302,15 +239,15 @@ fn calc_feature_delta_sum_impl<T>(
     mut delta_sum: ArrayViewMut2<f64>,
     mut hit_count: ArrayViewMut2<i64>,
 ) where
-    T: Copy + Send + Sync + PartialOrd + TreeDtype,
+    T: TreeDtype,
 {
     let inner_fn = |sample: ArrayView1<T>,
                     mut delta_sum_row: ArrayViewMut1<f64>,
                     mut hit_count_row: ArrayViewMut1<i64>| {
         let sample = sample.as_slice().unwrap();
-        for tree in &forest.trees {
+        for tree in forest.trees() {
             // Sidecar array with the average path length of each node
-            let node_apl = &tree.node_average_path_length;
+            let node_apl = tree.node_average_path_length();
 
             tree.for_each_split(sample, |node_index, split, child_index| {
                 // Here we cast to f64 following the original Cython implementation, but
@@ -348,26 +285,26 @@ fn calc_feature_delta_sum_impl<T>(
 #[pyo3(signature = (trees, data, *, num_threads, batch_size))]
 pub(crate) fn calc_apply<'py>(
     py: Python<'py>,
-    trees: Vec<Py<Tree>>,
+    trees: Vec<Py<PyTree>>,
     data: Data<'py>,
     num_threads: usize,
     batch_size: usize,
 ) -> PyResult<Bound<'py, PyArray2<u32>>> {
     match &data {
-        Data::F64(array) => calc_apply_generic(py, &trees, array, num_threads, batch_size),
         Data::F32(array) => calc_apply_generic(py, &trees, array, num_threads, batch_size),
+        Data::F64(array) => calc_apply_generic(py, &trees, array, num_threads, batch_size),
     }
 }
 
 fn calc_apply_generic<'py, T>(
     py: Python<'py>,
-    trees: &[Py<Tree>],
+    trees: &[Py<PyTree>],
     data: &PyReadonlyArray2<'py, T>,
     num_threads: usize,
     batch_size: usize,
 ) -> PyResult<Bound<'py, PyArray2<u32>>>
 where
-    T: Element + Copy + Send + Sync + PartialOrd + TreeDtype,
+    T: TreeDtype,
 {
     let data_view = data.as_array();
     check_data(data_view)?;
@@ -376,7 +313,7 @@ where
 
     let num_threads = get_num_threads(data_view.nrows(), num_threads, batch_size)?;
 
-    let leafs = PyArray2::zeros(py, (data_view.nrows(), forest.trees.len()), false);
+    let leafs = PyArray2::zeros(py, (data_view.nrows(), forest.trees().len()), false);
     // SAFETY: this call invalidates other views, but it is the only view we need
     let leafs_view = unsafe { leafs.as_array_mut() };
 
@@ -392,7 +329,7 @@ fn calc_apply_impl<T>(
     batch_size: usize,
     mut leafs: ArrayViewMut2<u32>,
 ) where
-    T: Copy + Send + Sync + PartialOrd + TreeDtype,
+    T: TreeDtype,
 {
     let inner_fn = |sample: ArrayView1<T>, mut sample_leafs: ArrayViewMut1<u32>| {
         let sample = sample.as_slice().unwrap();
