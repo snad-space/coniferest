@@ -210,3 +210,44 @@ fn calc_apply_impl<T>(
     let zip = Zip::from(data.rows()).and(leaves.rows_mut());
     forest.parallel_process(zip, inner_fn, batch_size);
 }
+
+pub(crate) fn calc_leaf_values_py<'py, T>(
+    py: Python<'py>,
+    forest: &ForestInner<T>,
+    data: &PyReadonlyArray2<'py, T>,
+    batch_size: usize,
+) -> PyResult<Bound<'py, PyArray2<f32>>>
+where
+    T: Float,
+{
+    let data_view = data.as_array();
+    check_data(&data_view)?;
+
+    let values = PyArray2::zeros(py, (data_view.nrows(), forest.trees().len()), false);
+    // SAFETY: this call invalidates other views, but it is the only view we need
+    let mut values_view = unsafe { values.as_array_mut() };
+
+    calc_leaf_values_impl(forest, &data_view, batch_size, &mut values_view);
+
+    Ok(values)
+}
+
+fn calc_leaf_values_impl<T>(
+    forest: &ForestInner<T>,
+    data: &ArrayRef2<T>,
+    batch_size: usize,
+    values: &mut ArrayRef2<f32>,
+) where
+    T: Float,
+{
+    let inner_fn = |(sample, mut sample_values): (ArrayView1<T>, ArrayViewMut1<f32>)| {
+        let sample = sample.as_slice().unwrap();
+        let values_slice = sample_values.as_slice_mut().unwrap();
+        for ((tree, _leaf_offset), value) in forest.iter().zip(values_slice.iter_mut()) {
+            *value = tree.find_leaf(sample).value;
+        }
+    };
+
+    let zip = Zip::from(data.rows()).and(values.rows_mut());
+    forest.parallel_process(zip, inner_fn, batch_size);
+}

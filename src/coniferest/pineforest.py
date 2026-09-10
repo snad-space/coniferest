@@ -1,6 +1,5 @@
 import numpy as np
 
-from ._core import CoreForest
 from .coniferest import Coniferest, ConiferestEvaluator
 from .evaluator import ForestEvaluator
 from .label import Label
@@ -248,18 +247,14 @@ class PineForest(Coniferest):
             sampletrees_per_batch=self.sampletrees_per_batch,
         )
 
-        # Leaf values are depth + average_path_length(n_leaf_samples),
-        # i.e. the estimated path lengths
-        leaf_values = ForestEvaluator.combine_leaf_values(core_forest)
-        heights = leaf_values[evaluator.apply(data)]
+        heights = evaluator.leaf_values(data)
 
         weights = labels.copy()
         weights[labels == Label.REGULAR] = weight_ratio * Label.REGULAR
         weighted_paths = (heights * np.reshape(weights, (-1, 1))).sum(axis=0)
         keep_indices = weighted_paths.argsort()[n_filter:]
 
-        kept_trees = [core_forest[int(i)] for i in keep_indices]
-        return CoreForest(kept_trees, n_features=core_forest.n_features, num_threads=core_forest.num_threads)
+        return core_forest[keep_indices]
 
     def score_samples(self, samples):
         """
