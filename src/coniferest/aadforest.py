@@ -22,10 +22,32 @@ class AADEvaluator(ConiferestEvaluator):
         self.prior_influence = aad.prior_influence
         self.weights = np.full(shape=(self.n_leaves,), fill_value=np.reciprocal(np.sqrt(self.n_leaves)))
 
-        # Global-leaf-indexed array of the mapped decision values: it is used
-        # both for scoring (overriding the raw values stored in the trees)
-        # and for building the optimization problem in fit_known
+        # map_value never changes after construction (only self.weights does,
+        # via fit_known), so the mapped decision values are baked into the
+        # trees themselves here, once, instead of being kept in a separate
+        # array that score_samples had to pass to calc_paths_sum on every
+        # call. self.leaf_values is still kept as a global-leaf-indexed
+        # cache: it's used for vectorized indexing when building the QP
+        # problem in fit_known, which would be slow to do tree-by-tree.
         self.leaf_values = aad.map_value(self.combine_leaf_values(self.trees))
+        self.trees = self._bake_leaf_values(self.trees, self.leaf_values)
+
+    @staticmethod
+    def _bake_leaf_values(trees, leaf_values):
+        """Return new trees with `leaf_values` written into their leaves.
+
+        `leaf_values` is a single global-leaf-indexed array (as produced by
+        `combine_leaf_values`); it's split per tree using each tree's
+        `n_leaves` before being handed to `Tree.with_leaf_values`.
+        """
+        baked = []
+        offset = 0
+        for tree in trees:
+            n_leaves = tree.n_leaves
+            chunk = np.ascontiguousarray(leaf_values[offset : offset + n_leaves], dtype=np.float64)
+            baked.append(tree.with_leaf_values(chunk))
+            offset += n_leaves
+        return baked
 
     def _q_tau(self, scores):
         if self.budget == "auto":
@@ -69,7 +91,6 @@ class AADEvaluator(ConiferestEvaluator):
             self.trees,
             x,
             weights,
-            leaf_values=self.leaf_values,
             num_threads=self.num_threads,
             batch_size=self.batch_size,
         )
