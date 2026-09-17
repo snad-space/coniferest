@@ -3,43 +3,32 @@ import math
 import numpy as np
 from scipy.sparse import csr_array
 
-from ._core import Tree, calc_apply, calc_feature_delta_sum, calc_paths_sum  # noqa
 from .utils import average_path_length
 
 __all__ = ["ForestEvaluator"]
 
 
 class ForestEvaluator:
-    def __init__(self, samples, trees, *, num_threads, sampletrees_per_batch):
+    def __init__(self, samples, core_forest, *, sampletrees_per_batch):
         """
-        Base class for the forest evaluators. Does the trivial job:
-        * runs calc_paths_sum written in Rust,
-        * combines per-tree leaf values into a global array.
+        Base class for the forest evaluators. It is a thin layer on top of a
+        `coniferest._core.CoreForest`: it computes the anomaly-score formula,
+        converts the dense leaf indices to a sparse representation and the
+        leaf co-occurrence distance.
 
         Parameters
         ----------
         samples
             Number of samples in every tree.
 
-        trees
-            List of `coniferest._core.Tree` objects.
-
-        num_threads : int or None
-            Number of threads to use for calculations. If None or negative,
-            all available CPUs are used.
+        core_forest
+            `coniferest._core.CoreForest` instance to evaluate.
 
         sampletrees_per_batch : int
             Target number of sample-tree pairs per parallel batch.
         """
         self.samples = samples
-        self.trees = list(trees)
-
-        if num_threads is None or num_threads < 0:
-            # Ask Rust's rayon to use all available threads
-            self.num_threads = 0
-        else:
-            self.num_threads = num_threads
-
+        self.core_forest = core_forest
         self.sampletrees_per_batch = sampletrees_per_batch
 
     @property
@@ -47,16 +36,16 @@ class ForestEvaluator:
         return math.ceil(self.sampletrees_per_batch / self.n_trees)
 
     @staticmethod
-    def combine_leaf_values(trees):
+    def combine_leaf_values(core_forest):
         """Concatenate per-tree leaf values into one global-leaf-indexed array."""
-        if len(trees) == 0:
+        if len(core_forest) == 0:
             return np.empty((0,), dtype=np.float64)
-        return np.concatenate([tree.leaf_values() for tree in trees])
+        return np.concatenate([tree.leaf_values() for tree in core_forest])
 
     @property
     def dtype(self):
         """Data dtype the trees were built on."""
-        return np.dtype(self.trees[0].dtype)
+        return np.dtype(self.core_forest[0].dtype)
 
     def _prepare_x(self, x):
         """C-contiguous array of the trees' dtype, copying only if needed."""
@@ -64,11 +53,11 @@ class ForestEvaluator:
 
     @property
     def n_trees(self):
-        return len(self.trees)
+        return len(self.core_forest)
 
     @property
     def n_leaves(self):
-        return int(sum(tree.n_leaves for tree in self.trees))
+        return int(sum(tree.n_leaves for tree in self.core_forest))
 
     def score_samples(self, x):
         """
@@ -86,28 +75,13 @@ class ForestEvaluator:
         """
         x = self._prepare_x(x)
 
-        return -(
-            2
-            ** (
-                -calc_paths_sum(
-                    self.trees,
-                    x,
-                    num_threads=self.num_threads,
-                    batch_size=self.batch_size,
-                )
-                / (self.average_path_length(self.samples) * self.n_trees)
-            )
-        )
+        paths_sum = self.core_forest.calc_paths_sum(x, batch_size=self.batch_size)
+        return -(2 ** (-paths_sum / (self.average_path_length(self.samples) * self.n_trees)))
 
     def _feature_delta_sum(self, x):
         x = self._prepare_x(x)
 
-        return calc_feature_delta_sum(
-            self.trees,
-            x,
-            num_threads=self.num_threads,
-            batch_size=self.batch_size,
-        )
+        return self.core_forest.calc_feature_delta_sum(x, batch_size=self.batch_size)
 
     def feature_signature(self, x):
         delta_sum, hit_count = self._feature_delta_sum(x)
@@ -122,12 +96,7 @@ class ForestEvaluator:
     def _dense_apply(self, x):
         x = self._prepare_x(x)
 
-        return calc_apply(
-            self.trees,
-            x,
-            num_threads=self.num_threads,
-            batch_size=self.batch_size,
-        )
+        return self.core_forest.calc_apply(x, batch_size=self.batch_size)
 
     def _sparse_apply(self, x):
         dense = self._dense_apply(x)
