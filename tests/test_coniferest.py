@@ -191,6 +191,80 @@ def test_core_forest_getitem_out_of_range(n_jobs):
         forest[len(forest)]
 
 
+def assert_forest_holds(forest, trees):
+    """The forest holds exactly `trees`, in that order."""
+    assert isinstance(forest, CoreForest)
+    assert len(forest) == len(trees)
+    for actual, expected in zip(forest, trees):
+        assert_tree_equal(actual, expected)
+
+
+def test_core_forest_getitem_negative(n_jobs):
+    forest = build_forest(0, n_jobs=n_jobs)
+    trees = list(forest)
+
+    assert isinstance(forest[-1], Tree)
+    assert_tree_equal(forest[-1], trees[-1])
+    assert_tree_equal(forest[-len(forest)], trees[0])
+    with pytest.raises(IndexError):
+        forest[-len(forest) - 1]
+
+
+@pytest.mark.parametrize(
+    "index", [slice(2, 5), slice(None, None, 2), slice(None, None, -1), slice(-3, None), slice(100, 200)]
+)
+def test_core_forest_getitem_slice(index, n_jobs):
+    forest = build_forest(0, n_jobs=n_jobs)
+    trees = list(forest)
+
+    assert_forest_holds(forest[index], trees[index])
+
+
+def test_core_forest_getitem_int_array(n_jobs):
+    """Fancy indexing takes arrays or lists, and may repeat or reorder trees."""
+    forest = build_forest(0, n_jobs=n_jobs)
+    trees = list(forest)
+
+    assert_forest_holds(forest[np.array([5, 0, 3])], [trees[i] for i in (5, 0, 3)])
+    assert_forest_holds(forest[[5, 0, 3]], [trees[i] for i in (5, 0, 3)])
+    assert_forest_holds(forest[np.array([2, 2, 2])], [trees[2]] * 3)
+    assert_forest_holds(forest[np.array([-1, -len(forest)])], [trees[-1], trees[0]])
+    assert_forest_holds(forest[np.array([], dtype=int)], [])
+
+
+def test_core_forest_getitem_bool_mask(n_jobs):
+    forest = build_forest(0, n_jobs=n_jobs)
+    trees = list(forest)
+    mask = np.zeros(len(forest), dtype=bool)
+    mask[[1, 4, 7]] = True
+
+    assert_forest_holds(forest[mask], [trees[i] for i in (1, 4, 7)])
+    assert_forest_holds(forest[np.zeros(len(forest), dtype=bool)], [])
+
+
+def test_core_forest_getitem_fancy_keeps_attributes(n_jobs):
+    forest = build_forest(0, n_jobs=n_jobs)
+    selected = forest[np.array([1, 0])]
+
+    assert selected.n_features == forest.n_features
+    assert selected.num_threads == forest.num_threads
+
+
+@pytest.mark.parametrize(
+    "index",
+    [
+        np.array([0, 8]),
+        np.array([-9, 0]),
+        np.zeros(7, dtype=bool),
+        np.zeros(9, dtype=bool),
+    ],
+)
+def test_core_forest_getitem_fancy_out_of_range(index, n_jobs):
+    forest = build_forest(0, n_trees=8, n_jobs=n_jobs)
+    with pytest.raises(IndexError):
+        forest[index]
+
+
 def test_core_forest_setitem(n_jobs):
     forest = build_forest(0, n_jobs=n_jobs)
     replacement = forest[1]
