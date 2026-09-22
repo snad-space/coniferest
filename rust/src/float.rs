@@ -2,10 +2,11 @@
 
 pub(crate) trait Float:
     num_traits::Float
-    + num_traits::AsPrimitive<f32>
+    + std::fmt::Display // to use in format!, e.g. for Python exceptions
+    // + num_traits::AsPrimitive<f32>
     + rand::distr::uniform::SampleUniform  // crate::tree::builder::SplitAlgorithm
     + numpy::Element  // numpy array element
-    + Send + Sync
+    + Send + Sync  // for multithreading
     + 'static
 {
     /// Euler gamma constant, used in [crate::utils::average_path_length].

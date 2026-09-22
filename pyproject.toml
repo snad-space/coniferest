@@ -25,7 +25,6 @@ dependencies = [
     "click>=8.2", # click.Choice to accept enums
     "numpy",
     "scipy",
-    "onnx",
     "onnxconverter-common",
     "clarabel",
 ]
