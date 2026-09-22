@@ -39,7 +39,8 @@ pub(super) use dispatch_forest_tree;
 impl ForestVariant {
     /// Push one tree, validating its dtype matches the forest's (via
     /// [dispatch_forest_tree]) and that it doesn't reference a feature
-    /// index beyond the forest's `n_features`.
+    /// index beyond the forest's `n_features`. Empty trees are always
+    /// accepted.
     fn try_push_tree(&mut self, tree: TreeVariant) -> PyResult<()> {
         dispatch_forest_tree!(self, tree, |forest, tree| => {
             if let Some(max_feature) = tree.max_split_feature()
@@ -76,6 +77,14 @@ impl ForestVariant {
             forest.try_push_tree(tree)?;
         }
         Ok(forest)
+    }
+
+    /// Return the numpy dtype name.
+    pub(super) fn dtype_str(&self) -> &'static str {
+        match self {
+            ForestVariant::F32(_) => "float32",
+            ForestVariant::F64(_) => "float64",
+        }
     }
 }
 

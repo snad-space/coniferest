@@ -45,7 +45,7 @@ class ForestEvaluator:
     @property
     def dtype(self):
         """Data dtype the trees were built on."""
-        return np.dtype(self.core_forest[0].dtype)
+        return self.core_forest.dtype
 
     def _prepare_x(self, x):
         """C-contiguous array of the trees' dtype, copying only if needed."""

@@ -5,7 +5,7 @@ use crate::forest::builder::build_forest_py;
 use crate::forest::inner::{ForestInner, ForestVariant};
 use crate::forest::traversal::{calc_apply_py, calc_feature_delta_sum_py, calc_paths_sum_py};
 use crate::tree::{PyTree, TreeVariant};
-use numpy::{PyArray1, PyArray2, PyReadonlyArray1};
+use numpy::{PyArray1, PyArray2, PyArrayDescr, PyReadonlyArray1};
 use pyo3::exceptions::{PyIndexError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -30,6 +30,15 @@ impl From<ForestInner<f64>> for PyCoreForest {
     fn from(inner: ForestInner<f64>) -> Self {
         PyCoreForest(ForestVariant::F64(inner))
     }
+}
+
+macro_rules! dispatch_data {
+    ($data_variant:expr, |$data:ident| => $body:expr) => {
+        match $data_variant {
+            Data::F32($data) => $body,
+            Data::F64($data) => $body,
+        }
+    };
 }
 
 /// Dispatch `$body` over variants of [ForestVariant] and [Data].
@@ -124,26 +133,15 @@ pub(crate) fn build_core_forest<'py>(
     max_depth: usize,
     num_threads: usize,
 ) -> PyResult<PyCoreForest> {
-    match &data {
-        Data::F32(data) => build_forest_py(
-            py,
-            data,
-            seed,
-            n_trees,
-            n_subsamples,
-            max_depth,
-            num_threads,
-        ),
-        Data::F64(data) => build_forest_py(
-            py,
-            data,
-            seed,
-            n_trees,
-            n_subsamples,
-            max_depth,
-            num_threads,
-        ),
-    }
+    dispatch_data!(data, |data| => build_forest_py(
+        py,
+        &data,
+        seed,
+        n_trees,
+        n_subsamples,
+        max_depth,
+        num_threads,
+    ))
 }
 
 pub(crate) type DeltaSumHitCount<'py> = (Bound<'py, PyArray2<f64>>, Bound<'py, PyArray2<i64>>);
@@ -193,6 +191,11 @@ impl PyCoreForest {
     #[setter]
     fn set_num_threads(&mut self, num_threads: usize) {
         on_forest_inner!(&mut self.0, forest => forest.set_num_threads(num_threads))
+    }
+
+    #[getter]
+    fn dtype<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArrayDescr>> {
+        PyArrayDescr::new(py, self.0.dtype_str())
     }
 
     /// Calculate the sum of path lengths over the forest for every sample.

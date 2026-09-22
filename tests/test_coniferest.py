@@ -60,10 +60,10 @@ def test_reproducibility_build_trees():
 
 @pytest.mark.regression
 def test_regression_build_trees(regression_data):
-    trees = build_forest(0)
+    forest = build_forest(0)
     regression_data.check_with(
         lambda actual, desired: [assert_tree_equal(a, b) for a, b in zip(actual, desired)],
-        trees,
+        forest,
     )
 
 
