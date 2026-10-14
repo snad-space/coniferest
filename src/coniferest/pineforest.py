@@ -1,5 +1,6 @@
 import numpy as np
 
+from ._core import CoreForest
 from .coniferest import Coniferest, ConiferestEvaluator
 from .evaluator import ForestEvaluator
 from .label import Label
@@ -71,7 +72,6 @@ class PineForest(Coniferest):
         sampletrees_per_batch=1 << 20,
     ):
         super().__init__(
-            trees=[],
             n_subsamples=n_subsamples,
             max_depth=max_depth,
             n_jobs=n_jobs,
@@ -101,9 +101,13 @@ class PineForest(Coniferest):
         -------
         None
         """
-        n = n_trees - len(self.trees)
+        n = n_trees - (0 if self.core_forest is None else len(self.core_forest))
         if n > 0:
-            self.trees.extend(self.build_trees(data, n))
+            new_forest = self.build_forest(data, n)
+            if self.core_forest is None:
+                self.core_forest = new_forest
+            else:
+                self.core_forest += new_forest
 
     def _contract_trees(self, known_data, known_labels, n_trees):
         """
@@ -124,10 +128,10 @@ class PineForest(Coniferest):
         -------
         None
         """
-        n_filter = len(self.trees) - n_trees
+        n_filter = len(self.core_forest) - n_trees
         if n_filter > 0:
-            self.trees = self.filter_trees(
-                trees=self.trees,
+            self.core_forest = self.filter_trees(
+                core_forest=self.core_forest,
                 data=known_data,
                 labels=known_labels,
                 n_filter=n_filter,
@@ -187,7 +191,7 @@ class PineForest(Coniferest):
         known_data, known_labels = self._validate_known_data(known_data, known_labels)
 
         if self.regenerate_trees:
-            self.trees = []
+            self.core_forest = None
 
         if (
             known_data is None
@@ -206,14 +210,14 @@ class PineForest(Coniferest):
 
     # Made non-static to make sure we always use it in a way that makes inheritance with truly non-static methods
     # possible.
-    def filter_trees(self, trees, data, labels, n_filter, weight_ratio=1):
+    def filter_trees(self, core_forest, data, labels, n_filter, weight_ratio=1):
         """
-        Filter the trees out.
+        Filter the worst-scoring trees out of the forest.
 
         Parameters
         ----------
-        trees
-            Trees to filter.
+        core_forest
+            `CoreForest` to filter the trees from.
 
         n_filter
             Number of trees to filter out.
@@ -226,31 +230,36 @@ class PineForest(Coniferest):
 
         weight_ratio
             Weight of the false positive experience relative to false negative. Defaults to 1.
+
+        Returns
+        -------
+        CoreForest
+            A new forest with the `n_filter` worst-scoring trees removed.
         """
         data = self._prepare_data(data)
 
-        # `trees` is the pre-filter superset (n_trees + n_spare_trees), which generally
-        # doesn't match self.trees/self.evaluator (built for the previous, smaller tree
-        # set), so apply() needs its own evaluator built from `trees` rather than
+        # `core_forest` is the pre-filter superset (n_trees + n_spare_trees), which generally
+        # doesn't match self.core_forest/self.evaluator (built for the previous, smaller tree
+        # set), so apply() needs its own evaluator built from `core_forest` rather than
         # self.evaluator, or leaf indices below would be computed against the wrong trees.
         evaluator = ForestEvaluator(
             samples=self.n_subsamples,
-            trees=trees,
-            num_threads=self.n_jobs,
+            core_forest=core_forest,
             sampletrees_per_batch=self.sampletrees_per_batch,
         )
 
         # Leaf values are depth + average_path_length(n_leaf_samples),
         # i.e. the estimated path lengths
-        leaf_values = ForestEvaluator.combine_leaf_values(trees)
+        leaf_values = ForestEvaluator.combine_leaf_values(core_forest)
         heights = leaf_values[evaluator.apply(data)]
 
         weights = labels.copy()
         weights[labels == Label.REGULAR] = weight_ratio * Label.REGULAR
         weighted_paths = (heights * np.reshape(weights, (-1, 1))).sum(axis=0)
-        indices = weighted_paths.argsort()[n_filter:]
+        keep_indices = weighted_paths.argsort()[n_filter:]
 
-        return [trees[i] for i in indices]
+        kept_trees = [core_forest[int(i)] for i in keep_indices]
+        return CoreForest(kept_trees, n_features=core_forest.n_features, num_threads=core_forest.num_threads)
 
     def score_samples(self, samples):
         """

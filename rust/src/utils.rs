@@ -16,8 +16,8 @@ where
     T: Float,
 {
     let n: T = n.as_();
-    if n <= T::one() {
-        T::zero()
+    if n <= 1.0.as_() {
+        0.0.as_()
     } else {
         // According to godblot all these .as_() will happen in the compile time
         2.0.as_()
