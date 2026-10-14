@@ -88,6 +88,11 @@ class ForestEvaluator:
 
         return delta_sum / hit_count / self.average_path_length(self.samples)
 
+    def leaf_values(self, x):
+        x = self._prepare_x(x)
+
+        return self.core_forest.calc_leaf_values(x, batch_size=self.batch_size)
+
     def feature_importance(self, x):
         delta_sum, hit_count = self._feature_delta_sum(x)
 
