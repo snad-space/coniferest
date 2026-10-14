@@ -264,7 +264,7 @@ class AADForest(Coniferest):
         prior_influence=0.0,
         n_jobs=-1,
         random_seed=None,
-        sampletrees_per_batch=1 << 20,
+        sampletrees_per_batch=1 << 14,
         map_value=None,
     ):
         super().__init__(
