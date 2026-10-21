@@ -74,7 +74,7 @@ class AADEvaluator(ConiferestEvaluator):
     def fit_known(self, data, known_data, known_labels, prior_weights=None):
         scores = self.score_samples(data)
         q_tau = self._q_tau(scores)
-        known_leafs = self.apply(known_data)
+        known_leafs = self.apply(known_data, output="sparse")
 
         n_anomalies = np.count_nonzero(known_labels == Label.ANOMALY)
         n_nominals = np.count_nonzero(known_labels == Label.REGULAR)
@@ -115,23 +115,24 @@ class AADEvaluator(ConiferestEvaluator):
         ## - Weight variables
         ## - Cost variables
         ## - q_tau variable
+        known_leafs_rows = np.repeat(np.arange(n_knowns), np.diff(known_leafs.indptr))
         col_ind = np.concatenate(
             [
-                known_leafs.flatten(),
+                known_leafs.indices,
                 np.tile(np.arange(offset_knowns, offset_q_tau), 2),
                 np.full((n_knowns,), offset_q_tau) if n_q_tau else [],
             ]
         )
         row_ind = np.concatenate(
             [
-                np.repeat(np.arange(n_knowns), self.n_trees),
+                known_leafs_rows,
                 np.arange(n_constraints),
                 np.arange(n_knowns) if n_q_tau else [],
             ]
         )
         data = np.concatenate(
             [
-                (-self.leaf_values[known_leafs] * known_labels.reshape(-1, 1)).flatten(),
+                -self.leaf_values[known_leafs.indices] * known_labels[known_leafs_rows],
                 np.full((n_constraints,), -1),
                 known_labels if n_q_tau else [],
             ]
