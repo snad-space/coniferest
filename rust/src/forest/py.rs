@@ -5,7 +5,8 @@ use crate::forest::builder::build_forest_py;
 use crate::forest::index::InputForestIndex;
 use crate::forest::inner::{ForestInner, ForestVariant};
 use crate::forest::traversal::{
-    calc_apply_py, calc_decision_path_py, calc_feature_delta_sum_py, calc_leaf_values_py, calc_paths_sum_py,
+    calc_apply_py, calc_decision_path_py, calc_feature_delta_sum_py, calc_leaf_values_py,
+    calc_paths_sum_py,
 };
 use crate::tree::{PyTree, TreeVariant};
 use numpy::{PyArray1, PyArray2, PyArrayDescr, PyReadonlyArray1};
