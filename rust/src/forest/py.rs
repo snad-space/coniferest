@@ -200,6 +200,16 @@ impl PyCoreForest {
     }
 
     #[getter]
+    fn n_nodes(&self) -> u32 {
+        on_forest_inner!(&self.0, forest => forest.n_nodes().try_into().unwrap())
+    }
+
+    #[getter]
+    fn n_leaves(&self) -> u32 {
+        on_forest_inner!(&self.0, forest => forest.n_leaves().try_into().unwrap())
+    }
+
+    #[getter]
     fn num_threads(&self) -> usize {
         on_forest_inner!(&self.0, forest => forest.num_threads())
     }

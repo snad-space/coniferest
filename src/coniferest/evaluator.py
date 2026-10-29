@@ -57,7 +57,11 @@ class ForestEvaluator:
 
     @property
     def n_leaves(self):
-        return int(sum(tree.n_leaves for tree in self.core_forest))
+        return self.core_forest.n_leaves
+
+    @property
+    def n_nodes(self):
+        return self.core_forest.n_nodes
 
     def score_samples(self, x):
         """
