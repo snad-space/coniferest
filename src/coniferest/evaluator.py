@@ -167,6 +167,17 @@ class ForestEvaluator:
 
         return 1 - (x_leaves @ y_leaves.T).toarray() / n_trees
 
+    def decision_path(self, x):
+        x = self._prepare_x(x)
+
+        n_samples = x.shape[0]
+        n_nodes = self.n_nodes
+
+        indices, indptr = self.core_forest.calc_decision_path(x, batch_size=self.batch_size)
+        data = np.ones_like(indices, dtype=np.float32)
+
+        return csr_array((data, indices, indptr), shape=(n_samples, n_nodes))
+
     def distance(self, x, y, *, method=None):
         """
         Compute distance matrix between samples based on leaf co-occurrence.
