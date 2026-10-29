@@ -305,6 +305,24 @@ def test_benchmark_feature_signature(n_features, n_jobs, benchmark):
 
 @pytest.mark.benchmark
 @pytest.mark.long
+@pytest.mark.parametrize("n_samples", [1 << 10, 1 << 20])
+def test_benchmark_decision_path(n_samples, n_jobs, benchmark):
+    benchmark.group = f"IsolationForest.decision_path {n_samples = :3d}, {n_jobs = :2d}"
+    benchmark.name = "coniferest.isoforest.IsolationForest"
+
+    random_seed = 0
+    n_features = 16
+    n_trees = 1024
+    rng = np.random.default_rng(random_seed)
+    data = rng.standard_normal((n_samples, n_features))
+    forest = IsolationForest(n_trees=n_trees, n_jobs=n_jobs, random_seed=random_seed)
+    forest.fit(data)
+
+    benchmark(forest.decision_path, data[:1])
+
+
+@pytest.mark.benchmark
+@pytest.mark.long
 @pytest.mark.parametrize("n_samples", [1, 1 << 5, 1 << 10, 1 << 20])
 @pytest.mark.parametrize("n_trees", [1 << 6, 1 << 7, 1 << 8])
 @pytest.mark.parametrize("n_jobs", [1, 2, 4])
@@ -339,3 +357,45 @@ def test_float32_data():
 
     scores = forest.score_samples(data)
     assert_equal(forest.score_samples(data.astype(np.float64)), scores)
+
+
+def test_decision_path():
+    n_features = 16
+    n_trees = 100
+    n_subsamples = 256
+
+    random_seed = np.random.randint(1 << 16)
+    rng = np.random.default_rng(random_seed)
+    data = rng.standard_normal((n_trees * n_subsamples, n_features))
+
+    forest = IsolationForest(
+        n_trees=n_trees,
+        n_subsamples=n_subsamples,
+        max_depth=None,
+        random_seed=random_seed,
+    )
+
+    forest.fit(data)
+
+    nodes = forest.decision_path(data)
+
+    # Check that `n_trees` leaf nodes are present for each sample
+    leaf_mask = np.concatenate([tree.left == 0 for tree in forest.core_forest])
+    assert_equal(
+        np.count_nonzero(nodes[:, leaf_mask].todense(), axis=1), np.full(data.shape[0], n_trees, dtype=np.uint64)
+    )
+
+    # Check that `n_trees` root nodes are present for each sample
+    offsets = np.cumsum(
+        np.concatenate(
+            [
+                [
+                    0,
+                ],
+                [tree.n_nodes for tree in forest.core_forest],
+            ]
+        )
+    )[:-1]
+    assert_equal(
+        np.count_nonzero(nodes[:, offsets].todense(), axis=1), np.full(data.shape[0], n_trees, dtype=np.uint64)
+    )
