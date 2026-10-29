@@ -6,6 +6,7 @@ use itertools::Itertools;
 use ndarray::ArrayRef2;
 use rand::distr::{Distribution, Uniform};
 use rand::{Rng, RngExt};
+use std::iter::zip;
 use std::mem::MaybeUninit;
 use std::num::NonZeroU32;
 
