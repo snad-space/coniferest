@@ -1,7 +1,7 @@
 use crate::float::Float;
 use crate::forest::inner::ForestInner;
 use crate::forest::py::DeltaSumHitCount;
-use ndarray::{ArrayRef1, ArrayRef2, ArrayView1, ArrayViewMut1, Zip};
+use ndarray::{ArrayRef1, ArrayRef2, ArrayView1, ArrayViewMut1, Axis, Zip};
 use numpy::{PyArray1, PyArray2, PyArrayMethods, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -209,6 +209,61 @@ fn calc_apply_impl<T>(
 
     let zip = Zip::from(data.rows()).and(leaves.rows_mut());
     forest.parallel_process(zip, inner_fn, batch_size);
+}
+
+pub(crate) fn calc_decision_path_py<'py, T>(
+    py: Python<'py>,
+    forest: &ForestInner<T>,
+    data: &PyReadonlyArray2<'py, T>,
+    batch_size: usize,
+) -> PyResult<(Bound<'py, PyArray1<usize>>, Bound<'py, PyArray1<usize>>)>
+where
+    T: Float,
+{
+    let data_view = data.as_array();
+    check_data(&data_view)?;
+
+    let indptr = unsafe { PyArray1::new(py, data_view.nrows() + 1, false) };
+    let mut indptr_view = unsafe { indptr.as_array_mut() };
+
+    // SAFETY: this call invalidates other views, but it is the only view we need
+    // let mut leaves_view = unsafe { leaves.as_array_mut() };
+
+    let v = calc_decision_function_impl(forest, &data_view, batch_size, &mut indptr_view);
+    let indices = PyArray1::from_vec(py, v);
+
+    Ok((indices, indptr))
+}
+
+fn calc_decision_function_impl<T>(
+    forest: &ForestInner<T>,
+    data: &ArrayRef2<T>,
+    batch_size: usize,
+    indptr: &mut ArrayRef1<usize>,
+) -> Vec<usize>
+where
+    T: Float,
+{
+    let mut v: Vec<usize> = Vec::new();
+
+    indptr[0] = 0;
+    for (chunk_id, chunk) in data.axis_chunks_iter(Axis(0), batch_size).enumerate() {
+        for (i, row) in chunk.rows().into_iter().enumerate() {
+            let row_id = chunk_id * batch_size + i;
+            let mut node_offset = 0 as usize;
+            for tree in forest.trees() {
+                v.push(node_offset); // insert root node
+                tree.for_each_split(row.as_slice().unwrap(), |_, _, child_index| {
+                    v.push(child_index + node_offset)
+                });
+                node_offset += tree.nodes().len();
+            }
+
+            indptr[row_id + 1] = v.len()
+        }
+    }
+
+    v
 }
 
 pub(crate) fn calc_leaf_values_py<'py, T>(

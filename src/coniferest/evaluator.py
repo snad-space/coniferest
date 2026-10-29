@@ -57,7 +57,11 @@ class ForestEvaluator:
 
     @property
     def n_leaves(self):
-        return int(sum(tree.n_leaves for tree in self.core_forest))
+        return self.core_forest.n_leaves
+
+    @property
+    def n_nodes(self):
+        return self.core_forest.n_nodes
 
     def score_samples(self, x):
         """
@@ -162,6 +166,17 @@ class ForestEvaluator:
             y_leaves = x_leaves
 
         return 1 - (x_leaves @ y_leaves.T).toarray() / n_trees
+
+    def decision_path(self, x):
+        x = self._prepare_x(x)
+
+        n_samples = x.shape[0]
+        n_nodes = self.n_nodes
+
+        indices, indptr = self.core_forest.calc_decision_path(x, batch_size=self.batch_size)
+        data = np.ones_like(indices, dtype=np.float32)
+
+        return csr_array((data, indices, indptr), shape=(n_samples, n_nodes))
 
     def distance(self, x, y, *, method=None):
         """

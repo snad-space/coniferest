@@ -5,7 +5,8 @@ use crate::forest::builder::build_forest_py;
 use crate::forest::index::InputForestIndex;
 use crate::forest::inner::{ForestInner, ForestVariant};
 use crate::forest::traversal::{
-    calc_apply_py, calc_feature_delta_sum_py, calc_leaf_values_py, calc_paths_sum_py,
+    calc_apply_py, calc_decision_path_py, calc_feature_delta_sum_py, calc_leaf_values_py,
+    calc_paths_sum_py,
 };
 use crate::tree::{PyTree, TreeVariant};
 use numpy::{PyArray1, PyArray2, PyArrayDescr, PyReadonlyArray1};
@@ -200,6 +201,16 @@ impl PyCoreForest {
     }
 
     #[getter]
+    fn n_nodes(&self) -> u32 {
+        on_forest_inner!(&self.0, forest => forest.n_nodes().try_into().unwrap())
+    }
+
+    #[getter]
+    fn n_leaves(&self) -> u32 {
+        on_forest_inner!(&self.0, forest => forest.n_leaves().try_into().unwrap())
+    }
+
+    #[getter]
     fn num_threads(&self) -> usize {
         on_forest_inner!(&self.0, forest => forest.num_threads())
     }
@@ -260,6 +271,17 @@ impl PyCoreForest {
         batch_size: usize,
     ) -> PyResult<Bound<'py, PyArray2<usize>>> {
         dispatch_forest_data!(&self.0, data, |forest, data| => calc_apply_py(py, forest, &data, batch_size))
+    }
+
+    ///
+    #[pyo3(signature = (data, *, batch_size))]
+    fn calc_decision_path<'py>(
+        &self,
+        py: Python<'py>,
+        data: Data<'py>,
+        batch_size: usize,
+    ) -> PyResult<(Bound<'py, PyArray1<usize>>, Bound<'py, PyArray1<usize>>)> {
+        dispatch_forest_data!(&self.0, data, |forest, data| => calc_decision_path_py(py, forest, &data, batch_size))
     }
 
     /// Find values of the leaves be every sample

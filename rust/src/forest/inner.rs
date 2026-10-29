@@ -198,6 +198,10 @@ impl<T> ForestInner<T> {
             .get_or_init(|| Self::init_leaf_offsets(&self.trees))
     }
 
+    pub(crate) fn n_nodes(&self) -> usize {
+        self.trees.iter().fold(0, |acc, x| acc + x.nodes().len())
+    }
+
     pub(crate) fn n_leaves(&self) -> usize {
         // When no trees are present, offsets are [0]
         *self.leaf_offsets().last().unwrap()
