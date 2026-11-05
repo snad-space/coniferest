@@ -121,6 +121,9 @@ class IsolationForest(Coniferest):
         """
         return self.evaluator.apply(x, output)
 
+    def decision_path(self, x):
+        return self.evaluator.decision_path(x)
+
     def distance(self, x, y=None, *, method=None):
         """
         Compute distance matrix between samples based on leaf co-occurrence.

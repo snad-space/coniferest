@@ -6,6 +6,7 @@ use itertools::Itertools;
 use ndarray::ArrayRef2;
 use rand::distr::{Distribution, Uniform};
 use rand::{Rng, RngExt};
+use std::iter::zip;
 use std::mem::MaybeUninit;
 use std::num::NonZeroU32;
 
@@ -125,6 +126,7 @@ struct Task<'a> {
 struct NodeArena<T> {
     nodes: Vec<MaybeUninit<Node<T>>>,
     n_node_samples: Vec<f32>,
+    depths: Vec<u16>,
 }
 
 impl<T> NodeArena<T> {
@@ -134,6 +136,7 @@ impl<T> NodeArena<T> {
         let mut slf = Self {
             nodes: Vec::with_capacity(capacity),
             n_node_samples: Vec::with_capacity(capacity),
+            depths: Vec::with_capacity(capacity),
         };
         slf.push_uninit();
         slf
@@ -144,6 +147,7 @@ impl<T> NodeArena<T> {
         let new_last_index = self.len();
         self.nodes.push(MaybeUninit::uninit());
         self.n_node_samples.push(0.0);
+        self.depths.push(0);
         new_last_index
     }
 
@@ -153,11 +157,12 @@ impl<T> NodeArena<T> {
     /// `index` must be a slot allocated by [`push_uninit`](Self::push_uninit).
     /// Overwriting an already-initialized slot leaks it rather than dropping,
     /// but is otherwise sound.
-    unsafe fn insert(&mut self, index: usize, node: Node<T>, n_samples: usize) {
+    unsafe fn insert(&mut self, index: usize, node: Node<T>, n_samples: usize, depth: u16) {
         let node = MaybeUninit::new(node);
         let n_samples = n_samples as f32;
         unsafe { *self.nodes.as_mut_ptr().add(index) = node };
         unsafe { *self.n_node_samples.as_mut_ptr().add(index) = n_samples };
+        unsafe { *self.depths.as_mut_ptr().add(index) = depth };
     }
 
     /// Consume the builder and return the nodes as a plain `Vec<N>`.
@@ -165,7 +170,7 @@ impl<T> NodeArena<T> {
     /// # Safety
     /// Every slot allocated by [`push_uninit`](Self::push_uninit) must have
     /// been initialized by [`insert`](Self::insert).
-    unsafe fn build(self) -> (Vec<Node<T>>, Vec<f32>, u32) {
+    unsafe fn build(self) -> (Vec<Node<T>>, Vec<f32>, Vec<u16>, u32) {
         // `MaybeUninit<N>` has the same layout as `N`, so once every element is
         //  initialized, the two vectors are layout-compatible.
         let mut nodes =
@@ -183,7 +188,7 @@ impl<T> NodeArena<T> {
             }
         }
 
-        (nodes, self.n_node_samples, leaf_index)
+        (nodes, self.n_node_samples, self.depths, leaf_index)
     }
 
     fn len(&self) -> usize {
@@ -267,6 +272,7 @@ where
                                 value: depth as f32 + average_path_length::<_, f32>(slice.len()),
                             }),
                             slice.len(),
+                            depth,
                         )
                     };
                 }
@@ -292,6 +298,7 @@ where
                                 split_value: value,
                             }),
                             slice.len(),
+                            depth,
                         );
                     };
 
@@ -315,11 +322,10 @@ where
         }
 
         // SAFETY: the node vector is fully initialized, and we can safely build it.
-        let (nodes, n_node_samples, n_leaves) = unsafe { builder.build() };
+        let (nodes, n_node_samples, depths, n_leaves) = unsafe { builder.build() };
 
-        let node_average_path_length = n_node_samples
-            .iter()
-            .map(|&n| average_path_length(n))
+        let node_average_path_length = zip(n_node_samples, depths)
+            .map(|(n, d)| average_path_length::<f32, f32>(n) + d as f32)
             .collect();
 
         TreeInner::new(nodes, node_average_path_length, n_leaves, n_subsamples)
