@@ -157,7 +157,7 @@ fn calc_feature_delta_sum_impl<T>(
                 // Here we cast to f64 following the original Cython implementation, but
                 // it is subject to change.
                 *unsafe { delta_sum_row.uget_mut(split.split_feature as usize) } +=
-                    1.0 + (node_apl[child_index] - node_apl[node_index]) as f64;
+                    (node_apl[child_index] - node_apl[node_index]) as f64;
                 *unsafe { hit_count_row.uget_mut(split.split_feature as usize) } += 1;
             });
         }
