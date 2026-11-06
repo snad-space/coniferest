@@ -32,7 +32,18 @@ def test_onnx_aadforest(initial_weights, feedback):
     onnx.checker.check_model(o)
     scores_onnx = _evaluate_onnx(o, data.astype(np.float32))
 
-    np.testing.assert_allclose(scores_onnx, scores_model, 1e-5)
+    if initial_weights is None and not feedback:
+        np.testing.assert_allclose(scores_onnx, scores_model, 1e-5)
+    else:
+        # Signed leaf contributions can cancel near zero. Bound float32
+        # coefficient rounding and summation instead of relative error alone.
+        leaves = model.apply(data)
+        np.testing.assert_array_equal(leaves, model.apply(data.astype(np.float32)))
+        contributions = model.evaluator.weights[leaves] * model.evaluator.leaf_values[leaves]
+        eps = np.finfo(np.float32).eps
+        gamma = (model.n_trees + 1) * eps / (1 - (model.n_trees + 1) * eps)
+        bound = gamma * np.abs(contributions).sum(axis=1)
+        np.testing.assert_array_less(np.abs(scores_onnx - scores_model), np.nextafter(bound, np.inf))
 
 
 def test_onnx_isoforest():
