@@ -113,3 +113,56 @@ def test_benchmark_fit_known(n_jobs, benchmark):
     forest.fit(data)
 
     benchmark(forest.fit_known, data, known_data=known_data, known_labels=known_labels)
+
+
+@pytest.mark.parametrize("initial_weights", ["uniform", "zero", "random"])
+def test_initial_weights(initial_weights):
+    data = np.arange(128.0).reshape(32, 4)
+    params = dict(n_trees=5, n_subsamples=16, random_seed=42, n_jobs=1)
+    default = AADForest(**params).fit(data)
+    forest = AADForest(**params, initial_weights=initial_weights).fit(data)
+    np.testing.assert_array_equal(forest.apply(data), default.apply(data))
+    if initial_weights == "uniform":
+        np.testing.assert_array_equal(forest.evaluator.weights, default.evaluator.weights)
+        np.testing.assert_array_equal(forest.score_samples(data), default.score_samples(data))
+        assert forest.rng.bit_generator.state == default.rng.bit_generator.state
+    elif initial_weights == "zero":
+        np.testing.assert_array_equal(forest.evaluator.weights, 0)
+        np.testing.assert_array_equal(forest.score_samples(data), 0)
+        assert forest.rng.bit_generator.state == default.rng.bit_generator.state
+    else:
+        expected = default.rng.uniform(-1.0, 1.0, size=default.evaluator.n_leaves)
+        expected /= np.linalg.norm(expected)
+        np.testing.assert_array_equal(forest.evaluator.weights, expected)
+        repeated = AADForest(**params, initial_weights="random").fit(data)
+        np.testing.assert_array_equal(forest.score_samples(data), repeated.score_samples(data))
+        assert np.isclose(np.linalg.norm(forest.evaluator.weights), 1)
+    weights = forest.evaluator.weights.copy()
+    forest.fit(data)
+    np.testing.assert_array_equal(forest.evaluator.weights, weights)
+
+
+@pytest.mark.parametrize("initial_weights", ["zero", "random"])
+@pytest.mark.parametrize("budget", ["auto", 0.2])
+@pytest.mark.parametrize("prior_influence", [0.0, 1.0])
+def test_initial_weights_feedback(initial_weights, budget, prior_influence):
+    data, _metadata = single_outlier()
+    forest = AADForest(
+        n_trees=5,
+        n_subsamples=32,
+        n_jobs=1,
+        random_seed=42,
+        initial_weights=initial_weights,
+        budget=budget,
+        prior_influence=prior_influence,
+    ).fit(data)
+    forest.fit_known(data, data[[0, -1]], np.asarray([Label.REGULAR, Label.ANOMALY]))
+    assert np.all(np.isfinite(forest.evaluator.weights))
+    assert np.all(np.isfinite(forest.score_samples(data)))
+    assert np.isclose(np.linalg.norm(forest.evaluator.weights), 1)
+
+
+@pytest.mark.parametrize("initial_weights", [None, "invalid", 1])
+def test_invalid_initial_weights(initial_weights):
+    with pytest.raises(ValueError, match="initial_weights"):
+        AADForest(initial_weights=initial_weights)
