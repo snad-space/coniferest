@@ -6,6 +6,7 @@ import pytest
 from coniferest.aadforest import AADForest
 from coniferest.datasets import single_outlier
 from coniferest.isoforest import IsolationForest
+from coniferest.label import Label
 from coniferest.onnx import to_onnx
 from coniferest.pineforest import PineForest
 
@@ -17,16 +18,32 @@ def _evaluate_onnx(o, data):
     return sess.run([label_name], {input_name: data})[0].reshape(-1)
 
 
-def test_onnx_aadforest():
+@pytest.mark.parametrize("initial_weights", [None, "uniform", "zero", "random"])
+@pytest.mark.parametrize("feedback", [False, True])
+def test_onnx_aadforest(initial_weights, feedback):
     data, _metadata = single_outlier()
-    model = AADForest(n_trees=10, random_seed=0).fit(data)
+    options = {} if initial_weights is None else {"initial_weights": initial_weights}
+    model = AADForest(n_trees=10, random_seed=0, n_jobs=1, **options).fit(data)
+    if feedback:
+        model.fit_known(data, data[[0, -1]], np.asarray([Label.REGULAR, Label.ANOMALY]))
     scores_model = model.score_samples(data)
 
     o = to_onnx(model)
     onnx.checker.check_model(o)
     scores_onnx = _evaluate_onnx(o, data.astype(np.float32))
 
-    np.testing.assert_allclose(scores_onnx, scores_model, 1e-5)
+    if initial_weights is None and not feedback:
+        np.testing.assert_allclose(scores_onnx, scores_model, 1e-5)
+    else:
+        # Signed leaf contributions can cancel near zero. Bound float32
+        # coefficient rounding and summation instead of relative error alone.
+        leaves = model.apply(data)
+        np.testing.assert_array_equal(leaves, model.apply(data.astype(np.float32)))
+        contributions = model.evaluator.weights[leaves] * model.evaluator.leaf_values[leaves]
+        eps = np.finfo(np.float32).eps
+        gamma = (model.n_trees + 1) * eps / (1 - (model.n_trees + 1) * eps)
+        bound = gamma * np.abs(contributions).sum(axis=1)
+        np.testing.assert_array_less(np.abs(scores_onnx - scores_model), np.nextafter(bound, np.inf))
 
 
 def test_onnx_isoforest():

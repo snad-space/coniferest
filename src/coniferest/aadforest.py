@@ -19,7 +19,13 @@ class AADEvaluator(ConiferestEvaluator):
         self.budget = aad.budget
         self.n_jobs = aad.n_jobs
         self.prior_influence = aad.prior_influence
-        self.weights = np.full(shape=(self.n_leaves,), fill_value=np.reciprocal(np.sqrt(self.n_leaves)))
+        if aad.initial_weights == "uniform":
+            self.weights = np.full(shape=(self.n_leaves,), fill_value=np.reciprocal(np.sqrt(self.n_leaves)))
+        elif aad.initial_weights == "zero":
+            self.weights = np.zeros(self.n_leaves)
+        else:
+            self.weights = aad.rng.uniform(-1.0, 1.0, size=self.n_leaves)
+            self.weights /= np.linalg.norm(self.weights)
 
         # Global-leaf-indexed array of the mapped decision values: it is used
         # both for scoring (overriding the raw values stored in the trees)
@@ -246,6 +252,13 @@ class AADForest(Coniferest):
         A function applied to the leaf depth before weighting. Possible
         meaning variants are: 1, 1-exp(-x), x, -1/x.
 
+    initial_weights : {"uniform", "zero", "random"}, default="uniform"
+        Initial leaf weights. "uniform" gives equal weights with unit L2 norm;
+        "zero" gives zero weights and initial scores; "random" samples uniformly
+        from (-1, 1) and normalizes to unit L2 norm. Random weights use
+        `random_seed` after the trees are built. These weights are also the
+        default prior for the first feedback update.
+
     Attributes
     ----------
     n_features_in_ : int
@@ -266,6 +279,7 @@ class AADForest(Coniferest):
         random_seed=None,
         sampletrees_per_batch=1 << 14,
         map_value=None,
+        initial_weights="uniform",
     ):
         super().__init__(
             n_subsamples=n_subsamples,
@@ -275,6 +289,9 @@ class AADForest(Coniferest):
             sampletrees_per_batch=sampletrees_per_batch,
         )
         self.n_trees = n_trees
+        if initial_weights not in ("uniform", "zero", "random"):
+            raise ValueError('initial_weights must be "uniform", "zero" or "random"')
+        self.initial_weights = initial_weights
 
         if not (isinstance(budget, (int, float)) or budget == "auto"):
             raise ValueError('budget must be an int or float or "auto"')
