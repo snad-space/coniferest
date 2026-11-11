@@ -240,7 +240,8 @@ fn calc_decision_function_impl<T>(
     data: &ArrayRef2<T>,
     batch_size: usize,
     indptr: &mut ArrayRef1<usize>,
-) -> Vec<usize> where
+) -> Vec<usize>
+where
     T: Float,
 {
     let mut v: Vec<usize> = Vec::new();
@@ -252,7 +253,9 @@ fn calc_decision_function_impl<T>(
             let mut node_offset = 0 as usize;
             for tree in forest.trees() {
                 v.push(node_offset); // insert root node
-                tree.for_each_split(row.as_slice().unwrap(), |_, _, child_index| {v.push(child_index + node_offset)});
+                tree.for_each_split(row.as_slice().unwrap(), |_, _, child_index| {
+                    v.push(child_index + node_offset)
+                });
                 node_offset += tree.nodes().len();
             }
 
@@ -262,7 +265,6 @@ fn calc_decision_function_impl<T>(
 
     v
 }
-
 
 pub(crate) fn calc_leaf_values_py<'py, T>(
     py: Python<'py>,
