@@ -19,12 +19,18 @@ class AADEvaluator(ConiferestEvaluator):
         self.budget = aad.budget
         self.n_jobs = aad.n_jobs
         self.prior_influence = aad.prior_influence
-        self.weights = np.full(shape=(self.n_leaves,), fill_value=np.reciprocal(np.sqrt(self.n_leaves)))
+        self.leaves_only = aad.loss == "hinge"
+        n_weights = self.n_leaves if self.leaves_only else self.n_nodes
+        self.weights = np.full(shape=(n_weights,), fill_value=np.reciprocal(np.sqrt(n_weights)))
 
         # Global-leaf-indexed array of the mapped decision values: it is used
         # both for scoring (overriding the raw values stored in the trees)
         # and for building the optimization problem in fit_known
-        self.leaf_values = aad.map_value(self.combine_leaf_values(self.core_forest))
+        if self.leaves_only:
+            self.values = self.combine_leaf_values(self.core_forest)
+        else:
+            self.values = self.combine_node_values(self.core_forest)
+        self.values = aad.map_value(self.values)
 
     def _q_tau(self, scores):
         if self.budget == "auto":
@@ -64,17 +70,23 @@ class AADEvaluator(ConiferestEvaluator):
         if weights is None:
             weights = self.weights
 
-        return self.core_forest.calc_paths_sum(
-            x,
-            weights,
-            leaf_values=self.leaf_values,
-            batch_size=self.batch_size,
-        )
+        if self.leaves_only:
+            return self.core_forest.calc_paths_sum(
+                x,
+                weights,
+                leaf_values=self.values,
+                batch_size=self.batch_size,
+            )
+        else:
+            return np.sum(self.decision_path(x) * self.values * weights, axis=1)
 
     def fit_known(self, data, known_data, known_labels, prior_weights=None):
         scores = self.score_samples(data)
         q_tau = self._q_tau(scores)
-        known_leafs = self.apply(known_data)
+        if self.leaves_only:
+            known_leafs = self.apply(known_data, output="sparse")
+        else:
+            known_leafs = self.decision_path(known_data)
 
         n_anomalies = np.count_nonzero(known_labels == Label.ANOMALY)
         n_nominals = np.count_nonzero(known_labels == Label.REGULAR)
@@ -115,23 +127,24 @@ class AADEvaluator(ConiferestEvaluator):
         ## - Weight variables
         ## - Cost variables
         ## - q_tau variable
+        known_leafs_rows = np.repeat(np.arange(n_knowns), np.diff(known_leafs.indptr))
         col_ind = np.concatenate(
             [
-                known_leafs.flatten(),
+                known_leafs.indices,
                 np.tile(np.arange(offset_knowns, offset_q_tau), 2),
                 np.full((n_knowns,), offset_q_tau) if n_q_tau else [],
             ]
         )
         row_ind = np.concatenate(
             [
-                np.repeat(np.arange(n_knowns), self.n_trees),
+                known_leafs_rows,
                 np.arange(n_constraints),
                 np.arange(n_knowns) if n_q_tau else [],
             ]
         )
         data = np.concatenate(
             [
-                (-self.leaf_values[known_leafs] * known_labels.reshape(-1, 1)).flatten(),
+                -self.values[known_leafs.indices] * known_labels[known_leafs_rows],
                 np.full((n_constraints,), -1),
                 known_labels if n_q_tau else [],
             ]
@@ -232,6 +245,10 @@ class AADForest(Coniferest):
     C_n : float, default=1.0
         Finite nonnegative cost parameter for nominals in the loss function. It is a cost for false positive anomalies.
 
+    loss : {"hinge", "hinge_nodes"}, default="hinge"
+        Loss function variant. "hinge" is defined over the tree leaves only,
+        while "hinge_nodes" also takes the internal tree nodes into account.
+
     n_jobs : int, default=-1
         Number of threads to use for scoring. If -1, use all available CPUs.
 
@@ -261,6 +278,7 @@ class AADForest(Coniferest):
         budget="auto",
         C_a=1.0,
         C_n=1.0,
+        loss="hinge",
         prior_influence=0.0,
         n_jobs=-1,
         random_seed=None,
@@ -282,6 +300,11 @@ class AADForest(Coniferest):
         self.budget = budget
         self.C_a = C_a
         self.C_n = C_n
+
+        if loss not in ("hinge", "hinge_nodes"):
+            raise ValueError('loss must be "hinge" or "hinge_nodes"')
+
+        self.loss = loss
 
         if isinstance(prior_influence, Callable):
             self.prior_influence = prior_influence
@@ -426,6 +449,9 @@ class AADForest(Coniferest):
             sample reaches the leaf.
         """
         return self.evaluator.apply(x, output)
+
+    def decision_path(self, x):
+        return self.evaluator.decision_path(x)
 
     def distance(self, x, y=None, *, method=None):
         """

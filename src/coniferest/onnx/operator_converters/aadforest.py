@@ -13,7 +13,7 @@ def add_tree_to_attribute_pairs(attr_pairs, tree, leaf_offset, evaluator):
     def process_node(node_id):
         if left[node_id] <= 0:
             leaf_id = leaf_offset + int(feature[node_id])
-            weight = evaluator.weights[leaf_id] * evaluator.leaf_values[leaf_id]
+            weight = evaluator.weights[leaf_id] * evaluator.values[leaf_id]
             add_leaf(attr_pairs, weight)
             return len(attr_pairs["leaf_weights"]) - 1, True
 
