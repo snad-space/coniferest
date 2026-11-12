@@ -42,6 +42,13 @@ class ForestEvaluator:
             return np.empty((0,), dtype=np.float64)
         return np.concatenate([tree.leaf_values() for tree in core_forest])
 
+    @staticmethod
+    def combine_node_values(core_forest):
+        """Concatenate per-tree node values into one global-leaf-indexed array."""
+        if len(core_forest) == 0:
+            return np.empty((0,), dtype=np.float64)
+        return np.concatenate([tree.node_average_path_length for tree in core_forest])
+
     @property
     def dtype(self):
         """Data dtype the trees were built on."""

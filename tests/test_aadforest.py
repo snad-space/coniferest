@@ -6,35 +6,40 @@ from coniferest.datasets import single_outlier
 from coniferest.label import Label
 
 
-def test_scores_negative():
+@pytest.mark.parametrize("loss", ["hinge", "hinge_nodes"])
+def test_scores_negative(loss):
     data = np.arange(1024.0).reshape(256, 4)
-    forest = AADForest(n_trees=10, random_seed=0).fit(data)
+    forest = AADForest(n_trees=10, random_seed=0, loss=loss).fit(data)
     scores = forest.score_samples(data)
     assert np.all(scores < 0)
 
 
-def test_single_outlier():
+@pytest.mark.parametrize("loss", ["hinge", "hinge_nodes"])
+def test_single_outlier(loss):
     data, _metadata = single_outlier()
-    forest = AADForest(n_trees=10, random_seed=42).fit(data)
+    forest = AADForest(n_trees=10, random_seed=42, loss=loss).fit(data)
     scores = forest.score_samples(data)
     # Outlier goes last and must have the lowest score
     assert np.argmin(scores) == data.shape[0] - 1
 
 
-def test_prior_influence_value():
+@pytest.mark.parametrize("loss", ["hinge", "hinge_nodes"])
+def test_prior_influence_value(loss):
     data, _metadata = single_outlier()
-    forest = AADForest(n_trees=10, random_seed=42, prior_influence=2.0).fit(data)
+    forest = AADForest(n_trees=10, random_seed=42, prior_influence=2.0, loss=loss).fit(data)
     scores = forest.score_samples(data)
     # Outlier goes last and must have the lowest score
     assert np.argmin(scores) == data.shape[0] - 1
 
 
-def test_prior_influence_callable():
+@pytest.mark.parametrize("loss", ["hinge", "hinge_nodes"])
+def test_prior_influence_callable(loss):
     data, _metadata = single_outlier()
     forest = AADForest(
         n_trees=10,
         random_seed=42,
         prior_influence=lambda ac, nc: np.max(1.0, 0.5 / (ac + nc)),
+        loss=loss
     ).fit(data)
     scores = forest.score_samples(data)
     # Outlier goes last and must have the lowest score
