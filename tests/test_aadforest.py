@@ -36,10 +36,7 @@ def test_prior_influence_value(loss):
 def test_prior_influence_callable(loss):
     data, _metadata = single_outlier()
     forest = AADForest(
-        n_trees=10,
-        random_seed=42,
-        prior_influence=lambda ac, nc: np.max(1.0, 0.5 / (ac + nc)),
-        loss=loss
+        n_trees=10, random_seed=42, prior_influence=lambda ac, nc: np.max(1.0, 0.5 / (ac + nc)), loss=loss
     ).fit(data)
     scores = forest.score_samples(data)
     # Outlier goes last and must have the lowest score
