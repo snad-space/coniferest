@@ -302,6 +302,7 @@ def test_benchmark_feature_signature(n_features, n_jobs, benchmark):
 
     benchmark(forest.feature_signature, data[:1])
 
+
 @pytest.mark.benchmark
 @pytest.mark.long
 @pytest.mark.parametrize("n_samples", [1 << 10, 1 << 20])
