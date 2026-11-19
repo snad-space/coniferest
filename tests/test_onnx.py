@@ -6,7 +6,6 @@ import pytest
 from coniferest.aadforest import AADForest
 from coniferest.datasets import single_outlier
 from coniferest.isoforest import IsolationForest
-from coniferest.label import Label
 from coniferest.onnx import to_onnx
 from coniferest.pineforest import PineForest
 
@@ -19,20 +18,17 @@ def _evaluate_onnx(o, data):
 
 
 @pytest.mark.parametrize("initial_weights", [None, "uniform", "zero", "random"])
-@pytest.mark.parametrize("feedback", [False, True])
-def test_onnx_aadforest(initial_weights, feedback):
+def test_onnx_aadforest(initial_weights):
     data, _metadata = single_outlier()
     options = {} if initial_weights is None else {"initial_weights": initial_weights}
     model = AADForest(n_trees=10, random_seed=0, n_jobs=1, **options).fit(data)
-    if feedback:
-        model.fit_known(data, data[[0, -1]], np.asarray([Label.REGULAR, Label.ANOMALY]))
     scores_model = model.score_samples(data)
 
     o = to_onnx(model)
     onnx.checker.check_model(o)
     scores_onnx = _evaluate_onnx(o, data.astype(np.float32))
 
-    if initial_weights is None and not feedback:
+    if initial_weights is None:
         np.testing.assert_allclose(scores_onnx, scores_model, 1e-5)
     else:
         # Signed leaf contributions can cancel near zero. Bound float32

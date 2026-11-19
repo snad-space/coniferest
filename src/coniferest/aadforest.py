@@ -23,7 +23,7 @@ class AADEvaluator(ConiferestEvaluator):
             self.weights = np.full(shape=(self.n_leaves,), fill_value=np.reciprocal(np.sqrt(self.n_leaves)))
         elif aad.initial_weights == "zero":
             self.weights = np.zeros(self.n_leaves)
-        else:
+        else:  # initial_weights == "random"
             self.weights = aad.rng.uniform(-1.0, 1.0, size=self.n_leaves)
             self.weights /= np.linalg.norm(self.weights)
 
