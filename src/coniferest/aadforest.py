@@ -1,9 +1,11 @@
+from abc import abstractmethod
 from numbers import Real
 from typing import Callable
 
 import clarabel
 import numpy as np
 from scipy import sparse
+from scipy.special import expit, log_expit
 
 from .coniferest import Coniferest, ConiferestEvaluator
 from .label import Label
@@ -14,6 +16,100 @@ __all__ = ["AADForest"]
 class AADEvaluator(ConiferestEvaluator):
     def __init__(self, aad):
         super(AADEvaluator, self).__init__(aad)
+
+    @abstractmethod
+    def score_samples(self, samples, weights=None):
+        """
+        Evaluate scores for samples.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def fit_known(self, data, known_data, known_labels):
+        """
+        Evaluate scores for samples.
+        """
+        raise NotImplementedError()
+
+
+class AADCrossEntropyEvaluator(AADEvaluator):
+    def __init__(self, aad):
+        super(AADCrossEntropyEvaluator, self).__init__(aad)
+        self.weights = np.ones(shape=(self.n_leaves,))
+        self.bias = 0.0  # Not sure about 0.0
+
+    def score_samples(self, x, weights=None):
+        # Anomaly score is a probability of being REGULAR data.
+
+        if not x.flags["C_CONTIGUOUS"]:
+            x = np.ascontiguousarray(x)
+
+        if weights is None:
+            weights = self.weights
+
+        return expit(
+            calc_paths_sum(
+                self.selectors,
+                self.node_offsets,
+                x,
+                weights,
+                num_threads=self.num_threads,
+                batch_size=self.get_batch_size(self.n_trees),
+            )
+            + self.bias
+        )
+
+    def loss(self, weights, known_data, known_labels):
+
+        v = (
+            calc_paths_sum(
+                self.selectors,
+                self.node_offsets,
+                known_data,
+                weights[1:],
+                num_threads=self.num_threads,
+                batch_size=self.get_batch_size(self.n_trees),
+            )
+            + weights[0]
+        )
+
+        return -np.sum(log_expit(known_labels * v))
+
+    def loss_gradient(self, weights, known_data, known_labels):
+
+        v = (
+            calc_paths_sum(
+                self.selectors,
+                self.node_offsets,
+                known_data,
+                weights[1:],
+                num_threads=self.num_threads,
+                batch_size=self.get_batch_size(self.n_trees),
+            )
+            + weights[0]
+        )
+
+        dloss_dv = -known_labels * expit(-known_labels * v)
+        dloss_dbias = np.sum(dloss_dv)
+        dloss_dweights = calc_paths_sum_transpose(
+            self.selectors,
+            self.node_offsets,
+            self.leaf_offsets,
+            known_data,
+            dloss_dv,
+            num_threads=self.num_threads,
+            batch_size=self.get_batch_size(len(known_data)),
+        )
+
+        return np.concatenate([[dloss_dbias], dloss_dweights])
+
+    def loss_hessian(self, weights, vector, known_data, known_labels):
+        pass
+
+
+class AADHingeEvaluator(AADEvaluator):
+    def __init__(self, aad):
+        super(AADHingeEvaluator, self).__init__(aad)
         self.C_a = aad.C_a
         self.C_n = aad.C_n
         self.budget = aad.budget
@@ -246,6 +342,10 @@ class AADForest(Coniferest):
         A function applied to the leaf depth before weighting. Possible
         meaning variants are: 1, 1-exp(-x), x, -1/x.
 
+    loss : ["hinge"], optional (default="hinge")
+        Loss function used to optimize the leaf weights. The default is the hinge loss,
+        as in the original paper.
+
     Attributes
     ----------
     n_features_in_ : int
@@ -266,6 +366,7 @@ class AADForest(Coniferest):
         random_seed=None,
         sampletrees_per_batch=1 << 14,
         map_value=None,
+        loss="hinge",
     ):
         super().__init__(
             n_subsamples=n_subsamples,
@@ -307,12 +408,19 @@ class AADForest(Coniferest):
         else:
             raise ValueError(f"map_value is neither a callable nor one of {', '.join(MAP_VALUES.keys())}.")
 
+        LOSSES = ["hinge"]
+
+        if loss not in LOSSES:
+            raise ValueError(f"loss is not one of {', '.join(LOSSES)}.")
+
+        self.loss = loss
+
         self.evaluator = None
 
     def _build_forest(self, data):
         if self.core_forest is None:
             self.core_forest = self.build_forest(data, self.n_trees)
-            self.evaluator = AADEvaluator(self)
+            self.evaluator = AADHingeEvaluator(self)
 
     def fit(self, data, labels=None):
         """
